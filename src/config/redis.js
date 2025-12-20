@@ -1,67 +1,56 @@
 import { createClient } from 'redis';
 import logger from '../utils/logger.js';
 
-let redisClient = null;
+let client
 
 export const connectRedis = async () => {
-  if (redisClient) return redisClient;
 
-  try {
-    const redisURL = process.env.REDIS_URL || 'redis://localhost:6379';
-
-    redisClient = createClient({
-      url: redisURL,
+    client = createClient({
+      username: 'default',
+      password: process.env.REDIS_PASSWORD,
       socket: {
-        reconnectStrategy: (retries) => {
-          if (retries > 10) {
-            logger.error('Redis reconnection failed after 10 attempts');
-            return new Error('Redis reconnection exhausted');
-          }
-          return retries * 100;
-        }
+          host: process.env.REDIS_HOST,
+          port: process.env.REDIS_PORT
       }
-    });
+  });
 
-    redisClient.on('connect', () => {
+  client.on('error', err => console.log('Redis Client Error', err));
+
+    client.on('connect', () => {
       logger.info('Redis client connected');
     });
 
-    redisClient.on('ready', () => {
+    client.on('ready', () => {
       logger.info('Redis client ready');
     });
 
-    redisClient.on('error', (err) => {
+    client.on('error', (err) => {
       logger.error('Redis client error:', err);
     });
 
-    redisClient.on('reconnecting', () => {
+    client.on('reconnecting', () => {
       logger.warn('Redis client reconnecting');
     });
 
-    redisClient.on('end', () => {
+    client.on('end', () => {
       logger.warn('Redis client disconnected');
     });
 
-    await redisClient.connect();
-
-    return redisClient;
-  } catch (error) {
-    logger.error('Redis connection failed:', error);
-    throw error;
-  }
+    await client.connect();
+    return client;
 };
 
 export const getRedisClient = () => {
-  if (!redisClient) {
+  if (!client) {
     throw new Error('Redis client not initialized. Call connectRedis() first.');
   }
-  return redisClient;
+  return client;
 };
 
 export const disconnectRedis = async () => {
-  if (redisClient) {
-    await redisClient.quit();
-    redisClient = null;
+  if (client) {
+    await client.quit();
+    client = null;
     logger.info('Redis client disconnected');
   }
 };

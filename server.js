@@ -55,11 +55,7 @@ const gracefulShutdown = async (signal) => {
       }
       
       // Close Redis connection
-      const redis = await connectRedis();
-      if (redis?.isOpen) {
-        await redis.quit();
-        logger.info('Redis connection closed');
-      }
+      if (redisClient?.isOpen) await redisClient.quit();
       
       process.exit(0);
     } catch (error) {
@@ -91,6 +87,8 @@ process.on('uncaughtException', (error) => {
   gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
 
+let redisClient;
+
 // Start server
 const startServer = async () => {
   try {
@@ -99,7 +97,7 @@ const startServer = async () => {
     logger.info('MongoDB connected successfully');
     
     // Connect to Redis
-    const redis = await connectRedis();
+    redisClient = await connectRedis();
     logger.info('Redis connected successfully');
     
     // Start HTTP server

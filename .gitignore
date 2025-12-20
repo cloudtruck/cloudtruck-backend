@@ -1,0 +1,59 @@
+# Backend .gitignore - generated entries for backend project
+
+# Node modules
+node_modules/
+
+# Environment files
+.env
+.env.*
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Uploads / generated user files
+uploads/
+uploads/**
+
+# Build / output
+dist/
+build/
+coverage/
+.nyc_output/
+
+# Runtime files
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Database files
+*.sqlite
+*.db
+*.db-journal
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Cache / misc
+.cache/
+.eslintcache
+.parcel-cache/
+.sourcemaps/
+
+# Optional: local secrets
+.secrets/
+
+# Ignore local debug artifacts
+*.tgz
+
+# Ignore compiled TypeScript outputs (if any)
+lib/
+
+# End of file

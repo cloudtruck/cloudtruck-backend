@@ -1,0 +1,1520 @@
+{
+  "info": {
+    "name": "Cloudtruck API (v1)",
+    "_postman_id": "6f1d3d33-0b0c-4be7-b4fc-0b5ac4c03519",
+    "description": "Postman collection generated from backend route + validator definitions. Base path: /api/v1.\n\nNotes:\n- Collection auth uses Bearer {{accessToken}}. Login requests save access/refresh tokens into collection variables.\n- Some payment endpoints have code/validator param-name mismatches; those requests are included but may return 400 until the backend is aligned.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api/v1", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "userId", "value": "", "type": "string" },
+    { "key": "customerId", "value": "", "type": "string" },
+    { "key": "driverId", "value": "", "type": "string" },
+    { "key": "vehicleId", "value": "", "type": "string" },
+    { "key": "staffId", "value": "", "type": "string" },
+    { "key": "bookingId", "value": "", "type": "string" },
+    { "key": "routeId", "value": "", "type": "string" },
+    { "key": "documentId", "value": "", "type": "string" },
+    { "key": "cloudinaryId", "value": "", "type": "string" },
+    { "key": "paymentId", "value": "", "type": "string" },
+    { "key": "merchantTransactionId", "value": "", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{accessToken}}", "type": "string" }
+    ]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generic helper: capture common IDs when present",
+          "try {",
+          "  const json = pm.response.json();",
+          "  const data = json && json.data ? json.data : null;",
+          "  if (!data) return;",
+          "  if (data._id) {",
+          "    // Heuristic: store lastCreatedId for manual use",
+          "    pm.collectionVariables.set('lastCreatedId', data._id);",
+          "  }",
+          "} catch (e) {}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (Mobile/Firebase) - saves tokens",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"<FIREBASE_ID_TOKEN>\",\n  \"role\": \"customer\",\n  \"deviceInfo\": {\n    \"deviceModel\": \"Postman\",\n    \"os\": \"Windows\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/auth/login/mobile"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  const data = json.data || {};",
+                  "  if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "  if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);",
+                  "  if (data.user && data.user._id) pm.collectionVariables.set('userId', data.user._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (Staff Email/Password) - saves tokens",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin1234\",\n  \"deviceInfo\": {\n    \"deviceModel\": \"Postman\",\n    \"os\": \"Windows\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/auth/login/staff"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  const data = json.data || {};",
+                  "  if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "  if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);",
+                  "  if (data.user && data.user._id) pm.collectionVariables.set('userId', data.user._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "Refresh Access Token (uses refreshToken variable)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/refresh-token"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  const data = json.data || {};",
+                  "  if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" },
+            "url": "{{baseUrl}}/auth/logout"
+          }
+        },
+        {
+          "name": "Logout (All Devices)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/auth/logout-all"
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"OldPass123\",\n  \"newPassword\": \"NewPass123\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/change-password"
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\"\n}" },
+            "url": "{{baseUrl}}/auth/reset-password"
+          }
+        },
+        {
+          "name": "Register Staff (staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"staff1@example.com\",\n  \"password\": \"Staff1234\",\n  \"role\": \"staff\",\n  \"name\": \"Ops Staff\",\n  \"department\": \"operations\",\n  \"title\": \"Operator\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/register/staff"
+          }
+        },
+        {
+          "name": "Verify User (staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/auth/verify/{{userId}}"
+          }
+        },
+        {
+          "name": "Block User (staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/auth/block/{{userId}}"
+          }
+        },
+        {
+          "name": "Unblock User (staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/auth/unblock/{{userId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "Create Booking (customer) - saves bookingId",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupCity\": \"Mumbai\",\n  \"pickupLat\": 19.076\n,  \"pickupLng\": 72.8777,\n  \"pickupAddress\": \"Mumbai, Maharashtra\",\n  \"dropCity\": \"Pune\",\n  \"dropLat\": 18.5204,\n  \"dropLng\": 73.8567,\n  \"dropAddress\": \"Pune, Maharashtra\",\n  \"materialType\": \"FMCG\",\n  \"weight\": 10,\n  \"truckType\": \"17ft\",\n  \"loadDate\": \"2025-12-13T10:00:00.000Z\",\n  \"advanceRequired\": 0,\n  \"additionalInstructions\": \"Handle with care\"\n}"
+            },
+            "url": "{{baseUrl}}/bookings"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data._id) pm.collectionVariables.set('bookingId', json.data._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Bookings (any authenticated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/bookings?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Get Booking By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/bookings/{{bookingId}}"
+          }
+        },
+        {
+          "name": "My Bookings (customer)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/bookings/my-bookings?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Driver Bookings (driver)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/bookings/driver-bookings?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Booking Stats (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/bookings/stats?startDate=2025-12-01T00:00:00.000Z&endDate=2025-12-31T23:59:59.000Z"
+          }
+        },
+        {
+          "name": "Update Booking Status (staff/driver/internal/super-admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"under-review\",\n  \"note\": \"Reviewed by ops\"\n}"
+            },
+            "url": "{{baseUrl}}/bookings/{{bookingId}}/status"
+          }
+        },
+        {
+          "name": "Assign Driver (staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driverId\": \"{{driverId}}\",\n  \"vehicleId\": \"{{vehicleId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/bookings/{{bookingId}}/assign-driver"
+          }
+        },
+        {
+          "name": "Cancel Booking (customer/staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Customer cancelled - change of plan\"\n}" },
+            "url": "{{baseUrl}}/bookings/{{bookingId}}/cancel"
+          }
+        },
+        {
+          "name": "Add Delay (driver/staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Traffic jam near highway\",\n  \"estimatedDelay\": 45\n}" },
+            "url": "{{baseUrl}}/bookings/{{bookingId}}/delay"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "Create Customer Profile (customer) - saves customerId",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"Acme Logistics\",\n  \"address\": \"Street 1, Andheri\",\n  \"city\": \"Mumbai\",\n  \"state\": \"Maharashtra\",\n  \"pincode\": \"400001\",\n  \"contactPerson\": \"John Doe\",\n  \"paymentTerms\": \"advance\"\n}"
+            },
+            "url": "{{baseUrl}}/customers"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data._id) pm.collectionVariables.set('customerId', json.data._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My Profile (customer)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/customers/my-profile"
+          }
+        },
+        {
+          "name": "My Dashboard (customer)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/customers/my-dashboard"
+          }
+        },
+        {
+          "name": "My Booking History (customer)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/customers/my-bookings?page=1&limit=20"
+          }
+        },
+        {
+          "name": "List Customers (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/customers?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Get Customer By ID (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/customers/{{customerId}}"
+          }
+        },
+        {
+          "name": "Customer Dashboard (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/customers/{{customerId}}/dashboard"
+          }
+        },
+        {
+          "name": "Customer Booking History (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/customers/{{customerId}}/bookings?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Update Customer (staff/internal/super-admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"Acme Logistics Pvt Ltd\",\n  \"address\": {\n    \"street\": \"Street 1\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"400001\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/customers/{{customerId}}"
+          }
+        },
+        {
+          "name": "Update Credit Limit (internal/super-admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"creditLimit\": 50000\n}" },
+            "url": "{{baseUrl}}/customers/{{customerId}}/credit-limit"
+          }
+        },
+        {
+          "name": "Verify Customer (staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/customers/{{customerId}}/verify"
+          }
+        },
+        {
+          "name": "Assign Account Manager (staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"staffId\": \"{{staffId}}\"\n}" },
+            "url": "{{baseUrl}}/customers/{{customerId}}/assign-manager"
+          }
+        },
+        {
+          "name": "Delete Customer (super-admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/customers/{{customerId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Drivers",
+      "item": [
+        {
+          "name": "Get Nearby Drivers (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/drivers/nearby?latitude=19.076&longitude=72.8777&radius=10"
+          }
+        },
+        {
+          "name": "Create Driver Profile (driver) - saves driverId",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Driver One\",\n  \"licenseNumber\": \"MH01-12345\",\n  \"licenseExpiry\": \"2027-12-31T00:00:00.000Z\"\n}"
+            },
+            "url": "{{baseUrl}}/drivers"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data._id) pm.collectionVariables.set('driverId', json.data._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My Profile (driver)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/drivers/my-profile"
+          }
+        },
+        {
+          "name": "My Performance (driver)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/drivers/my-performance?startDate=2025-12-01T00:00:00.000Z&endDate=2025-12-31T23:59:59.000Z"
+          }
+        },
+        {
+          "name": "Update My Location (driver)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"latitude\": 19.076,\n  \"longitude\": 72.8777\n}" },
+            "url": "{{baseUrl}}/drivers/my-location"
+          }
+        },
+        {
+          "name": "Update My Availability (driver)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"isAvailable\": true\n}" },
+            "url": "{{baseUrl}}/drivers/my-availability"
+          }
+        },
+        {
+          "name": "List Drivers (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/drivers?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Get Driver By ID (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/drivers/{{driverId}}"
+          }
+        },
+        {
+          "name": "Update Driver (staff/internal/super-admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Driver One Updated\"\n}" },
+            "url": "{{baseUrl}}/drivers/{{driverId}}"
+          }
+        },
+        {
+          "name": "Verify Driver (staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/drivers/{{driverId}}/verify"
+          }
+        },
+        {
+          "name": "Blacklist Driver (internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Repeated no-shows and policy violations\"\n}" },
+            "url": "{{baseUrl}}/drivers/{{driverId}}/blacklist"
+          }
+        },
+        {
+          "name": "Remove From Blacklist (internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/drivers/{{driverId}}/remove-blacklist"
+          }
+        },
+        {
+          "name": "Add Rating (customer/staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"rating\": 5,\n  \"feedback\": \"Great service\",\n  \"bookingId\": \"{{bookingId}}\"\n}" },
+            "url": "{{baseUrl}}/drivers/{{driverId}}/rating"
+          }
+        },
+        {
+          "name": "Delete Driver (super-admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/drivers/{{driverId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vehicles",
+      "item": [
+        {
+          "name": "Get Available Vehicles (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/vehicles/available?truckType=17ft&minCapacity=5"
+          }
+        },
+        {
+          "name": "Vehicle Stats (All) (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/vehicles/stats/all"
+          }
+        },
+        {
+          "name": "List Vehicles (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/vehicles?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Create Vehicle (staff/internal/super-admin) - saves vehicleId",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleNumber\": \"MH12AB1234\",\n  \"truckType\": \"17ft\",\n  \"length\": 17,\n  \"capacity\": 10,\n  \"bodyType\": \"open\",\n  \"hasGPS\": true,\n  \"hasFASTag\": true\n}"
+            },
+            "url": "{{baseUrl}}/vehicles"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data._id) pm.collectionVariables.set('vehicleId', json.data._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Vehicle By ID (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/vehicles/{{vehicleId}}"
+          }
+        },
+        {
+          "name": "Get Vehicle Stats (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/vehicles/{{vehicleId}}/stats"
+          }
+        },
+        {
+          "name": "Update Vehicle (staff/internal/super-admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"capacity\": 12\n}" },
+            "url": "{{baseUrl}}/vehicles/{{vehicleId}}"
+          }
+        },
+        {
+          "name": "Update Vehicle Location (staff/driver/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"latitude\": 19.076,\n  \"longitude\": 72.8777\n}" },
+            "url": "{{baseUrl}}/vehicles/{{vehicleId}}/location"
+          }
+        },
+        {
+          "name": "Update Vehicle Availability (staff/internal/super-admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"isAvailable\": true\n}" },
+            "url": "{{baseUrl}}/vehicles/{{vehicleId}}/availability"
+          }
+        },
+        {
+          "name": "Add Maintenance (staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"service\",\n  \"description\": \"Regular service\",\n  \"cost\": 2500,\n  \"serviceDate\": \"2025-12-13T00:00:00.000Z\"\n}"
+            },
+            "url": "{{baseUrl}}/vehicles/{{vehicleId}}/maintenance"
+          }
+        },
+        {
+          "name": "Delete Vehicle (super-admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/vehicles/{{vehicleId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Staff",
+      "item": [
+        {
+          "name": "My Profile (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/staff/my-profile"
+          }
+        },
+        {
+          "name": "My Workload (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/staff/my-workload"
+          }
+        },
+        {
+          "name": "My Performance (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/staff/my-performance?startDate=2025-12-01T00:00:00.000Z&endDate=2025-12-31T23:59:59.000Z"
+          }
+        },
+        {
+          "name": "My Team (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/staff/my-team"
+          }
+        },
+        {
+          "name": "List Staff (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/staff?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Get Staff By ID (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/staff/{{staffId}}"
+          }
+        },
+        {
+          "name": "Has Permission (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/staff/{{staffId}}/has-permission/BOOKING_VIEW"
+          }
+        },
+        {
+          "name": "Create Staff Profile (internal/super-admin) - saves staffId",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"name\": \"Ops Staff\",\n  \"department\": \"operations\",\n  \"title\": \"Operator\"\n}"
+            },
+            "url": "{{baseUrl}}/staff"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data._id) pm.collectionVariables.set('staffId', json.data._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Staff (internal/super-admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Senior Operator\"\n}" },
+            "url": "{{baseUrl}}/staff/{{staffId}}"
+          }
+        },
+        {
+          "name": "Assign Permissions (internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"permissionIds\": [\"000000000000000000000000\"]\n}" },
+            "url": "{{baseUrl}}/staff/{{staffId}}/permissions"
+          }
+        },
+        {
+          "name": "Set Active Status (internal/super-admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"isActive\": true\n}" },
+            "url": "{{baseUrl}}/staff/{{staffId}}/active-status"
+          }
+        },
+        {
+          "name": "Delete Staff (super-admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/staff/{{staffId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Routes (Customer)",
+      "item": [
+        {
+          "name": "Search Routes",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/routes/search?pickupCity=Mumbai&dropCity=Pune"
+          }
+        },
+        {
+          "name": "Popular Routes",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/routes/popular?limit=10"
+          }
+        },
+        {
+          "name": "Favorites",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/routes/favorites"
+          }
+        },
+        {
+          "name": "Route Statistics (customer)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/routes/statistics"
+          }
+        },
+        {
+          "name": "My Routes",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/routes/my-routes?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Create Route - saves routeId",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"routeName\": \"Mumbai to Pune\",\n  \"pickupCity\": \"Mumbai\",\n  \"pickupLat\": 19.076,\n  \"pickupLng\": 72.8777,\n  \"pickupAddress\": \"Mumbai\",\n  \"dropCity\": \"Pune\",\n  \"dropLat\": 18.5204,\n  \"dropLng\": 73.8567,\n  \"dropAddress\": \"Pune\",\n  \"truckType\": \"17ft\",\n  \"isFavorite\": true\n}"
+            },
+            "url": "{{baseUrl}}/routes"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data._id) pm.collectionVariables.set('routeId', json.data._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Route By ID",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/routes/{{routeId}}"
+          }
+        },
+        {
+          "name": "Update Route",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"isFavorite\": false\n}" },
+            "url": "{{baseUrl}}/routes/{{routeId}}"
+          }
+        },
+        {
+          "name": "Delete Route",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/routes/{{routeId}}"
+          }
+        },
+        {
+          "name": "Mark As Used",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/routes/{{routeId}}/use"
+          }
+        },
+        {
+          "name": "Toggle Favorite",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/routes/{{routeId}}/toggle-favorite"
+          }
+        },
+        {
+          "name": "Update Route Statistics",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"actualCost\": 25000,\n  \"actualDistance\": 150\n}" },
+            "url": "{{baseUrl}}/routes/{{routeId}}/statistics"
+          }
+        },
+        {
+          "name": "Clone Route",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"newName\": \"Mumbai to Pune (Copy)\"\n}" },
+            "url": "{{baseUrl}}/routes/{{routeId}}/clone"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tracking",
+      "item": [
+        {
+          "name": "Record Location (driver)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": 19.076,\n  \"longitude\": 72.8777,\n  \"accuracy\": 12\n}"
+            },
+            "url": "{{baseUrl}}/tracking/{{bookingId}}/location"
+          }
+        },
+        {
+          "name": "Tracking History",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/tracking/{{bookingId}}/history"
+          }
+        },
+        {
+          "name": "Last Known Location",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/tracking/{{bookingId}}/last-location"
+          }
+        },
+        {
+          "name": "Tracking URL (customer/staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/tracking/{{bookingId}}/url"
+          }
+        },
+        {
+          "name": "Distance Traveled",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/tracking/{{bookingId}}/distance"
+          }
+        },
+        {
+          "name": "Tracking Statistics (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/tracking/{{bookingId}}/statistics"
+          }
+        },
+        {
+          "name": "Tracking Route",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/tracking/{{bookingId}}/route?interval=60"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "item": [
+        {
+          "name": "Upload Document (multipart/form-data)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "entityType", "value": "booking", "type": "text" },
+                { "key": "entityId", "value": "{{bookingId}}", "type": "text" },
+                { "key": "documentType", "value": "other", "type": "text" },
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            },
+            "url": "{{baseUrl}}/documents"
+          }
+        },
+        {
+          "name": "Get Documents By Entity",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/documents/booking/{{bookingId}}"
+          }
+        },
+        {
+          "name": "Get Document By ID",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/documents/{{documentId}}"
+          }
+        },
+        {
+          "name": "Delete Document (staff/internal/super-admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/documents/{{documentId}}"
+          }
+        },
+        {
+          "name": "Upload POD (booking) (driver/staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            },
+            "url": "{{baseUrl}}/documents/booking/{{bookingId}}/pod"
+          }
+        },
+        {
+          "name": "Upload Loading Images (booking) (driver/staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "files", "type": "file", "src": "" }
+              ]
+            },
+            "url": "{{baseUrl}}/documents/booking/{{bookingId}}/loading-images"
+          }
+        },
+        {
+          "name": "Get Booking Documents",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/documents/booking/{{bookingId}}"
+          }
+        },
+        {
+          "name": "Get Signed URL",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/documents/signed-url/{{cloudinaryId}}?expiresIn=300"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "PhonePe Callback (no auth)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"response\": \"<BASE64_RESPONSE>\",\n  \"checksum\": \"<CHECKSUM>\"\n}"
+            },
+            "url": "{{baseUrl}}/payments/phonepe/callback"
+          }
+        },
+        {
+          "name": "Create Payment Order (customer) - saves paymentId",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"{{bookingId}}\",\n  \"amount\": 1000\n}"
+            },
+            "url": "{{baseUrl}}/payments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data._id) pm.collectionVariables.set('paymentId', json.data._id);",
+                  "  if (json.data && json.data.merchantTransactionId) pm.collectionVariables.set('merchantTransactionId', json.data.merchantTransactionId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Initiate PhonePe Payment (customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"{{paymentId}}\",\n  \"returnUrl\": \"http://localhost:3000/payment/callback\"\n}"
+            },
+            "url": "{{baseUrl}}/payments/initiate"
+          }
+        },
+        {
+          "name": "My Payments (customer)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/payments/my-payments?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Verify Payment Status (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/payments/verify/{{merchantTransactionId}}"
+          }
+        },
+        {
+          "name": "Record Manual Payment (staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking\": \"{{bookingId}}\",\n  \"amount\": 1000,\n  \"paymentMethod\": \"neft\",\n  \"referenceNumber\": \"NEFT12345\"\n}"
+            },
+            "url": "{{baseUrl}}/payments/manual"
+          }
+        },
+        {
+          "name": "List Payments (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/payments?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Get Payment By ID",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/payments/{{paymentId}}"
+          }
+        },
+        {
+          "name": "Refund Payment (internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"refundAmount\": 1000,\n  \"reason\": \"Refund requested due to double payment\"\n}" },
+            "url": "{{baseUrl}}/payments/{{paymentId}}/refund"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Test Notification (any auth)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Test\",\n  \"message\": \"Hello from Postman\"\n}" },
+            "url": "{{baseUrl}}/notifications/test"
+          }
+        },
+        {
+          "name": "Send Notification (staff/internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"title\": \"Update\",\n  \"message\": \"Your booking status changed\"\n}" },
+            "url": "{{baseUrl}}/notifications/send"
+          }
+        },
+        {
+          "name": "Send Bulk Notification (internal/super-admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"userIds\": [\"{{userId}}\"],\n  \"title\": \"Bulk\",\n  \"message\": \"Bulk message\"\n}" },
+            "url": "{{baseUrl}}/notifications/send-bulk"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Audit",
+      "item": [
+        {
+          "name": "My Activity (any auth)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/audit/my-activity"
+          }
+        },
+        {
+          "name": "Get Audit Logs (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/audit?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Entity History (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/audit/entity/booking/{{bookingId}}"
+          }
+        },
+        {
+          "name": "User Activity (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/audit/user/{{userId}}?limit=50"
+          }
+        },
+        {
+          "name": "Activity Stats (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/audit/stats?startDate=2025-12-01T00:00:00.000Z&endDate=2025-12-31T23:59:59.000Z"
+          }
+        },
+        {
+          "name": "Change Timeline (staff/internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/audit/timeline/booking/{{bookingId}}"
+          }
+        },
+        {
+          "name": "Suspicious Activities (internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/audit/suspicious?minCount=5&timeWindow=60"
+          }
+        },
+        {
+          "name": "Export Logs (internal/super-admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": "{{baseUrl}}/audit/export?format=json"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+import express from 'express';
+import * as vehicleController from '../controllers/vehicle.controller.js';
+import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
+import { validate } from '../middlewares/validation.middleware.js';
+import {
+  createVehicleSchema,
+  getVehiclesQuerySchema,
+  vehicleIdParamSchema,
+  updateVehicleSchema,
+  updateLocationSchema,
+  updateAvailabilitySchema,
+  addMaintenanceSchema,
+  getAvailableVehiclesQuerySchema
+} from '../validators/vehicle.validator.js';
+
+const router = express.Router();
+
+// Staff/Admin routes - list and search
+router.get('/available', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getAvailableVehiclesQuerySchema), vehicleController.getAvailableVehicles);
+router.get('/stats/all', verifyJWT, checkRole('staff', 'internal', 'super-admin'), vehicleController.getAllVehicleStats);
+router.get('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getVehiclesQuerySchema), vehicleController.getAllVehicles);
+
+// Staff/Admin routes - CRUD
+router.post('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(createVehicleSchema), vehicleController.createVehicle);
+router.get('/:id', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(vehicleIdParamSchema), vehicleController.getVehicleById);
+router.get('/:id/stats', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(vehicleIdParamSchema), vehicleController.getVehicleStats);
+router.patch('/:id', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(updateVehicleSchema), vehicleController.updateVehicle);
+
+// Staff/Admin routes - operations
+router.post('/:id/location', verifyJWT, checkRole('staff', 'driver', 'internal', 'super-admin'), validate(updateLocationSchema), vehicleController.updateLocation);
+router.patch('/:id/availability', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(updateAvailabilitySchema), vehicleController.updateAvailability);
+router.post('/:id/maintenance', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(addMaintenanceSchema), vehicleController.addMaintenance);
+
+// Admin only - delete
+router.delete('/:id', verifyJWT, checkRole('super-admin'), validate(vehicleIdParamSchema), vehicleController.deleteVehicle);
+
+export default router;

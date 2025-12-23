@@ -6,6 +6,8 @@ import {
   createDriverSchema,
   getDriversQuerySchema,
   driverIdParamSchema,
+  // userIdParamSchema used for /by-user/:userId
+  userIdParamSchema,
   updateDriverSchema,
   updateLocationSchema,
   updateAvailabilitySchema,
@@ -20,8 +22,9 @@ const router = express.Router();
 // Public/Staff routes
 router.get('/nearby', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getNearbyDriversQuerySchema), driverController.getNearbyDrivers);
 
-// Driver self-service routes
-router.post('/', verifyJWT, checkRole('driver'), validate(createDriverSchema), driverController.createDriver);
+// Driver self-service + admin-created routes
+// Allow drivers to create their own profile, and allow staff/internal/super-admin to create drivers on behalf of others
+router.post('/', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(createDriverSchema), driverController.createDriver);
 router.get('/my-profile', verifyJWT, checkRole('driver'), driverController.getMyProfile);
 router.get('/my-performance', verifyJWT, checkRole('driver'), validate(getPerformanceQuerySchema), driverController.getMyPerformance);
 router.post('/my-location', verifyJWT, checkRole('driver'), validate(updateLocationSchema), driverController.updateMyLocation);
@@ -29,6 +32,9 @@ router.patch('/my-availability', verifyJWT, checkRole('driver'), validate(update
 
 // Staff/Admin routes - list and view
 router.get('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getDriversQuerySchema), driverController.getAllDrivers);
+// Explicit user-based lookup
+router.get('/by-user/:userId', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(userIdParamSchema), driverController.getDriverByUser);
+// Primary lookup by driver document id (document-first, then fallback to user)
 router.get('/:id', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(driverIdParamSchema), driverController.getDriverById);
 router.get('/:id/performance', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getPerformanceQuerySchema), driverController.getPerformanceReport);
 

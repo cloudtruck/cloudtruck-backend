@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Driver from '../models/driver.model.js';
 import User from '../models/user.model.js';
 import Vehicle from '../models/vehicle.model.js';
@@ -29,7 +30,7 @@ class DriverService {
     } = data;
 
     // Check if driver profile already exists
-    const existingDriver = await Driver.findOne({ user: userId });
+    const existingDriver = await Driver.findOne({ user: userId, isDeleted: false });
     if (existingDriver) {
       throw new ApiError(400, 'Driver profile already exists');
     }
@@ -76,7 +77,40 @@ class DriverService {
    * @returns {Promise<Object>} Driver details
    */
   static async getDriverById(driverId) {
-    const driver = await Driver.findOne({ _id: driverId, isDeleted: false })
+    // Deterministic lookup: prefer document _id, then fallback to user id
+    const isValidId = mongoose.Types.ObjectId.isValid(driverId);
+
+    if (!isValidId) {
+      throw new ApiError(404, 'Driver not found');
+    }
+
+    // Try by document _id first
+    // let driver = await Driver.findOne({ _id: driverId, isDeleted: false })
+    //   .populate('user', 'phone email status fcmToken')
+    //   .populate('currentBooking', 'bookingId status pickup drop')
+    //   .populate('vehicles', 'vehicleNumber truckType');
+
+    // if (driver) return driver;
+
+    // Fallback: try by user id
+    driver = await Driver.findOne({ user: driverId, isDeleted: false })
+      .populate('user', 'phone email status fcmToken')
+      .populate('currentBooking', 'bookingId status pickup drop')
+      .populate('vehicles', 'vehicleNumber truckType');
+
+    if (!driver) {
+      throw new ApiError(404, 'Driver not found');
+    }
+
+    return driver;
+  }
+
+  static async getDriverByUserId(userId) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new ApiError(400, 'Invalid user id');
+    }
+
+    const driver = await Driver.findOne({ user: userId, isDeleted: false })
       .populate('user', 'phone email status fcmToken')
       .populate('currentBooking', 'bookingId status pickup drop')
       .populate('vehicles', 'vehicleNumber truckType');
@@ -147,7 +181,7 @@ class DriverService {
    * @returns {Promise<Object>} Updated driver
    */
   static async updateDriver(driverId, updateData, userId) {
-    const driver = await Driver.findOne({ _id: driverId, isDeleted: false });
+    const driver = await Driver.findOne({ user: driverId, isDeleted: false });
 
     if (!driver) {
       throw new ApiError(404, 'Driver not found');
@@ -198,7 +232,8 @@ class DriverService {
    * @returns {Promise<void>}
    */
   static async updateLocation(driverId, latitude, longitude) {
-    const driver = await Driver.findById(driverId);
+    // const driver = await Driver.findById(driverId);
+    const driver = await Driver.findOne({ user: driverId, isDeleted: false });
 
     if (!driver) {
       throw new ApiError(404, 'Driver not found');
@@ -220,7 +255,7 @@ class DriverService {
    * @returns {Promise<Object>} Updated driver
    */
   static async updateAvailability(driverId, isAvailable) {
-    const driver = await Driver.findById(driverId);
+    const driver = await Driver.findOne({ user: driverId, isDeleted: false });
 
     if (!driver) {
       throw new ApiError(404, 'Driver not found');
@@ -391,7 +426,17 @@ class DriverService {
    * @returns {Promise<Object>} Performance report
    */
   static async getPerformanceReport(driverId, dateRange = {}) {
-    const driver = await Driver.findById(driverId);
+    // Accept either a driver document _id or a user _id; resolve to driver document
+    let driver = null;
+
+    if (mongoose.Types.ObjectId.isValid(driverId)) {
+      // Try as driver._id
+      driver = await Driver.findById(driverId);
+      if (!driver) {
+        // Try as user id
+        driver = await Driver.findOne({ user: driverId, isDeleted: false });
+      }
+    }
 
     if (!driver) {
       throw new ApiError(404, 'Driver not found');
@@ -399,7 +444,7 @@ class DriverService {
 
     const { startDate, endDate } = dateRange;
     const matchStage = {
-      driver: driverId,
+      driver: driver._id,
       status: { $in: ['delivered', 'pod-received', 'closed'] }
     };
 

@@ -6,6 +6,19 @@ import { z } from 'zod';
  */
 export const createDriverSchema = z.object({
   body: z.object({
+    // Optional target user id - required when a staff/internal/super-admin creates a driver
+    user: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid user ID').optional(),
+    userId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid user ID').optional(),
+
+    // newUser: optional details to create a new User when admin omits `user`/`userId`
+    newUser: z.object({
+      phone: z.string().regex(/^\+?[1-9]\d{9,14}$/, 'Invalid phone number').optional(),
+      email: z.string().email('Invalid email').optional(),
+      password: z.string().min(6, 'Password must be at least 6 characters').optional()
+    }).optional().refine(obj => !obj || (obj.phone || obj.email), {
+      message: 'newUser must include phone or email'
+    }),
+
     name: z.string().min(2, 'Name must be at least 2 characters'),
     licenseNumber: z.string().min(5, 'License number must be at least 5 characters'),
     licenseExpiry: z.string().datetime('Invalid license expiry date'),
@@ -50,6 +63,12 @@ export const getDriversQuerySchema = z.object({
 export const driverIdParamSchema = z.object({
   params: z.object({
     id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid driver ID')
+  })
+});
+
+export const userIdParamSchema = z.object({
+  params: z.object({
+    userId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid user ID')
   })
 });
 

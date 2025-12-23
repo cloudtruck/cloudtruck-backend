@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { paginationPlugin } from '../utils/plugins/pagination.plugin.js';
 
 const driverSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   name: { type: String, required: true },
   licenseNumber: { type: String, required: true },
   licenseImage: String,
@@ -34,8 +34,8 @@ const driverSchema = new mongoose.Schema({
   },
   
   lastKnownLocation: {
-    type: { type: String, enum: ['Point'], default: 'Point' },
-    coordinates: { type: [Number], index: '2dsphere' } // [lng, lat]
+    type: { type: String, enum: ['Point'] },
+    coordinates: { type: [Number] } // [lng, lat]
   },
   lastLocationAt: Date,
   realtimeSource: { type: String, enum: ['socket','gps','manual'], default: 'socket' },
@@ -100,7 +100,10 @@ driverSchema.index({ licenseNumber: 1 }, { unique: true, partialFilterExpression
 driverSchema.index({ availability: 1, isDeleted: 1 });
 driverSchema.index({ isBlacklisted: 1, isDeleted: 1 });
 driverSchema.index({ 'performance.averageRating': -1 });
-driverSchema.index({ 'lastKnownLocation': '2dsphere' });
+// Only index drivers' locations when coordinates are present to avoid indexing empty Point objects
+driverSchema.index({ 'lastKnownLocation': '2dsphere' }, { partialFilterExpression: { 'lastKnownLocation.coordinates': { $exists: true } } });
+// Explicit index on user for fast lookups and to enforce one-to-one relation (unique when user exists)
+driverSchema.index({ user: 1 }, { unique: true, partialFilterExpression: { user: { $exists: true } } });
 
 /* Virtual Fields */
 

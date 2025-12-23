@@ -8,9 +8,9 @@ import ApiResponse from '../utils/ApiResponse.js';
  */
 export const createDriver = asyncHandler(async (req, res) => {
   const driverData = req.body;
-  const userId = req.user._id;
+  const actor = req.user; // The user performing the action (may be driver, staff, or super-admin)
 
-  const driver = await DriverService.createDriver(driverData, userId);
+  const driver = await DriverService.createDriver(driverData, actor);
 
   return res.status(201).json(
     new ApiResponse(201, driver, 'Driver profile created successfully')
@@ -28,6 +28,16 @@ export const getDriverById = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, driver, 'Driver fetched successfully')
+  );
+});
+
+export const getDriverByUser = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+
+  const driver = await DriverService.getDriverByUserId(userId);
+
+  return res.status(200).json(
+    new ApiResponse(200, driver, 'Driver fetched by user successfully')
   );
 });
 

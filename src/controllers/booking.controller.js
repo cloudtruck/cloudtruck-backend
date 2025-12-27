@@ -1,8 +1,10 @@
 import BookingService from '../services/booking.service.js';
 import Customer from '../models/customer.model.js';
+import Driver from '../models/driver.model.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
+import mongoose from 'mongoose';
 
 /**
  * Create Booking
@@ -50,7 +52,7 @@ export const getAllBookings = asyncHandler(async (req, res) => {
 
   const pagination = { page, limit, sort };
 
-  const result = await BookingService.getBookings(filters, pagination);
+  const result = await BookingService.getBookings(filters, pagination, {});
 
   return res.status(200).json(
     new ApiResponse(200, result, 'Bookings fetched successfully')
@@ -63,6 +65,11 @@ export const getAllBookings = asyncHandler(async (req, res) => {
  */
 export const getBookingById = asyncHandler(async (req, res) => {
   const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, 'Invalid booking ID format');
+  }
+
   const userId = req.user._id;
   const userRole = req.user.role;
 
@@ -79,6 +86,11 @@ export const getBookingById = asyncHandler(async (req, res) => {
  */
 export const updateStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, 'Invalid booking ID format');
+  }
+
   const { status, note } = req.body;
   const userId = req.user._id;
 
@@ -86,6 +98,27 @@ export const updateStatus = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, booking, 'Booking status updated successfully')
+  );
+});
+
+/**
+ * Update Booking Details
+ * PATCH /api/v1/bookings/:id
+ */
+export const updateBooking = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, 'Invalid booking ID format');
+  }
+
+  const updateData = req.body;
+  const userId = req.user._id;
+
+  const booking = await BookingService.updateBooking(id, updateData, userId);
+
+  return res.status(200).json(
+    new ApiResponse(200, booking, 'Booking updated successfully')
   );
 });
 
@@ -188,17 +221,24 @@ export const getMyBookings = asyncHandler(async (req, res) => {
  * GET /api/v1/bookings/driver-bookings
  */
 export const getDriverBookings = asyncHandler(async (req, res) => {
-  const driverId = req.user._id;
+  const userId = req.user._id;
   const { status, page, limit } = req.query;
 
+  // Find driver document
+  const driver = await Driver.findOne({ user: userId, isDeleted: false });
+  if (!driver) {
+    throw new ApiError(404, 'Driver profile not found');
+  }
+
   const filters = {
-    driverId,
+    driverId: driver._id,
     status: status ? status.split(',') : undefined
   };
 
   const pagination = { page, limit };
+  const options = { maskCustomer: true };
 
-  const result = await BookingService.getBookings(filters, pagination);
+  const result = await BookingService.getBookings(filters, pagination, options);
 
   return res.status(200).json(
     new ApiResponse(200, result, 'Bookings fetched successfully')

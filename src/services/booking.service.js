@@ -184,7 +184,7 @@ class BookingService {
    * @param {Object} pagination - Pagination options
    * @returns {Promise<Object>} Bookings with pagination
    */
-  static async getBookings(filters = {}, pagination = {}) {
+  static async getBookings(filters = {}, pagination = {}, options = {}) {
     const {
       customerId,
       driverId,
@@ -194,6 +194,8 @@ class BookingService {
       truckType,
       city
     } = filters;
+
+    const { maskCustomer = false } = options;
 
     const query = { isDeleted: false };
 
@@ -219,15 +221,21 @@ class BookingService {
       ];
     }
 
+    const customerSelect = maskCustomer ? 'companyName' : 'companyName phone email';
+
     const result = await Booking.paginate(query, {
       page: pagination.page || 1,
       limit: pagination.limit || 20,
       sort: pagination.sort || { createdAt: -1 },
       populate: [
-        { path: 'customer', select: 'companyName phone email' },
+        { path: 'customer', select: customerSelect },
         { path: 'driver', select: 'name phone' },
         { path: 'vehicle', select: 'vehicleNumber truckType' },
-        { path: 'assignedBy', select: 'name department' }
+        { 
+          path: 'assignedBy', 
+          select: 'name department', 
+          populate: { path: 'user', select: 'phone' } 
+        }
       ]
     });
 
@@ -273,7 +281,11 @@ class BookingService {
       .populate('customer', customerFields)
       .populate('driver', 'name phone licenseNumber')
       .populate('vehicle', 'vehicleNumber truckType capacity')
-      .populate('assignedBy', 'name department')
+      .populate({
+        path: 'assignedBy',
+        select: 'name department',
+        populate: { path: 'user', select: 'phone' }
+      })
       .populate('payments');
 
     const booking = await query;
@@ -397,6 +409,65 @@ class BookingService {
         after: { status: newStatus }
       },
       metadata: { note: metadata.note }
+    });
+
+    return booking;
+  }
+
+  /**
+   * Update booking details (limited fields)
+   * @param {string} bookingId - Booking ID
+   * @param {Object} updateData - Fields to update
+   * @param {string} userId - User ID performing update
+   * @returns {Promise<Object>} Updated booking
+   */
+  static async updateBooking(bookingId, updateData, userId) {
+    const booking = await Booking.findOne({
+      $or: [{ _id: bookingId }, { bookingId }],
+      isDeleted: false
+    });
+
+    if (!booking) {
+      throw new ApiError(404, 'Booking not found');
+    }
+
+    // Only allow updates for bookings in early stages
+    if (!['created', 'under-review'].includes(booking.status)) {
+      throw new ApiError(400, 'Cannot update booking. Booking already assigned or in progress');
+    }
+
+    // Store old values for audit
+    const oldValues = {};
+
+    // Define allowed fields for update
+    const allowedFields = [
+      'pickupCity', 'pickupLat', 'pickupLng', 'pickupAddress',
+      'dropCity', 'dropLat', 'dropLng', 'dropAddress',
+      'materialType', 'weight', 'truckType', 'bodyType',
+      'additionalInstructions', 'isHazardous', 'isFragile', 'requiresTemperatureControl'
+    ];
+
+    // Update only allowed fields
+    allowedFields.forEach(field => {
+      if (updateData[field] !== undefined) {
+        oldValues[field] = booking[field];
+        booking[field] = updateData[field];
+      }
+    });
+
+    booking.updatedBy = userId;
+    await booking.save();
+
+    // Audit log
+    await AuditLog.create({
+      user: userId,
+      action: 'UPDATE_BOOKING_DETAILS',
+      entityType: 'booking',
+      entityId: booking._id,
+      changes: {
+        before: oldValues,
+        after: updateData
+      }
     });
 
     return booking;

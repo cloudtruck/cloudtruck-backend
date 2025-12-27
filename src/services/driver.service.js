@@ -85,12 +85,12 @@ class DriverService {
     }
 
     // Try by document _id first
-    // let driver = await Driver.findOne({ _id: driverId, isDeleted: false })
-    //   .populate('user', 'phone email status fcmToken')
-    //   .populate('currentBooking', 'bookingId status pickup drop')
-    //   .populate('vehicles', 'vehicleNumber truckType');
+    let driver = await Driver.findOne({ _id: driverId, isDeleted: false })
+      .populate('user', 'phone email status fcmToken')
+      .populate('currentBooking', 'bookingId status pickup drop')
+      .populate('vehicles', 'vehicleNumber truckType');
 
-    // if (driver) return driver;
+    if (driver) return driver;
 
     // Fallback: try by user id
     driver = await Driver.findOne({ user: driverId, isDeleted: false })

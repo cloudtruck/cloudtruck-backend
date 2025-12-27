@@ -466,6 +466,39 @@ class VehicleService {
   }
 
   /**
+   * Verify vehicle
+   * @param {string} vehicleId - Vehicle ID
+   * @param {string} verifiedBy - Staff ID
+   * @returns {Promise<Object>} Updated vehicle
+   */
+  static async verifyVehicle(vehicleId, verifiedBy) {
+    const vehicle = await Vehicle.findById(vehicleId);
+
+    if (!vehicle) {
+      throw new ApiError(404, 'Vehicle not found');
+    }
+
+    vehicle.isVerified = true;
+    vehicle.verifiedAt = new Date();
+    vehicle.verifiedBy = verifiedBy;
+    await vehicle.save();
+
+    // Audit log
+    await AuditLog.create({
+      user: verifiedBy,
+      action: 'VERIFY_VEHICLE',
+      entityType: 'vehicle',
+      entityId: vehicle._id,
+      changes: {
+        before: { isVerified: false },
+        after: { isVerified: true }
+      }
+    });
+
+    return vehicle;
+  }
+
+  /**
    * Soft delete vehicle
    * @param {string} vehicleId - Vehicle ID
    * @param {string} deletedBy - User ID

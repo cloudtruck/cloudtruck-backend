@@ -86,6 +86,34 @@ export const updateStatusSchema = z.object({
 });
 
 /**
+ * Update Booking Validator
+ * PATCH /api/v1/bookings/:id
+ */
+export const updateBookingSchema = z.object({
+  params: z.object({
+    id: z.string().min(1, 'Booking ID is required')
+  }),
+  body: z.object({
+    pickupCity: z.string().min(1, 'Pickup city is required').optional(),
+    pickupLat: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-90).max(90, 'Invalid pickup latitude').optional()),
+    pickupLng: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-180).max(180, 'Invalid pickup longitude').optional()),
+    pickupAddress: z.string().min(1, 'Pickup address is required').optional(),
+    dropCity: z.string().min(1, 'Drop city is required').optional(),
+    dropLat: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-90).max(90, 'Invalid drop latitude').optional()),
+    dropLng: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-180).max(180, 'Invalid drop longitude').optional()),
+    dropAddress: z.string().min(1, 'Drop address is required').optional(),
+    materialType: z.string().min(1, 'Material type is required').optional(),
+    weight: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().positive('Weight must be positive').optional()),
+    truckType: z.string().min(1, 'Truck type is required').optional(),
+    bodyType: z.enum(['open', 'closed', 'container', 'tanker', 'flatbed']).optional(),
+    additionalInstructions: z.string().optional(),
+    isHazardous: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional(),
+    isFragile: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional(),
+    requiresTemperatureControl: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional()
+  })
+});
+
+/**
  * Assign Driver Validator
  * POST /api/v1/bookings/:id/assign-driver
  */

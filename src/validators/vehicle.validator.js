@@ -77,6 +77,16 @@ export const vehicleIdParamSchema = z.object({
 });
 
 /**
+ * Verify Vehicle Validator
+ * POST /api/v1/vehicles/:id/verify
+ */
+export const verifyVehicleSchema = z.object({
+  params: z.object({
+    id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid vehicle ID')
+  })
+});
+
+/**
  * Update Vehicle Validator
  * PATCH /api/v1/vehicles/:id
  */

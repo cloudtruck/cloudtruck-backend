@@ -187,6 +187,21 @@ export const getAllVehicleStats = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Verify Vehicle
+ * POST /api/v1/vehicles/:id/verify
+ */
+export const verifyVehicle = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const verifiedBy = req.user._id;
+
+  const vehicle = await VehicleService.verifyVehicle(id, verifiedBy);
+
+  return res.status(200).json(
+    new ApiResponse(200, vehicle, 'Vehicle verified successfully')
+  );
+});
+
+/**
  * Delete Vehicle
  * DELETE /api/v1/vehicles/:id
  */

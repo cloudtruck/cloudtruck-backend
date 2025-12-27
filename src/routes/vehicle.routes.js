@@ -7,6 +7,7 @@ import {
   getVehiclesQuerySchema,
   vehicleIdParamSchema,
   updateVehicleSchema,
+  verifyVehicleSchema,
   updateLocationSchema,
   updateAvailabilitySchema,
   addMaintenanceSchema,
@@ -25,6 +26,9 @@ router.post('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), valid
 router.get('/:id', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(vehicleIdParamSchema), vehicleController.getVehicleById);
 router.get('/:id/stats', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(vehicleIdParamSchema), vehicleController.getVehicleStats);
 router.patch('/:id', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(updateVehicleSchema), vehicleController.updateVehicle);
+
+// Staff/Admin routes - verification
+router.post('/:id/verify', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(verifyVehicleSchema), vehicleController.verifyVehicle);
 
 // Staff/Admin routes - operations
 router.post('/:id/location', verifyJWT, checkRole('staff', 'driver', 'internal', 'super-admin'), validate(updateLocationSchema), vehicleController.updateLocation);

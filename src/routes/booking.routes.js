@@ -6,8 +6,8 @@ import { upload } from '../middlewares/upload.middleware.js';
 import {
   createBookingSchema,
   getBookingsQuerySchema,
-  bookingIdParamSchema,
   updateStatusSchema,
+  updateBookingSchema,
   assignDriverSchema,
   cancelBookingSchema,
   addDelaySchema,
@@ -28,7 +28,16 @@ router.get('/stats', verifyJWT, checkRole('staff', 'internal', 'super-admin'), v
 
 // Common protected routes
 router.get('/', verifyJWT, validate(getBookingsQuerySchema), bookingController.getAllBookings);
-router.get('/:id', verifyJWT, validate(bookingIdParamSchema), bookingController.getBookingById);
+router.get('/:id', verifyJWT, bookingController.getBookingById);
+
+// Staff only - booking updates
+router.patch(
+  '/:id',
+  verifyJWT,
+  checkRole('staff', 'internal', 'super-admin'),
+  validate(updateBookingSchema),
+  bookingController.updateBooking
+);
 
 // Staff only - status updates
 router.patch(

@@ -367,6 +367,55 @@ class DriverService {
   }
 
   /**
+   * Reject driver (mark verification as rejected)
+   * @param {string} driverId - Driver ID
+   * @param {string} reason - Rejection reason
+   * @param {string} rejectedBy - Staff ID
+   * @returns {Promise<Object>} Updated driver
+   */
+  static async rejectDriver(driverId, reason, rejectedBy) {
+    const driver = await Driver.findById(driverId);
+
+    if (!driver) {
+      throw new ApiError(404, 'Driver not found');
+    }
+
+    const oldData = driver.toObject();
+
+    // Mark as not verified and store rejection details
+    driver.isVerified = false;
+    driver.rejectionReason = reason;
+    driver.rejectedAt = new Date();
+    driver.rejectedBy = rejectedBy;
+    await driver.save();
+
+    // Audit log
+    await AuditLog.create({
+      user: rejectedBy,
+      action: 'REJECT_DRIVER',
+      entityType: 'driver',
+      entityId: driver._id,
+      changes: {
+        before: oldData,
+        after: driver.toObject()
+      }
+    });
+
+    // Notify driver
+    await NotificationService.sendNotification({
+      recipient: driver.user,
+      type: 'driver_rejected',
+      title: 'Profile Rejected',
+      message: `Your driver profile was rejected. Reason: ${reason}`,
+      entityType: 'driver',
+      entityId: driver._id,
+      channels: ['push', 'sms', 'in-app']
+    });
+
+    return driver;
+  }
+
+  /**
    * Blacklist driver
    * @param {string} driverId - Driver ID
    * @param {string} reason - Blacklist reason

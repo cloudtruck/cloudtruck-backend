@@ -77,6 +77,11 @@ const driverSchema = new mongoose.Schema({
   blacklistReason: String,
   blacklistedAt: Date,
   blacklistedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+
+  // Rejection Tracking (for verification rejections)
+  rejectionReason: String,
+  rejectedAt: Date,
+  rejectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   
   // Soft Delete
   isDeleted: { type: Boolean, default: false, index: true },

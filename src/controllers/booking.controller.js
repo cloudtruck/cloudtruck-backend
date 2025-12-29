@@ -26,6 +26,50 @@ export const createBooking = asyncHandler(async (req, res) => {
  * Get All Bookings
  * GET /api/v1/bookings
  */
+// Helper: normalize booking document to frontend Booking shape
+const mapBooking = (b) => {
+  const bk = b.toObject ? b.toObject() : b;
+  return {
+    _id: bk._id,
+    bookingId: bk.bookingId,
+    customer: bk.customer ? {
+      _id: bk.customer._id || bk.customer,
+      companyName: bk.customer.companyName,
+      phone: bk.customer.phone,
+      contactPerson: bk.customer.contactPerson
+    } : null,
+    pickup: {
+      city: bk.pickup?.city,
+      address: bk.pickup?.address,
+      latLng: bk.pickup?.location || bk.pickup?.latLng
+    },
+    drop: {
+      city: bk.drop?.city,
+      address: bk.drop?.address,
+      latLng: bk.drop?.location || bk.drop?.latLng
+    },
+    materialType: bk.materialType,
+    weight: bk.weight,
+    truckTypeNeeded: bk.truckTypeNeeded,
+    bodyType: bk.bodyType,
+    loadDateTime: bk.loadDateTime || bk.loadDate || bk.loadDateTime,
+    status: bk.status,
+    paymentStatus: bk.paymentStatus,
+    expectedAmount: bk.expectedAmount,
+    advanceRequired: bk.advanceRequired,
+    additionalInstructions: bk.additionalInstructions,
+    isHazardous: bk.isHazardous,
+    isFragile: bk.isFragile,
+    requiresTemperatureControl: bk.requiresTemperatureControl,
+    driver: bk.driver ? { _id: bk.driver._id || bk.driver, name: bk.driver.name, phone: bk.driver.phone } : undefined,
+    vehicle: bk.vehicle ? { _id: bk.vehicle._id || bk.vehicle, vehicleNumber: bk.vehicle.vehicleNumber, truckType: bk.vehicle.truckType } : undefined,
+    assignedAt: bk.assignedAt,
+    images: bk.cargoDocuments || bk.images || [],
+    createdAt: bk.createdAt,
+    updatedAt: bk.updatedAt
+  };
+};
+
 export const getAllBookings = asyncHandler(async (req, res) => {
   const {
     customerId,
@@ -54,8 +98,25 @@ export const getAllBookings = asyncHandler(async (req, res) => {
 
   const result = await BookingService.getBookings(filters, pagination, {});
 
+  // Support multiple paginate shapes
+  let docs = [];
+  let p = {};
+  if (Array.isArray(result)) docs = result;
+  else if (Array.isArray(result.data)) docs = result.data, p = result.pagination || {};
+  else if (Array.isArray(result.docs)) docs = result.docs, p = { page: result.page, limit: result.limit, total: result.totalDocs };
+  else if (Array.isArray(result.results)) docs = result.results, p = { page: result.page, limit: result.limit, total: result.totalDocs };
+
+  const bookings = docs.map(mapBooking);
+
+  const paginationRes = {
+    currentPage: p.page || result.page || 1,
+    totalPages: p.pages || result.pages || Math.ceil((p.total || result.total || 0) / (p.limit || result.limit || 20)),
+    totalItems: p.total || result.total || result.totalDocs || 0,
+    itemsPerPage: p.limit || result.limit || 20
+  };
+
   return res.status(200).json(
-    new ApiResponse(200, result, 'Bookings fetched successfully')
+    new ApiResponse(200, { bookings, pagination: paginationRes }, 'Bookings fetched successfully')
   );
 });
 
@@ -211,8 +272,25 @@ export const getMyBookings = asyncHandler(async (req, res) => {
 
   const result = await BookingService.getBookings(filters, pagination);
 
+  // Support multiple paginate shapes
+  let docs = [];
+  let p = {};
+  if (Array.isArray(result)) docs = result;
+  else if (Array.isArray(result.data)) docs = result.data, p = result.pagination || {};
+  else if (Array.isArray(result.docs)) docs = result.docs, p = { page: result.page, limit: result.limit, total: result.totalDocs };
+  else if (Array.isArray(result.results)) docs = result.results, p = { page: result.page, limit: result.limit, total: result.totalDocs };
+
+  const bookings = docs.map(mapBooking);
+
+  const paginationRes = {
+    currentPage: p.page || result.page || 1,
+    totalPages: p.pages || result.pages || Math.ceil((p.total || result.total || 0) / (p.limit || result.limit || 20)),
+    totalItems: p.total || result.total || result.totalDocs || 0,
+    itemsPerPage: p.limit || result.limit || 20
+  };
+
   return res.status(200).json(
-    new ApiResponse(200, result, 'Bookings fetched successfully')
+    new ApiResponse(200, { bookings, pagination: paginationRes }, 'Bookings fetched successfully')
   );
 });
 
@@ -240,7 +318,23 @@ export const getDriverBookings = asyncHandler(async (req, res) => {
 
   const result = await BookingService.getBookings(filters, pagination, options);
 
+  // Normalize result like other endpoints
+  let docs = [];
+  let p = {};
+  if (Array.isArray(result)) docs = result;
+  else if (Array.isArray(result.data)) docs = result.data, p = result.pagination || {};
+  else if (Array.isArray(result.docs)) docs = result.docs, p = { page: result.page, limit: result.limit, total: result.totalDocs };
+
+  const bookings = docs.map(mapBooking);
+
+  const paginationRes = {
+    currentPage: p.page || result.page || 1,
+    totalPages: p.pages || result.pages || Math.ceil((p.total || result.total || 0) / (p.limit || result.limit || 20)),
+    totalItems: p.total || result.total || result.totalDocs || 0,
+    itemsPerPage: p.limit || result.limit || 20
+  };
+
   return res.status(200).json(
-    new ApiResponse(200, result, 'Bookings fetched successfully')
+    new ApiResponse(200, { bookings, pagination: paginationRes }, 'Bookings fetched successfully')
   );
 });

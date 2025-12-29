@@ -2,6 +2,34 @@ import DriverService from '../services/driver.service.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
 
+// Helper: normalize driver document to frontend shape
+const mapDriver = (drv) => {
+  const d = drv.toObject ? drv.toObject() : drv;
+  return {
+    _id: d._id,
+    user: d.user ? (d.user._id ? { _id: d.user._id } : { _id: d.user }) : undefined,
+    userId: d.user && d.user._id ? d.user._id : d.user,
+    name: d.name,
+    phone: d.user?.phone || d.phone,
+    email: d.user?.email,
+    profilePhoto: d.profilePhoto,
+    licenseNumber: d.licenseNumber,
+    status: d.isBlacklisted ? 'blocked' : d.availability || (d.isBlacklisted ? 'blocked' : 'offline'),
+    isVerified: d.isVerified,
+    isBlacklisted: d.isBlacklisted,
+    blacklistReason: d.blacklistReason,
+    preferredTruckTypes: d.preferredTruckTypes,
+    currentLocation: d.lastKnownLocation,
+    lastActive: d.lastLocationAt,
+    totalTrips: d.totalTrips,
+    rating: d.rating,
+    createdAt: d.createdAt,
+    updatedAt: d.updatedAt,
+    rejectionReason: d.rejectionReason,
+    rejectedAt: d.rejectedAt
+  };
+};
+
 /**
  * Create Driver Profile
  * POST /api/v1/drivers
@@ -27,7 +55,7 @@ export const getDriverById = asyncHandler(async (req, res) => {
   const driver = await DriverService.getDriverById(id);
 
   return res.status(200).json(
-    new ApiResponse(200, driver, 'Driver fetched successfully')
+    new ApiResponse(200, mapDriver(driver), 'Driver fetched successfully')
   );
 });
 
@@ -37,7 +65,7 @@ export const getDriverByUser = asyncHandler(async (req, res) => {
   const driver = await DriverService.getDriverByUserId(userId);
 
   return res.status(200).json(
-    new ApiResponse(200, driver, 'Driver fetched by user successfully')
+    new ApiResponse(200, mapDriver(driver), 'Driver fetched by user successfully')
   );
 });
 
@@ -74,8 +102,68 @@ export const getAllDrivers = asyncHandler(async (req, res) => {
 
   const result = await DriverService.getDrivers(filters, pagination);
 
+  // Map paginate result to frontend contract: { drivers: Driver[], pagination: {...} }
+  // Support multiple paginate shapes (plugin returns { data, pagination })
+  let docsArray = [];
+  let paginationRes = { currentPage: 1, totalPages: 1, totalItems: 0, itemsPerPage: 20 };
+
+  if (Array.isArray(result)) {
+    docsArray = result;
+  } else if (Array.isArray(result.docs)) {
+    docsArray = result.docs;
+    paginationRes = {
+      currentPage: result.page || 1,
+      totalPages: result.totalPages || 1,
+      totalItems: result.totalDocs || 0,
+      itemsPerPage: result.limit || 20
+    };
+  } else if (Array.isArray(result.results)) {
+    docsArray = result.results;
+    paginationRes = {
+      currentPage: result.page || 1,
+      totalPages: result.totalPages || 1,
+      totalItems: result.totalDocs || 0,
+      itemsPerPage: result.limit || 20
+    };
+  } else if (Array.isArray(result.data)) {
+    docsArray = result.data;
+    const p = result.pagination || {};
+    paginationRes = {
+      currentPage: p.page || 1,
+      totalPages: p.pages || 1,
+      totalItems: p.total || 0,
+      itemsPerPage: p.limit || 20
+    };
+  }
+
+  const drivers = docsArray.map((d) => {
+    const drv = d.toObject ? d.toObject() : d;
+    return {
+      _id: drv._id,
+      user: drv.user ? (drv.user._id ? { _id: drv.user._id } : { _id: drv.user }) : undefined,
+      userId: drv.user && drv.user._id ? drv.user._id : drv.user,
+      name: drv.name,
+      phone: drv.user?.phone || drv.phone,
+      email: drv.user?.email,
+      profilePhoto: drv.profilePhoto,
+      licenseNumber: drv.licenseNumber,
+      status: drv.isBlacklisted ? 'blocked' : drv.availability || (drv.isBlacklisted ? 'blocked' : 'offline'),
+      isVerified: drv.isVerified,
+      isBlacklisted: drv.isBlacklisted,
+      blacklistReason: drv.blacklistReason,
+      preferredTruckTypes: drv.preferredTruckTypes,
+      currentLocation: drv.lastKnownLocation,
+      lastActive: drv.lastLocationAt,
+      totalTrips: drv.totalTrips,
+      rating: drv.rating,
+      createdAt: drv.createdAt,
+      updatedAt: drv.updatedAt,
+      rejectionReason: drv.rejectionReason,
+      rejectedAt: drv.rejectedAt
+    };
+  });
   return res.status(200).json(
-    new ApiResponse(200, result, 'Drivers fetched successfully')
+    new ApiResponse(200, { drivers, pagination: paginationRes }, 'Drivers fetched successfully')
   );
 });
 
@@ -198,6 +286,22 @@ export const blacklistDriver = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, driver, 'Driver blacklisted successfully')
+  );
+});
+
+/**
+ * Reject Driver
+ * POST /api/v1/drivers/:id/reject
+ */
+export const rejectDriver = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+  const rejectedBy = req.user._id;
+
+  const driver = await DriverService.rejectDriver(id, reason, rejectedBy);
+
+  return res.status(200).json(
+    new ApiResponse(200, driver, 'Driver rejected successfully')
   );
 });
 

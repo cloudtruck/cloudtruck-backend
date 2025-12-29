@@ -184,8 +184,17 @@ export const getBookingHistory = asyncHandler(async (req, res) => {
 
   const result = await CustomerService.getBookingHistory(customer._id, filters, pagination);
 
+  const bookings = result.data || result;
+  const p = result.pagination || result;
+  const paginationRes = {
+    currentPage: p.page || 1,
+    totalPages: p.pages || 1,
+    totalItems: p.total || (p.totalDocs || 0),
+    itemsPerPage: p.limit || 20
+  };
+
   return res.status(200).json(
-    new ApiResponse(200, result, 'Booking history fetched successfully')
+    new ApiResponse(200, { bookings, pagination: paginationRes }, 'Booking history fetched successfully')
   );
 });
 
@@ -207,8 +216,17 @@ export const getMyBookingHistory = asyncHandler(async (req, res) => {
 
   const result = await CustomerService.getBookingHistory(customer._id, filters, pagination);
 
+  const bookings = result.data || result;
+  const p = result.pagination || result;
+  const paginationRes = {
+    currentPage: p.page || 1,
+    totalPages: p.pages || 1,
+    totalItems: p.total || (p.totalDocs || 0),
+    itemsPerPage: p.limit || 20
+  };
+
   return res.status(200).json(
-    new ApiResponse(200, result, 'Booking history fetched successfully')
+    new ApiResponse(200, { bookings, pagination: paginationRes }, 'Booking history fetched successfully')
   );
 });
 

@@ -156,6 +156,19 @@ export const blacklistDriverSchema = z.object({
 });
 
 /**
+ * Reject Driver Validator
+ * POST /api/v1/drivers/:id/reject
+ */
+export const rejectDriverSchema = z.object({
+  params: z.object({
+    id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid driver ID')
+  }),
+  body: z.object({
+    reason: z.string().min(10, 'Rejection reason must be at least 10 characters')
+  })
+});
+
+/**
  * Get Performance Query Validator
  * GET /api/v1/drivers/:id/performance
  */

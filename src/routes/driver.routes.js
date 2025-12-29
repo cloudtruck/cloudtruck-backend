@@ -13,6 +13,7 @@ import {
   updateAvailabilitySchema,
   addRatingSchema,
   blacklistDriverSchema,
+  rejectDriverSchema,
   getPerformanceQuerySchema,
   getNearbyDriversQuerySchema
 } from '../validators/driver.validator.js';
@@ -45,6 +46,7 @@ router.patch('/:id/availability', verifyJWT, checkRole('staff', 'internal', 'sup
 
 // Staff/Admin routes - verification and management
 router.post('/:id/verify', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(driverIdParamSchema), driverController.verifyDriver);
+router.post('/:id/reject', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(rejectDriverSchema), driverController.rejectDriver);
 router.post('/:id/blacklist', verifyJWT, checkRole('internal', 'super-admin'), validate(blacklistDriverSchema), driverController.blacklistDriver);
 router.post('/:id/remove-blacklist', verifyJWT, checkRole('internal', 'super-admin'), validate(driverIdParamSchema), driverController.removeFromBlacklist);
 

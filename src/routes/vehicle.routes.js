@@ -6,6 +6,7 @@ import {
   createVehicleSchema,
   getVehiclesQuerySchema,
   vehicleIdParamSchema,
+  driverIdParamSchema,
   updateVehicleSchema,
   verifyVehicleSchema,
   updateLocationSchema,
@@ -14,7 +15,12 @@ import {
   getAvailableVehiclesQuerySchema
 } from '../validators/vehicle.validator.js';
 
+
+
 const router = express.Router();
+
+// Get vehicles belonging to a driver
+router.get('/driver/:driverId', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(driverIdParamSchema), vehicleController.getVehiclesByDriver);
 
 // Staff/Admin routes - list and search
 router.get('/available', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getAvailableVehiclesQuerySchema), vehicleController.getAvailableVehicles);

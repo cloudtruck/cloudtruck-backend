@@ -386,6 +386,24 @@ class VehicleService {
   }
 
   /**
+   * Get vehicles for a driver
+   * @param {string} driverId
+   * @returns {Promise<Array>} Vehicles
+   */
+  static async getVehiclesByDriver(driverId) {
+    const driver = await Driver.findOne({ _id: driverId, isDeleted: false });
+    if (!driver) {
+      throw new ApiError(404, 'Driver not found');
+    }
+
+    const vehicles = await Vehicle.find({ owner: driverId, isDeleted: false })
+      .populate('owner', 'name phone')
+      .lean();
+
+    return vehicles;
+  }
+
+  /**
    * Get vehicle statistics
    * @param {string} vehicleId - Vehicle ID (optional)
    * @returns {Promise<Object>} Statistics

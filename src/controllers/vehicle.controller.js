@@ -78,6 +78,20 @@ export const getAllVehicles = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get Vehicles by Driver
+ * GET /api/v1/vehicles/driver/:driverId
+ */
+export const getVehiclesByDriver = asyncHandler(async (req, res) => {
+  const { driverId } = req.params;
+
+  const vehicles = await VehicleService.getVehiclesByDriver(driverId);
+
+  return res.status(200).json(
+    new ApiResponse(200, vehicles, 'Vehicles fetched successfully')
+  );
+});
+
+/**
  * Update Vehicle
  * PATCH /api/v1/vehicles/:id
  */

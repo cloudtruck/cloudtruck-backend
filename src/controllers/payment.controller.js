@@ -1,4 +1,5 @@
 import PaymentService from '../services/payment.service.js';
+import PDFService from '../services/pdf.service.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import AuditLog from '../models/auditLog.model.js';
@@ -36,6 +37,50 @@ const pickPaymentAuditFields = (payment) => {
         processedAt: r.processedAt
       }))
       : undefined
+  };
+};
+
+const mapPayment = (p) => {
+  if (!p) return null;
+  const plain = p.toObject ? p.toObject() : p;
+
+  // Map backend status to frontend paymentStatus
+  const statusMap = {
+    'pending': 'unpaid',
+    'success': 'paid',
+    'failed': 'failed',
+    'refunded': 'failed'
+  };
+
+  const booking = plain.booking;
+
+  return {
+    _id: plain._id,
+    booking: booking ? {
+      _id: booking._id,
+      bookingId: booking.bookingId,
+      customer: booking.customer ? {
+        _id: booking.customer._id || booking.customer,
+        companyName: booking.customer.companyName
+      } : null,
+      pickup: booking.pickup,
+      drop: booking.drop,
+      materialType: booking.materialType,
+      truckTypeNeeded: booking.truckTypeNeeded
+    } : null,
+    customer: plain.customer,
+    amount: plain.amount,
+    advanceAmount: booking?.advanceRequired,
+    balanceAmount: booking ? (booking.expectedAmount - (booking.advanceRequired || 0)) : 0,
+    paymentMethod: plain.paymentMethod,
+    paymentStatus: statusMap[plain.status] || 'unpaid',
+    transactionId: plain.transactionId,
+    transactionReference: plain.referenceNumber,
+    paidAt: plain.paidAt,
+    markedReceivedBy: plain.recordedBy,
+    createdAt: plain.createdAt,
+    updatedAt: plain.updatedAt,
+    notes: plain.remarks
   };
 };
 
@@ -223,8 +268,9 @@ export const getAllPayments = asyncHandler(async (req, res) => {
   const limit = parseInt(req.query.limit) || 20;
 
   const result = await PaymentService.getPayments(filters, page, limit);
+  const payments = result.payments.map(mapPayment);
 
-  return res.status(200).json(new ApiResponse(200, result, 'Payments retrieved successfully'));
+  return res.status(200).json(new ApiResponse(200, { payments, pagination: result.pagination }, 'Payments retrieved successfully'));
 });
 
 /**
@@ -235,7 +281,29 @@ export const getPaymentById = asyncHandler(async (req, res) => {
 
   const payment = await PaymentService.getPaymentById(id);
 
-  return res.status(200).json(new ApiResponse(200, payment, 'Payment retrieved successfully'));
+  return res.status(200).json(new ApiResponse(200, mapPayment(payment), 'Payment retrieved successfully'));
+});
+
+/**
+ * Download Payment Invoice
+ */
+export const downloadInvoice = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  logger.info('Download invoice requested for ID:', { id });
+
+  const payment = await PaymentService.getPaymentById(id);
+  logger.info('Payment found for invoice:', { paymentId: payment._id });
+  
+  const pdfBuffer = await PDFService.generateInvoice(payment);
+  logger.info('PDF generated, size:', { size: pdfBuffer.length });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename=invoice-${id}.pdf`
+  );
+
+  return res.send(pdfBuffer);
 });
 
 /**
@@ -253,6 +321,7 @@ export const getMyPayments = asyncHandler(async (req, res) => {
   const limit = parseInt(req.query.limit) || 20;
 
   const result = await PaymentService.getPayments(filters, page, limit);
+  const payments = result.payments.map(mapPayment);
 
-  return res.status(200).json(new ApiResponse(200, result, 'Payments retrieved successfully'));
+  return res.status(200).json(new ApiResponse(200, { payments, pagination: result.pagination }, 'Payments retrieved successfully'));
 });

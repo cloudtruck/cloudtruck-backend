@@ -1,4 +1,5 @@
 import DriverService from '../services/driver.service.js';
+import { mapBooking } from './booking.controller.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
 
@@ -66,6 +67,32 @@ export const getDriverByUser = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, mapDriver(driver), 'Driver fetched by user successfully')
+  );
+});
+
+/**
+ * Get Available Drivers
+ * GET /api/v1/drivers/available
+ */
+export const getAvailableDrivers = asyncHandler(async (req, res) => {
+  const { truckType, city, latitude, longitude, radius } = req.query;
+
+  const filters = {
+    isAvailable: true,
+    isVerified: true,
+    isBlacklisted: false,
+    truckType,
+    location: latitude && longitude ? { latitude: parseFloat(latitude), longitude: parseFloat(longitude) } : undefined,
+    radius: radius ? parseFloat(radius) : undefined
+  };
+
+  const result = await DriverService.getDrivers(filters, { limit: 100 });
+  
+  // Handle both paginated and non-paginated results from service
+  const docs = result.docs || result.results || result.data || (Array.isArray(result) ? result : []);
+  
+  return res.status(200).json(
+    new ApiResponse(200, docs.map(mapDriver), 'Available drivers fetched successfully')
   );
 });
 
@@ -350,6 +377,56 @@ export const getMyPerformance = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, report, 'Performance report fetched successfully')
+  );
+});
+
+/**
+ * Get Driver Trip History
+ * GET /api/v1/drivers/:id/trip-history
+ */
+export const getTripHistory = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { page, limit, sort } = req.query;
+
+  const pagination = { page, limit, sort };
+
+  const result = await DriverService.getTripHistory(id, pagination);
+  const trips = result.data.map(mapBooking);
+
+  const paginationRes = {
+    currentPage: result.pagination.page,
+    totalPages: result.pagination.pages,
+    totalItems: result.pagination.total,
+    itemsPerPage: result.pagination.limit
+  };
+
+  return res.status(200).json(
+    new ApiResponse(200, { trips, pagination: paginationRes }, 'Trip history fetched successfully')
+  );
+});
+
+/**
+ * Get My Trip History (Driver)
+ * GET /api/v1/drivers/my-trip-history
+ */
+export const getMyTripHistory = asyncHandler(async (req, res) => {
+  const driverId = req.user._id;
+  const { page, limit, sort } = req.query;
+
+  const pagination = { page, limit, sort };
+
+  const result = await DriverService.getTripHistory(driverId, pagination);
+  const trips = result.data.map(mapBooking);
+
+  const paginationRes = {
+    currentPage: result.pagination.page,
+    totalPages: result.pagination.pages,
+    totalItems: result.pagination.total,
+    itemsPerPage: result.pagination.limit
+  };
+
+  return res.status(200).json(
+    new ApiResponse(200, { trips, pagination: paginationRes }, 'Trip history fetched successfully')
   );
 });
 

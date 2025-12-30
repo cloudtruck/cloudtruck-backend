@@ -194,3 +194,18 @@ export const getNearbyDriversQuerySchema = z.object({
     truckType: z.string().optional()
   })
 });
+
+/**
+ * Get Trip History Query Validator
+ * GET /api/v1/drivers/:id/trip-history
+ */
+export const getTripHistoryQuerySchema = z.object({
+  params: z.object({
+    id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid driver ID')
+  }),
+  query: z.object({
+    page: z.string().optional(),
+    limit: z.string().optional(),
+    sort: z.string().optional()
+  })
+});

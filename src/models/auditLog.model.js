@@ -34,6 +34,7 @@ const auditLogSchema = new mongoose.Schema(
         'UPDATE_DRIVER_PROFILE',
         'DELETE_DRIVER',
         'APPROVE_DRIVER',
+        'VERIFY_DRIVER',
         'REJECT_DRIVER',
         'BLOCK_DRIVER',
         'UNBLOCK_DRIVER',
@@ -43,6 +44,7 @@ const auditLogSchema = new mongoose.Schema(
         'UPDATE_VEHICLE',
         'DELETE_VEHICLE',
         'APPROVE_VEHICLE',
+        'VERIFY_VEHICLE',
         'REJECT_VEHICLE',
         'ADD_MAINTENANCE_RECORD',
         
@@ -54,6 +56,7 @@ const auditLogSchema = new mongoose.Schema(
         'UPDATE_CREDIT_LIMIT',
         'DELETE_CUSTOMER',
         'APPROVE_CUSTOMER',
+        'VERIFY_CUSTOMER',
         'BLOCK_CUSTOMER',
 
         // Staff actions

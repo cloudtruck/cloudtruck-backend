@@ -18,6 +18,7 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Create HTTP server
 const server = http.createServer(app);
+logger.info('Server instance created');
 
 // Initialize Socket.io
 const io = new Server(server, {

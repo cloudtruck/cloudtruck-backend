@@ -136,16 +136,63 @@ class DriverService {
       location,
       radius = 50, // km
       minRating,
-      isBlacklisted
+      isBlacklisted,
+      status,
+      search
     } = filters;
 
     const query = { isDeleted: false };
+    const andConditions = [];
 
-    if (typeof isAvailable === 'boolean') query.isAvailable = isAvailable;
+    if (search) {
+      andConditions.push({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { licenseNumber: { $regex: search, $options: 'i' } }
+        ]
+      });
+    }
+
+    if (status) {
+      query.availability = status;
+    }
+
+    if (isAvailable === true) {
+      query.availability = 'available';
+      query.currentBooking = null;
+      query.isBlacklisted = false;
+    } else if (isAvailable === false) {
+      andConditions.push({
+        $or: [
+          { availability: { $ne: 'available' } },
+          { currentBooking: { $ne: null } },
+          { isBlacklisted: true }
+        ]
+      });
+    }
+
     if (typeof isVerified === 'boolean') query.isVerified = isVerified;
-    if (typeof isBlacklisted === 'boolean') query.isBlacklisted = isBlacklisted;
-    if (truckType) query.preferredTruckTypes = truckType;
-    if (minRating) query['performance.rating'] = { $gte: minRating };
+    
+    // Only set isBlacklisted if not already set by isAvailable
+    if (typeof isBlacklisted === 'boolean' && isAvailable !== true) {
+      query.isBlacklisted = isBlacklisted;
+    }
+
+    if (truckType) {
+      andConditions.push({
+        $or: [
+          { preferredTruckTypes: truckType },
+          { preferredTruckTypes: { $size: 0 } },
+          { preferredTruckTypes: { $exists: false } }
+        ]
+      });
+    }
+
+    if (minRating) query.rating = { $gte: minRating };
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
+    }
 
     // Location-based search
     if (location && location.latitude && location.longitude) {
@@ -163,7 +210,7 @@ class DriverService {
     const result = await Driver.paginate(query, {
       page: pagination.page || 1,
       limit: pagination.limit || 20,
-      sort: pagination.sort || { 'performance.rating': -1, createdAt: -1 },
+      sort: pagination.sort || { rating: -1, createdAt: -1 },
       populate: [
         { path: 'user', select: 'phone status' },
         { path: 'currentBooking', select: 'bookingId status' }
@@ -352,6 +399,18 @@ class DriverService {
     // Update user status
     await User.findByIdAndUpdate(driver.user, { status: 'active' });
 
+    // Audit log
+    await AuditLog.create({
+      user: verifiedBy,
+      action: 'VERIFY_DRIVER',
+      entityType: 'driver',
+      entityId: driver._id,
+      changes: {
+        before: { isVerified: false },
+        after: { isVerified: true }
+      }
+    });
+
     // Notify driver
     await NotificationService.sendNotification({
       recipient: driver.user,
@@ -536,6 +595,48 @@ class DriverService {
       period: { startDate, endDate },
       stats
     };
+  }
+
+  /**
+   * Get driver trip history
+   * @param {string} driverId - Driver ID
+   * @param {Object} pagination - Pagination options
+   * @returns {Promise<Object>} Paginated bookings
+   */
+  static async getTripHistory(driverId, pagination = {}) {
+    const isValidId = mongoose.Types.ObjectId.isValid(driverId);
+    if (!isValidId) {
+      throw new ApiError(400, 'Invalid driver ID');
+    }
+
+    // Resolve driver document ID if user ID is provided
+    let driverDocId = driverId;
+    const driver = await Driver.findOne({ 
+      $or: [{ _id: driverId }, { user: driverId }], 
+      isDeleted: false 
+    }).select('_id');
+    
+    if (!driver) {
+      throw new ApiError(404, 'Driver not found');
+    }
+    driverDocId = driver._id;
+
+    const query = {
+      driver: driverDocId,
+      isDeleted: false
+    };
+
+    const result = await Booking.paginate(query, {
+      page: pagination.page || 1,
+      limit: pagination.limit || 10,
+      sort: pagination.sort || { createdAt: -1 },
+      populate: [
+        { path: 'customer', select: 'companyName' },
+        { path: 'vehicle', select: 'vehicleNumber truckType' }
+      ]
+    });
+
+    return result;
   }
 
   /**

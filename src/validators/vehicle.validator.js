@@ -8,7 +8,7 @@ export const createVehicleSchema = z.object({
   body: z.object({
     vehicleNumber: z.string()
       .min(5, 'Vehicle number must be at least 5 characters')
-      .regex(/^[A-Z]{2}[0-9]{1,2}[A-Z]{1,2}[0-9]{4}$/, 'Invalid vehicle number format'),
+      .transform(v => v.toUpperCase().replace(/[-\s]/g, '')),
     truckType: z.enum([
       '14ft',
       '17ft',
@@ -17,17 +17,26 @@ export const createVehicleSchema = z.object({
       '22ft',
       '24ft',
       '32ft',
-      '40ft',
       'container-20ft',
       'container-40ft',
       'trailer',
       'tanker',
       'tipper',
-      'refrigerated'
+      'flatbed',
+      'refrigerated',
+      'car-carrier',
+      'open-body',
+      'closed-body'
     ]),
-    length: z.number().positive('Length must be positive'),
-    capacity: z.number().positive('Capacity must be positive'),
-    bodyType: z.enum(['open', 'closed', 'container', 'flatbed']),
+    length: z.object({
+      value: z.number().positive('Length must be positive'),
+      unit: z.enum(['ft', 'meter', 'm']).transform(u => u === 'm' ? 'meter' : u).default('ft')
+    }),
+    capacity: z.object({
+      value: z.number().positive('Capacity must be positive'),
+      unit: z.enum(['tons', 'kg']).default('tons')
+    }),
+    bodyType: z.enum(['open', 'closed', 'container', 'tanker', 'flatbed']),
     manufacturer: z.string().optional(),
     model: z.string().optional(),
     year: z.number()
@@ -35,11 +44,19 @@ export const createVehicleSchema = z.object({
       .min(1990, 'Year must be 1990 or later')
       .max(new Date().getFullYear() + 1, 'Invalid year')
       .optional(),
-    owner: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid owner ID').optional(),
+    owner: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid owner ID'),
+    expiryDates: z.object({
+      insurance: z.string().datetime('Invalid insurance expiry date'),
+      fitness: z.string().datetime().optional(),
+      permit: z.string().datetime().optional(),
+      puc: z.string().datetime().optional(),
+      roadTax: z.string().datetime().optional()
+    }),
     registrationState: z.string().min(2).optional(),
     permitType: z.enum(['national', 'state', 'city']).optional(),
     hasGPS: z.boolean().optional(),
-    hasFASTag: z.boolean().optional()
+    hasFASTag: z.boolean().optional(),
+    status: z.string().optional()
   })
 });
 
@@ -61,6 +78,8 @@ export const getVehiclesQuerySchema = z.object({
     hasGPS: z.enum(['true', 'false']).optional(),
     hasFASTag: z.enum(['true', 'false']).optional(),
     search: z.string().optional(),
+    status: z.string().optional(),
+    verificationStatus: z.string().optional(),
     page: z.string().optional(),
     limit: z.string().optional(),
     sort: z.string().optional()
@@ -106,12 +125,19 @@ export const updateVehicleSchema = z.object({
   }),
   body: z.object({
     truckType: z.enum([
-      '14ft', '17ft', '19ft', '20ft', '22ft', '24ft', '32ft', '40ft',
-      'container-20ft', 'container-40ft', 'trailer', 'tanker', 'tipper', 'refrigerated'
+      '14ft', '17ft', '19ft', '20ft', '22ft', '24ft', '32ft', 'container-20ft',
+      'container-40ft', 'trailer', 'tanker', 'tipper', 'flatbed', 'refrigerated',
+      'car-carrier', 'open-body', 'closed-body'
     ]).optional(),
-    length: z.number().positive().optional(),
-    capacity: z.number().positive().optional(),
-    bodyType: z.enum(['open', 'closed', 'container', 'flatbed']).optional(),
+    length: z.object({
+      value: z.number().positive(),
+      unit: z.enum(['ft', 'meter', 'm']).transform(u => u === 'm' ? 'meter' : u)
+    }).optional(),
+    capacity: z.object({
+      value: z.number().positive(),
+      unit: z.enum(['tons', 'kg'])
+    }).optional(),
+    bodyType: z.enum(['open', 'closed', 'container', 'tanker', 'flatbed']).optional(),
     manufacturer: z.string().optional(),
     model: z.string().optional(),
     year: z.number().int().min(1990).max(new Date().getFullYear() + 1).optional(),

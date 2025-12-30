@@ -15,7 +15,8 @@ import {
   blacklistDriverSchema,
   rejectDriverSchema,
   getPerformanceQuerySchema,
-  getNearbyDriversQuerySchema
+  getNearbyDriversQuerySchema,
+  getTripHistoryQuerySchema
 } from '../validators/driver.validator.js';
 
 const router = express.Router();
@@ -28,16 +29,19 @@ router.get('/nearby', verifyJWT, checkRole('staff', 'internal', 'super-admin'), 
 router.post('/', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(createDriverSchema), driverController.createDriver);
 router.get('/my-profile', verifyJWT, checkRole('driver'), driverController.getMyProfile);
 router.get('/my-performance', verifyJWT, checkRole('driver'), validate(getPerformanceQuerySchema), driverController.getMyPerformance);
+router.get('/my-trip-history', verifyJWT, checkRole('driver'), driverController.getMyTripHistory);
 router.post('/my-location', verifyJWT, checkRole('driver'), validate(updateLocationSchema), driverController.updateMyLocation);
 router.patch('/my-availability', verifyJWT, checkRole('driver'), validate(updateAvailabilitySchema), driverController.updateMyAvailability);
 
 // Staff/Admin routes - list and view
 router.get('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getDriversQuerySchema), driverController.getAllDrivers);
+router.get('/available', verifyJWT, checkRole('staff', 'internal', 'super-admin'), driverController.getAvailableDrivers);
 // Explicit user-based lookup
 router.get('/by-user/:userId', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(userIdParamSchema), driverController.getDriverByUser);
 // Primary lookup by driver document id (document-first, then fallback to user)
 router.get('/:id', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(driverIdParamSchema), driverController.getDriverById);
 router.get('/:id/performance', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getPerformanceQuerySchema), driverController.getPerformanceReport);
+router.get('/:id/trip-history', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getTripHistoryQuerySchema), driverController.getTripHistory);
 
 // Staff/Admin routes - update
 router.patch('/:id', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(updateDriverSchema), driverController.updateDriver);

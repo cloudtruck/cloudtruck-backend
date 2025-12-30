@@ -399,7 +399,14 @@ class PaymentService {
     const skip = (page - 1) * limit;
     const payments = await Payment.find(query)
       .populate('customer', 'companyName')
-      .populate('booking', 'bookingId pickupCity dropCity')
+      .populate({
+        path: 'booking',
+        select: 'bookingId pickup drop customer',
+        populate: {
+          path: 'customer',
+          select: 'companyName'
+        }
+      })
       .populate('recordedBy', 'name email')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -426,8 +433,15 @@ class PaymentService {
    */
   static async getPaymentById(paymentId) {
     const payment = await Payment.findById(paymentId)
-      .populate('customer', 'companyName gstNumber')
-      .populate('booking', 'bookingId pickupCity dropCity')
+      .populate('customer', 'companyName gst')
+      .populate({
+        path: 'booking',
+        select: 'bookingId pickup drop materialType truckTypeNeeded expectedAmount advanceRequired customer',
+        populate: {
+          path: 'customer',
+          select: 'companyName'
+        }
+      })
       .populate('recordedBy', 'name email')
       .lean();
 

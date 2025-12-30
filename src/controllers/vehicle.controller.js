@@ -49,6 +49,8 @@ export const getAllVehicles = asyncHandler(async (req, res) => {
     hasGPS,
     hasFASTag,
     search,
+    status,
+    verificationStatus,
     page,
     limit,
     sort
@@ -65,15 +67,34 @@ export const getAllVehicles = asyncHandler(async (req, res) => {
     radius: radius ? parseFloat(radius) : undefined,
     hasGPS: hasGPS === 'true' ? true : hasGPS === 'false' ? false : undefined,
     hasFASTag: hasFASTag === 'true' ? true : hasFASTag === 'false' ? false : undefined,
-    search
+    search,
+    status,
+    verificationStatus
   };
 
   const pagination = { page, limit, sort };
 
   const result = await VehicleService.getVehicles(filters, pagination);
 
+  // Map paginate result to frontend contract: { vehicles: Vehicle[], pagination: {...} }
+  let docsArray = [];
+  let paginationRes = { currentPage: 1, totalPages: 1, totalItems: 0, itemsPerPage: 20 };
+
+  if (Array.isArray(result)) {
+    docsArray = result;
+  } else if (Array.isArray(result.data)) {
+    docsArray = result.data;
+    const p = result.pagination || {};
+    paginationRes = {
+      currentPage: p.page || 1,
+      totalPages: p.pages || 1,
+      totalItems: p.total || 0,
+      itemsPerPage: p.limit || 20
+    };
+  }
+
   return res.status(200).json(
-    new ApiResponse(200, result, 'Vehicles fetched successfully')
+    new ApiResponse(200, { vehicles: docsArray, pagination: paginationRes }, 'Vehicles fetched successfully')
   );
 });
 

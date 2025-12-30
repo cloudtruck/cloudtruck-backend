@@ -28,6 +28,7 @@ class VehicleService {
       owner,
       registrationState,
       permitType,
+      expiryDates,
       hasGPS,
       hasFASTag
     } = data;
@@ -63,9 +64,10 @@ class VehicleService {
       owner,
       registrationState,
       permitType,
+      expiryDates,
       hasGPS,
       hasFASTag,
-      isAvailable: true,
+      availability: 'available',
       createdBy
     });
 
@@ -127,19 +129,30 @@ class VehicleService {
       radius = 50,
       hasGPS,
       hasFASTag,
-      search
+      search,
+      status,
+      verificationStatus
     } = filters;
 
     const query = { isDeleted: false };
 
-    if (typeof isAvailable === 'boolean') query.isAvailable = isAvailable;
+    if (typeof isAvailable === 'boolean') query.availability = isAvailable ? 'available' : { $ne: 'available' };
     if (truckType) query.truckType = Array.isArray(truckType) ? { $in: truckType } : truckType;
     if (bodyType) query.bodyType = bodyType;
-    if (minCapacity) query.capacity = { ...query.capacity, $gte: minCapacity };
-    if (maxCapacity) query.capacity = { ...query.capacity, $lte: maxCapacity };
+    if (minCapacity) query['capacity.value'] = { ...query['capacity.value'], $gte: minCapacity };
+    if (maxCapacity) query['capacity.value'] = { ...query['capacity.value'], $lte: maxCapacity };
     if (owner) query.owner = owner;
-    if (typeof hasGPS === 'boolean') query.hasGPS = hasGPS;
-    if (typeof hasFASTag === 'boolean') query.hasFASTag = hasFASTag;
+    if (typeof hasGPS === 'boolean') query['features.hasGPS'] = hasGPS;
+    if (typeof hasFASTag === 'boolean') query['features.hasFastTag'] = hasFASTag;
+    if (status) {
+      // Frontend might send 'available', 'on-trip' which are availability values
+      if (['available', 'on-trip', 'maintenance', 'offline'].includes(status)) {
+        query.availability = status;
+      } else {
+        query.status = status;
+      }
+    }
+    if (verificationStatus) query.verificationStatus = verificationStatus;
 
     // Search by vehicle number or registration state
     if (search) {
@@ -201,7 +214,9 @@ class VehicleService {
       'model',
       'year',
       'owner',
+      'registrationState',
       'permitType',
+      'expiryDates',
       'hasGPS',
       'hasFASTag'
     ];
@@ -285,7 +300,7 @@ class VehicleService {
       throw new ApiError(400, 'Cannot set available while assigned to a booking');
     }
 
-    vehicle.isAvailable = isAvailable;
+    vehicle.availability = isAvailable ? 'available' : 'maintenance';
     await vehicle.save();
 
     return vehicle;
@@ -336,12 +351,13 @@ class VehicleService {
 
     const query = {
       isDeleted: false,
-      isAvailable: true,
+      availability: 'available',
+      verificationStatus: 'verified',
       truckType
     };
 
     if (minCapacity) {
-      query.capacity = { $gte: minCapacity };
+      query['capacity.value'] = { $gte: minCapacity };
     }
 
     // Check for active bookings during requested time
@@ -496,9 +512,11 @@ class VehicleService {
       throw new ApiError(404, 'Vehicle not found');
     }
 
-    vehicle.isVerified = true;
-    vehicle.verifiedAt = new Date();
-    vehicle.verifiedBy = verifiedBy;
+    vehicle.verificationStatus = 'verified';
+    vehicle.verificationDetails = {
+      verifiedBy,
+      verifiedAt: new Date()
+    };
     await vehicle.save();
 
     // Audit log
@@ -508,8 +526,8 @@ class VehicleService {
       entityType: 'vehicle',
       entityId: vehicle._id,
       changes: {
-        before: { isVerified: false },
-        after: { isVerified: true }
+        before: { verificationStatus: 'pending' },
+        after: { verificationStatus: 'verified' }
       }
     });
 

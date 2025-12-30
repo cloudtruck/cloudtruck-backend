@@ -11,6 +11,7 @@ import paymentRoutes from './payment.routes.js';
 import documentRoutes from './document.routes.js';
 import trackingRoutes from './tracking.routes.js';
 import notificationRoutes from './notification.routes.js';
+import exportRoutes from './export.routes.js';
 
 const router = express.Router();
 
@@ -36,6 +37,7 @@ router.use('/payments', paymentRoutes);
 router.use('/documents', documentRoutes);
 router.use('/tracking', trackingRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/exports', exportRoutes);
 
 // 404 handler for undefined routes
 router.use('*', (req, res) => {

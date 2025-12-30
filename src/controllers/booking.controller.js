@@ -27,7 +27,7 @@ export const createBooking = asyncHandler(async (req, res) => {
  * GET /api/v1/bookings
  */
 // Helper: normalize booking document to frontend Booking shape
-const mapBooking = (b) => {
+export const mapBooking = (b) => {
   const bk = b.toObject ? b.toObject() : b;
   return {
     _id: bk._id,
@@ -75,10 +75,14 @@ export const getAllBookings = asyncHandler(async (req, res) => {
     customerId,
     driverId,
     status,
+    paymentStatus,
     startDate,
     endDate,
+    dateFrom,
+    dateTo,
     truckType,
     city,
+    search,
     page,
     limit,
     sort
@@ -88,10 +92,12 @@ export const getAllBookings = asyncHandler(async (req, res) => {
     customerId,
     driverId,
     status: status ? status.split(',') : undefined,
-    startDate,
-    endDate,
+    paymentStatus,
+    startDate: startDate || dateFrom,
+    endDate: endDate || dateTo,
     truckType,
-    city
+    city,
+    search
   };
 
   const pagination = { page, limit, sort };

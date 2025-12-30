@@ -11,11 +11,16 @@ import {
   getPaymentsQuerySchema,
   paymentIdParamSchema
 } from '../validators/payment.validator.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
+logger.info('Payment routes initialized');
+
 // PhonePe callback (no auth required)
 router.post('/phonepe/callback', paymentController.phonePeCallback);
+
+router.get('/:id/invoice', paymentController.downloadInvoice);
 
 // All other routes require authentication
 router.use(verifyJWT);
@@ -49,6 +54,8 @@ router.get(
   validate(getPaymentsQuerySchema),
   paymentController.getAllPayments
 );
+
+router.get('/:id/invoice', paymentController.downloadInvoice);
 
 router.get('/:id', checkRole('customer', 'staff', 'internal', 'super-admin'), validate(paymentIdParamSchema), paymentController.getPaymentById);
 

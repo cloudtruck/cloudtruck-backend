@@ -403,7 +403,7 @@ vehicleSchema.index({ truckType: 1, bodyType: 1, availability: 1 });
 vehicleSchema.index({ 'expiryDates.insurance': 1 }, { partialFilterExpression: { 'expiryDates.insurance': { $exists: true } } });
 vehicleSchema.index({ 'expiryDates.fitness': 1 });
 vehicleSchema.index({ createdAt: -1 });
-vehicleSchema.index({ lastKnownLocation: '2dsphere' });
+vehicleSchema.index({ lastKnownLocation: '2dsphere' }, { partialFilterExpression: { 'lastKnownLocation.coordinates': { $exists: true } } });
 
 // Virtual for checking if documents are expired
 vehicleSchema.virtual('isDocumentsValid').get(function () {
@@ -413,6 +413,10 @@ vehicleSchema.virtual('isDocumentsValid').get(function () {
     (!this.expiryDates.fitness || this.expiryDates.fitness > now) &&
     (!this.expiryDates.permit || this.expiryDates.permit > now)
   );
+});
+
+vehicleSchema.virtual('isVerified').get(function () {
+  return this.verificationStatus === 'verified';
 });
 
 // Virtual for checking if vehicle needs maintenance
@@ -426,6 +430,15 @@ vehicleSchema.virtual('needsMaintenance').get(function () {
 });
 
 // Pre-save middleware to normalize vehicle number
+vehicleSchema.pre('validate', function (next) {
+  if (this.lastKnownLocation) {
+    if (!this.lastKnownLocation.coordinates || !Array.isArray(this.lastKnownLocation.coordinates) || this.lastKnownLocation.coordinates.length !== 2) {
+      this.lastKnownLocation = undefined;
+    }
+  }
+  next();
+});
+
 vehicleSchema.pre('save', function (next) {
   if (this.isModified('vehicleNumber') && this.vehicleNumber) {
     this.vehicleNumber = this.vehicleNumber.replace(/-/g, '').toUpperCase();

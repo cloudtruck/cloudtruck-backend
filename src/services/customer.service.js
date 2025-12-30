@@ -399,6 +399,18 @@ class CustomerService {
     // Update user status
     await User.findByIdAndUpdate(customer.user, { status: 'active' });
 
+    // Audit log
+    await AuditLog.create({
+      user: verifiedBy,
+      action: 'VERIFY_CUSTOMER',
+      entityType: 'customer',
+      entityId: customer._id,
+      changes: {
+        before: { isVerified: false },
+        after: { isVerified: true }
+      }
+    });
+
     // Notify customer
     await NotificationService.sendNotification({
       recipient: customer.user,

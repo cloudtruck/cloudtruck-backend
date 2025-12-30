@@ -189,10 +189,12 @@ class BookingService {
       customerId,
       driverId,
       status,
+      paymentStatus,
       startDate,
       endDate,
       truckType,
-      city
+      city,
+      search
     } = filters;
 
     const { maskCustomer = false } = options;
@@ -208,17 +210,38 @@ class BookingService {
         query.status = status;
       }
     }
+    if (paymentStatus) query.paymentStatus = paymentStatus;
     if (truckType) query.truckTypeNeeded = truckType;
     if (startDate || endDate) {
-      query.loadDateTime = {};
-      if (startDate) query.loadDateTime.$gte = new Date(startDate);
-      if (endDate) query.loadDateTime.$lte = new Date(endDate);
+      query.loadDate = {};
+      if (startDate) query.loadDate.$gte = new Date(startDate);
+      if (endDate) query.loadDate.$lte = new Date(endDate);
     }
     if (city) {
-      query.$or = [
-        { 'pickup.city': new RegExp(city, 'i') },
-        { 'drop.city': new RegExp(city, 'i') }
-      ];
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { 'pickup.city': new RegExp(city, 'i') },
+          { 'drop.city': new RegExp(city, 'i') }
+        ]
+      });
+    }
+
+    if (search) {
+      // Find customers matching search to include in booking search
+      const matchingCustomers = await Customer.find({
+        companyName: new RegExp(search, 'i')
+      }).select('_id');
+      const customerIds = matchingCustomers.map((c) => c._id);
+
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { bookingId: new RegExp(search, 'i') },
+          { materialType: new RegExp(search, 'i') },
+          { customer: { $in: customerIds } }
+        ]
+      });
     }
 
     const customerSelect = maskCustomer ? 'companyName' : 'companyName phone email';
@@ -771,8 +794,13 @@ class BookingService {
     }, {});
 
     return {
-      totalBookings: totals.totalBookings,
+      total: totals.totalBookings,
       totalRevenue: totals.totalRevenue,
+      newRequests: (statusBreakdown['created'] || 0) + (statusBreakdown['under-review'] || 0),
+      assigned: statusBreakdown['assigned'] || 0,
+      inTransit: statusBreakdown['in-transit'] || 0,
+      delivered: statusBreakdown['delivered'] || 0,
+      podPending: statusBreakdown['pod-received'] || 0,
       statusBreakdown
     };
   }

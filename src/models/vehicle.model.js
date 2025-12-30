@@ -407,6 +407,7 @@ vehicleSchema.index({ lastKnownLocation: '2dsphere' }, { partialFilterExpression
 
 // Virtual for checking if documents are expired
 vehicleSchema.virtual('isDocumentsValid').get(function () {
+  if (!this.expiryDates) return false;
   const now = new Date();
   return (
     this.expiryDates.insurance > now &&
@@ -419,9 +420,18 @@ vehicleSchema.virtual('isVerified').get(function () {
   return this.verificationStatus === 'verified';
 });
 
+vehicleSchema.virtual('isAvailable').get(function () {
+  return (
+    !this.isDeleted &&
+    this.availability === 'available' &&
+    this.verificationStatus === 'verified' &&
+    !this.currentBooking
+  );
+});
+
 // Virtual for checking if vehicle needs maintenance
 vehicleSchema.virtual('needsMaintenance').get(function () {
-  if (!this.maintenanceHistory.length) return false;
+  if (!this.maintenanceHistory || !this.maintenanceHistory.length) return false;
   
   const lastMaintenance = this.maintenanceHistory[this.maintenanceHistory.length - 1];
   if (!lastMaintenance.nextDueDate) return false;

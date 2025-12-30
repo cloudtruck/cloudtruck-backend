@@ -196,13 +196,42 @@ export const updateBooking = asyncHandler(async (req, res) => {
 export const assignDriver = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { driverId, vehicleId } = req.body;
-  const assignedBy = req.user._id;
+  const userId = req.user._id;
 
-  const booking = await BookingService.assignDriver(id, driverId, vehicleId, assignedBy);
+  const booking = await BookingService.assignDriver(id, driverId, vehicleId, userId);
 
   return res.status(200).json(
     new ApiResponse(200, booking, 'Driver assigned successfully')
   );
+});
+
+/**
+ * Get Dashboard Activities
+ * GET /api/v1/bookings/dashboard/activities
+ */
+export const getActivities = asyncHandler(async (req, res) => {
+  const { limit } = req.query;
+  const activities = await BookingService.getDashboardActivities({ limit: limit ? parseInt(limit) : 20 });
+  return res.status(200).json(new ApiResponse(200, activities, 'Activities fetched successfully'));
+});
+
+/**
+ * Get Booking Trends
+ * GET /api/v1/bookings/dashboard/trends
+ */
+export const getTrends = asyncHandler(async (req, res) => {
+  const { days } = req.query;
+  const trends = await BookingService.getBookingTrends({ days: days ? parseInt(days) : 7 });
+  return res.status(200).json(new ApiResponse(200, trends, 'Trends fetched successfully'));
+});
+
+/**
+ * Get Status Breakdown
+ * GET /api/v1/bookings/dashboard/status
+ */
+export const getStatusBreakdown = asyncHandler(async (req, res) => {
+  const breakdown = await BookingService.getStatusBreakdown();
+  return res.status(200).json(new ApiResponse(200, breakdown, 'Status breakdown fetched successfully'));
 });
 
 /**

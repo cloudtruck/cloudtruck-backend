@@ -253,7 +253,7 @@ class BookingService {
       populate: [
         { path: 'customer', select: customerSelect },
         { path: 'driver', select: 'name phone' },
-        { path: 'vehicle', select: 'vehicleNumber truckType' },
+        { path: 'vehicle', select: 'vehicleNumber truckType availability verificationStatus' },
         { 
           path: 'assignedBy', 
           select: 'name department', 
@@ -303,7 +303,7 @@ class BookingService {
     query = query
       .populate('customer', customerFields)
       .populate('driver', 'name phone licenseNumber')
-      .populate('vehicle', 'vehicleNumber truckType capacity')
+      .populate('vehicle', 'vehicleNumber truckType capacity availability verificationStatus currentBooking expiryDates')
       .populate({
         path: 'assignedBy',
         select: 'name department',
@@ -501,10 +501,10 @@ class BookingService {
    * @param {string} bookingId - Booking ID
    * @param {string} driverId - Driver ID
    * @param {string} vehicleId - Vehicle ID
-   * @param {string} assignedBy - Staff ID
+   * @param {string} userId - User ID (Staff member)
    * @returns {Promise<Object>} Updated booking
    */
-  static async assignDriver(bookingId, driverId, vehicleId, assignedBy) {
+  static async assignDriver(bookingId, driverId, vehicleId, userId) {
     const booking = await Booking.findOne({
       $or: [{ _id: bookingId }, { bookingId }],
       isDeleted: false
@@ -518,12 +518,18 @@ class BookingService {
       throw new ApiError(400, 'Cannot assign driver. Booking already assigned or in progress');
     }
 
+    // Find staff profile
+    const staff = await Staff.findOne({ user: userId });
+    if (!staff) {
+      throw new ApiError(403, 'Only staff members can assign drivers');
+    }
+
     // Verify driver exists and is available
     const driver = await Driver.findById(driverId);
     if (!driver || driver.isDeleted) {
       throw new ApiError(404, 'Driver not found');
     }
-    if (!driver.isAvailable) {
+    if (driver.availability !== 'available' || driver.currentBooking) {
       throw new ApiError(400, 'Driver is not available');
     }
     if (driver.isBlacklisted) {
@@ -535,7 +541,7 @@ class BookingService {
     if (!vehicle || vehicle.isDeleted) {
       throw new ApiError(404, 'Vehicle not found');
     }
-    if (!vehicle.isAvailable) {
+    if (vehicle.availability !== 'available' || vehicle.verificationStatus !== 'verified' || vehicle.currentBooking) {
       throw new ApiError(400, 'Vehicle is not available');
     }
 
@@ -544,40 +550,70 @@ class BookingService {
       throw new ApiError(400, 'Vehicle type does not match booking requirements');
     }
 
-    // Update booking
-    booking.driver = driverId;
-    booking.vehicle = vehicleId;
-    booking.assignedBy = assignedBy;
-    booking.assignedAt = new Date();
-    booking.status = 'assigned';
-    booking.statusHistory.push({
-      status: 'assigned',
-      updatedBy: assignedBy,
-      timestamp: new Date(),
-      note: `Assigned driver ${driver.name} with vehicle ${vehicle.vehicleNumber}`
-    });
+    // Save booking first, then update driver & vehicle. If any step fails, rollback booking to previous state.
+    const oldBookingState = {
+      driver: booking.driver,
+      vehicle: booking.vehicle,
+      status: booking.status,
+      assignedBy: booking.assignedBy,
+      assignedAt: booking.assignedAt
+    };
 
-    await booking.save();
+    try {
+      // Update booking
+      booking.driver = driverId;
+      booking.vehicle = vehicleId;
+      booking.assignedBy = staff._id;
+      booking.assignedAt = new Date();
+      booking.status = 'assigned';
+      booking.statusHistory.push({
+        status: 'assigned',
+        updatedBy: userId,
+        timestamp: new Date(),
+        note: `Assigned driver ${driver.name} with vehicle ${vehicle.vehicleNumber}`
+      });
 
-    // Update driver availability
-    driver.isAvailable = false;
-    driver.currentBooking = booking._id;
-    await driver.save();
+      await booking.save();
 
-    // Update vehicle availability
-    vehicle.isAvailable = false;
-    vehicle.currentBooking = booking._id;
-    await vehicle.save();
+      // Update driver availability
+      driver.availability = 'on-trip';
+      driver.currentBooking = booking._id;
+      await driver.save();
 
-    // Update staff metrics
-    const staff = await Staff.findById(assignedBy);
-    if (staff) {
+      // Update vehicle availability
+      vehicle.availability = 'on-trip';
+      vehicle.currentBooking = booking._id;
+      await vehicle.save();
+
+      // Update staff metrics
       staff.performance.bookingsAssigned += 1;
       staff.assignedBookings.push(booking._id);
       await staff.save();
+
+      // Audit log
+      await AuditLog.create({
+        user: userId,
+        action: 'ASSIGN_DRIVER',
+        entityType: 'booking',
+        entityId: booking._id,
+        changes: {
+          before: { driver: null, vehicle: null, status: 'assigned' },
+          after: { driver: driverId, vehicle: vehicleId }
+        }
+      });
+
+    } catch (err) {
+      // Rollback booking if something fails after booking was saved
+      booking.driver = oldBookingState.driver;
+      booking.vehicle = oldBookingState.vehicle;
+      booking.status = oldBookingState.status;
+      booking.assignedBy = oldBookingState.assignedBy;
+      booking.assignedAt = oldBookingState.assignedAt;
+      await booking.save().catch(() => {}); // best-effort rollback
+      throw err;
     }
 
-    // Notify driver
+    // Send notifications (outside of critical section)
     await NotificationService.sendNotification({
       recipient: driver.user,
       type: 'booking_assigned',
@@ -588,7 +624,6 @@ class BookingService {
       channels: ['push', 'in-app']
     });
 
-    // Notify customer
     await NotificationService.sendNotification({
       recipient: booking.customer,
       type: 'driver_assigned',
@@ -599,22 +634,128 @@ class BookingService {
       channels: ['push', 'sms', 'in-app']
     });
 
-    // Audit log
-    await AuditLog.create({
-      user: assignedBy,
-      action: 'ASSIGN_DRIVER',
-      entityType: 'booking',
-      entityId: booking._id,
-      changes: {
-        before: { driver: null, vehicle: null },
-        after: { driver: driverId, vehicle: vehicleId }
-      }
-    });
-
     return booking.populate([
       { path: 'driver', select: 'name phone' },
       { path: 'vehicle', select: 'vehicleNumber truckType' }
     ]);
+  }
+
+  /**
+   * Return recent booking related activities based on AuditLog
+   * @param {Object} opts - { limit }
+   */
+  static async getDashboardActivities(opts = {}) {
+    const { limit = 20 } = opts;
+    // Relevant actions mapping
+    const ACTIONS = [
+      'CREATE_BOOKING',
+      'ASSIGN_DRIVER',
+      'UPDATE_BOOKING_STATUS',
+      'UPLOAD_DOCUMENT',
+      'MARK_PAYMENT_RECEIVED',
+      'CREATE_PAYMENT',
+      'UPDATE_PAYMENT'
+    ];
+
+    const logs = await AuditLog.find({ entityType: 'booking', action: { $in: ACTIONS } })
+      .sort({ timestamp: -1 })
+      .limit(limit)
+      .lean();
+
+    // Map audit log to activity shape expected by frontend
+    const activities = logs.map((l) => {
+      let type = 'status_update';
+      if (l.action === 'CREATE_BOOKING') type = 'booking_created';
+      else if (l.action === 'ASSIGN_DRIVER') type = 'driver_assigned';
+      else if (l.action === 'UPLOAD_DOCUMENT' && l.context && /pod/i.test(l.context.description || '')) type = 'pod_uploaded';
+      else if (l.action === 'MARK_PAYMENT_RECEIVED' || l.action === 'CREATE_PAYMENT') type = 'payment_received';
+
+      return {
+        _id: l._id,
+        type,
+        message: l.context?.description || `${l.action} on booking`,
+        bookingId: l.entityId,
+        timestamp: l.timestamp,
+        metadata: l.context || {}
+      };
+    });
+
+    return activities;
+  }
+
+  /**
+   * Booking trends over last N days
+   * @param {Object} opts - { days }
+   */
+  static async getBookingTrends(opts = {}) {
+    const { days = 7 } = opts;
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - (days - 1));
+    start.setHours(0, 0, 0, 0);
+
+    // Bookings created per day
+    const created = await Booking.aggregate([
+      { $match: { createdAt: { $gte: start, $lte: end }, isDeleted: false } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          bookings: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Bookings delivered per day (use podDetails.deliveredAt when available)
+    const delivered = await Booking.aggregate([
+      { $match: { 'podDetails.deliveredAt': { $exists: true, $ne: null }, isDeleted: false } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$podDetails.deliveredAt' } },
+          delivered: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Build day map
+    const dayMap = {};
+    for (let i = 0; i < days; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      dayMap[key] = { date: d.toDateString().slice(0, 3), bookings: 0, delivered: 0 };
+    }
+
+    created.forEach((c) => {
+      if (dayMap[c._id]) dayMap[c._id].bookings = c.bookings;
+    });
+
+    delivered.forEach((d) => {
+      if (dayMap[d._id]) dayMap[d._id].delivered = d.delivered;
+    });
+
+    return Object.values(dayMap);
+  }
+
+  /**
+   * Status breakdown counts
+   */
+  static async getStatusBreakdown() {
+    const agg = await Booking.aggregate([
+      { $match: { isDeleted: false } },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const result = {};
+    agg.forEach((r) => {
+      result[r._id] = r.count;
+    });
+
+    return result;
   }
 
   /**
@@ -656,7 +797,7 @@ class BookingService {
     if (booking.driver) {
       const driver = await Driver.findById(booking.driver);
       if (driver) {
-        driver.isAvailable = true;
+        driver.availability = 'available';
         driver.currentBooking = null;
         await driver.save();
       }
@@ -666,7 +807,7 @@ class BookingService {
     if (booking.vehicle) {
       const vehicle = await Vehicle.findById(booking.vehicle);
       if (vehicle) {
-        vehicle.isAvailable = true;
+        vehicle.availability = 'available';
         vehicle.currentBooking = null;
         await vehicle.save();
       }
@@ -793,16 +934,78 @@ class BookingService {
       return acc;
     }, {});
 
-    return {
+    // Also compute period-over-period percent changes (compare to previous period of same length)
+    // Determine current period start/end
+    const currentStart = startDate ? new Date(startDate) : (function(){ const d = new Date(); d.setDate(d.getDate() - 6); d.setHours(0,0,0,0); return d; })();
+    const currentEnd = endDate ? new Date(endDate) : (function(){ const d = new Date(); d.setHours(23,59,59,999); return d; })();
+
+    const periodMs = currentEnd.getTime() - currentStart.getTime() + 1;
+    const prevEnd = new Date(currentStart.getTime() - 1);
+    const prevStart = new Date(prevEnd.getTime() - (periodMs - 1));
+
+    const prevMatchStage = { isDeleted: false };
+    if (customerId) prevMatchStage.customer = new mongoose.Types.ObjectId(customerId);
+    prevMatchStage.createdAt = { $gte: prevStart, $lte: prevEnd };
+
+    const prevStatsAgg = await Booking.aggregate([
+      { $match: prevMatchStage },
+      {
+        $facet: {
+          totals: [
+            {
+              $group: {
+                _id: null,
+                totalBookings: { $sum: 1 }
+              }
+            }
+          ],
+          statusBreakdown: [
+            {
+              $group: {
+                _id: '$status',
+                count: { $sum: 1 }
+              }
+            }
+          ]
+        }
+      }
+    ]);
+
+    const prevTotals = (prevStatsAgg[0] && prevStatsAgg[0].totals[0]) || { totalBookings: 0 };
+    const prevStatusArray = (prevStatsAgg[0] && prevStatsAgg[0].statusBreakdown) || [];
+    const prevStatusBreakdown = prevStatusArray.reduce((acc, curr) => { acc[curr._id] = curr.count; return acc; }, {});
+
+    const computeChange = (curr, prev) => {
+      if (!prev && !curr) return { value: 0, isPositive: false };
+      if (!prev && curr) return { value: 100, isPositive: true };
+      const diff = curr - prev;
+      const pct = Math.round((diff / prev) * 100);
+      return { value: pct, isPositive: pct >= 0 };
+    };
+
+    const currentNewRequests = (statusBreakdown['created'] || 0) + (statusBreakdown['under-review'] || 0);
+    const prevNewRequests = (prevStatusBreakdown['created'] || 0) + (prevStatusBreakdown['under-review'] || 0);
+
+    const result = {
       total: totals.totalBookings,
       totalRevenue: totals.totalRevenue,
-      newRequests: (statusBreakdown['created'] || 0) + (statusBreakdown['under-review'] || 0),
+      newRequests: currentNewRequests,
       assigned: statusBreakdown['assigned'] || 0,
       inTransit: statusBreakdown['in-transit'] || 0,
       delivered: statusBreakdown['delivered'] || 0,
       podPending: statusBreakdown['pod-received'] || 0,
-      statusBreakdown
+      cancelled: statusBreakdown['cancelled'] || 0,
+      statusBreakdown,
+
+      // Changes
+      newRequestsChange: computeChange(currentNewRequests, prevNewRequests),
+      assignedChange: computeChange(statusBreakdown['assigned'] || 0, prevStatusBreakdown['assigned'] || 0),
+      inTransitChange: computeChange(statusBreakdown['in-transit'] || 0, prevStatusBreakdown['in-transit'] || 0),
+      deliveredChange: computeChange(statusBreakdown['delivered'] || 0, prevStatusBreakdown['delivered'] || 0),
+      podPendingChange: computeChange(statusBreakdown['pod-received'] || 0, prevStatusBreakdown['pod-received'] || 0)
     };
+
+    return result;
   }
 }
 

@@ -52,7 +52,7 @@ class DriverService {
       preferredTruckTypes,
       emergencyContact,
       isVerified: false,
-      isAvailable: true,
+      availability: 'available',
       createdBy: userId
     });
 
@@ -313,7 +313,7 @@ class DriverService {
       throw new ApiError(400, 'Cannot set available while assigned to a booking');
     }
 
-    driver.isAvailable = isAvailable;
+    driver.availability = isAvailable ? 'available' : 'offline';
     await driver.save();
 
     return driver;
@@ -650,7 +650,7 @@ class DriverService {
   static async getNearbyDrivers(latitude, longitude, radius = 50, truckType) {
     const query = {
       isDeleted: false,
-      isAvailable: true,
+      availability: 'available',
       isVerified: true,
       isBlacklisted: false,
       currentLocation: {

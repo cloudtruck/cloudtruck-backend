@@ -299,7 +299,7 @@ class StaffService {
 
     // Get active bookings
     const activeBookings = await Booking.find({
-      assignedBy: staff.user,
+      assignedBy: staff._id,
       status: { $nin: ['delivered', 'pod-received', 'closed', 'cancelled'] },
       isDeleted: false
     });
@@ -311,7 +311,7 @@ class StaffService {
     todayEnd.setHours(23, 59, 59, 999);
 
     const todaysAssignments = await Booking.countDocuments({
-      assignedBy: staff.user,
+      assignedBy: staff._id,
       assignedAt: { $gte: todayStart, $lte: todayEnd },
       isDeleted: false
     });
@@ -347,7 +347,7 @@ class StaffService {
 
     const { startDate, endDate } = dateRange;
     const matchStage = {
-      assignedBy: staff.user,
+      assignedBy: staff._id,
       isDeleted: false
     };
 

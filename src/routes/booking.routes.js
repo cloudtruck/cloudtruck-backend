@@ -26,6 +26,11 @@ router.get('/driver-bookings', verifyJWT, checkRole('driver'), bookingController
 // Staff/Admin routes
 router.get('/stats', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getStatsQuerySchema), bookingController.getStatistics);
 
+// Dashboard endpoints
+router.get('/dashboard/activities', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.getActivities);
+router.get('/dashboard/trends', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.getTrends);
+router.get('/dashboard/status', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.getStatusBreakdown);
+
 // Common protected routes
 router.get('/', verifyJWT, validate(getBookingsQuerySchema), bookingController.getAllBookings);
 router.get('/:id', verifyJWT, bookingController.getBookingById);

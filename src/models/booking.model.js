@@ -134,7 +134,7 @@ const bookingSchema = new Schema(
     // Assignment
     driver: { type: Schema.Types.ObjectId, ref: 'Driver', index: true, default: null },
     vehicle: { type: Schema.Types.ObjectId, ref: 'Vehicle', index: true, default: null },
-    assignedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    assignedBy: { type: Schema.Types.ObjectId, ref: 'Staff', default: null },
     assignedAt: { type: Date, index: true },
 
     // Status

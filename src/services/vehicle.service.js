@@ -136,7 +136,17 @@ class VehicleService {
 
     const query = { isDeleted: false };
 
-    if (typeof isAvailable === 'boolean') query.availability = isAvailable ? 'available' : { $ne: 'available' };
+    if (isAvailable === true) {
+      query.availability = 'available';
+      query.verificationStatus = 'verified';
+      query.currentBooking = null;
+    } else if (isAvailable === false) {
+      query.$or = [
+        { availability: { $ne: 'available' } },
+        { verificationStatus: { $ne: 'verified' } },
+        { currentBooking: { $ne: null } }
+      ];
+    }
     if (truckType) query.truckType = Array.isArray(truckType) ? { $in: truckType } : truckType;
     if (bodyType) query.bodyType = bodyType;
     if (minCapacity) query['capacity.value'] = { ...query['capacity.value'], $gte: minCapacity };

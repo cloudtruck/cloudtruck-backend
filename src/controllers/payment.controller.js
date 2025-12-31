@@ -61,7 +61,12 @@ const mapPayment = (p) => {
       bookingId: booking.bookingId,
       customer: booking.customer ? {
         _id: booking.customer._id || booking.customer,
-        companyName: booking.customer.companyName
+        companyName: booking.customer.companyName,
+        contactPerson: booking.customer.contactPerson ? {
+          name: booking.customer.contactPerson.name,
+          phone: booking.customer.contactPerson.phone,
+          email: booking.customer.contactPerson.email
+        } : null
       } : null,
       pickup: booking.pickup,
       drop: booking.drop,

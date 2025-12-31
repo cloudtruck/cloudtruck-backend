@@ -404,7 +404,7 @@ class PaymentService {
         select: 'bookingId pickup drop customer',
         populate: {
           path: 'customer',
-          select: 'companyName'
+          select: 'companyName contactPerson'
         }
       })
       .populate('recordedBy', 'name email')
@@ -433,13 +433,13 @@ class PaymentService {
    */
   static async getPaymentById(paymentId) {
     const payment = await Payment.findById(paymentId)
-      .populate('customer', 'companyName gst')
+      .populate('customer', 'companyName gst contactPerson')
       .populate({
         path: 'booking',
         select: 'bookingId pickup drop materialType truckTypeNeeded expectedAmount advanceRequired customer',
         populate: {
           path: 'customer',
-          select: 'companyName'
+          select: 'companyName contactPerson'
         }
       })
       .populate('recordedBy', 'name email')

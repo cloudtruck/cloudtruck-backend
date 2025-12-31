@@ -1,5 +1,6 @@
 import express from 'express';
 import * as staffController from '../controllers/staff.controller.js';
+import * as authController from '../controllers/auth.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validation.middleware.js';
 import {
@@ -12,10 +13,12 @@ import {
   getPerformanceQuerySchema,
   setActiveStatusSchema
 } from '../validators/staff.validator.js';
+import { changePasswordSchema } from '../validators/auth.validator.js';
 
 const router = express.Router();
 
 // Staff self-service routes
+router.patch('/change-password', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(changePasswordSchema), authController.changePassword);
 router.get('/my-profile', verifyJWT, checkRole('staff', 'internal', 'super-admin'), staffController.getMyProfile);
 router.get('/my-workload', verifyJWT, checkRole('staff', 'internal', 'super-admin'), staffController.getMyWorkload);
 router.get('/my-performance', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getPerformanceQuerySchema), staffController.getMyPerformance);

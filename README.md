@@ -6,6 +6,8 @@ Complete backend implementation for the Cloudtruck managed trucking system.
 
 - **Framework**: Express.js
 - **Database**: MongoDB with Mongoose ODM
+
+- 
 - **Cache**: Redis
 - **Authentication**: Firebase Admin SDK + JWT
 - **File Storage**: Cloudinary

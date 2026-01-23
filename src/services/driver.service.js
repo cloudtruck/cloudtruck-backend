@@ -15,10 +15,11 @@ class DriverService {
   /**
    * Create driver profile
    * @param {Object} data - Driver data
-   * @param {string} userId - User ID
+   * @param {Object|string} actor - User creating the profile (Admin or Driver itself)
    * @returns {Promise<Object>} Created driver
    */
-  static async createDriver(data, userId) {
+  static async createDriver(data, actor) {
+    const actorId = actor?._id || actor;
     const {
       name,
       licenseNumber,
@@ -26,13 +27,51 @@ class DriverService {
       aadhaarNumber,
       panNumber,
       preferredTruckTypes,
-      emergencyContact
+      emergencyContact,
+      user: providedUserId,
+      userId: providedUserIdAlt,
+      newUser
     } = data;
 
+    let targetUserId = providedUserId || providedUserIdAlt;
+
+    // 1. Create new user if requested
+    if (!targetUserId && newUser) {
+      const { phone, email, password } = newUser;
+
+      // Check for existing user with same phone/email
+      const existingUser = await User.findOne({
+        $or: [
+          { phone: phone || undefined },
+          { email: email || undefined }
+        ],
+        isDeleted: false
+      });
+
+      if (existingUser) {
+        throw new ApiError(400, 'A user with this phone or email already exists');
+      }
+
+      const createdUser = await User.create({
+        phone,
+        email,
+        password,
+        role: 'driver',
+        status: 'active',
+        createdBy: actorId
+      });
+      targetUserId = createdUser._id;
+    }
+
+    // 2. Fallback to actor if no targetUser (self-registration)
+    if (!targetUserId) {
+      targetUserId = actorId;
+    }
+
     // Check if driver profile already exists
-    const existingDriver = await Driver.findOne({ user: userId, isDeleted: false });
+    const existingDriver = await Driver.findOne({ user: targetUserId, isDeleted: false });
     if (existingDriver) {
-      throw new ApiError(400, 'Driver profile already exists');
+      throw new ApiError(400, 'Driver profile already exists for this user');
     }
 
     // Verify license number is unique
@@ -43,7 +82,7 @@ class DriverService {
 
     // Create driver
     const driver = await Driver.create({
-      user: userId,
+      user: targetUserId,
       name,
       licenseNumber,
       licenseExpiry: new Date(licenseExpiry),
@@ -53,12 +92,12 @@ class DriverService {
       emergencyContact,
       isVerified: false,
       availability: 'available',
-      createdBy: userId
+      createdBy: actorId
     });
 
     // Audit log
     await AuditLog.create({
-      user: userId,
+      user: actorId,
       action: 'CREATE_DRIVER_PROFILE',
       entityType: 'driver',
       entityId: driver._id,
@@ -88,6 +127,7 @@ class DriverService {
     let driver = await Driver.findOne({ _id: driverId, isDeleted: false })
       .populate('user', 'phone email status fcmToken')
       .populate('currentBooking', 'bookingId status pickup drop')
+      .populate('nextBooking', 'bookingId status pickup drop')
       .populate('vehicles', 'vehicleNumber truckType');
 
     if (driver) return driver;
@@ -96,6 +136,7 @@ class DriverService {
     driver = await Driver.findOne({ user: driverId, isDeleted: false })
       .populate('user', 'phone email status fcmToken')
       .populate('currentBooking', 'bookingId status pickup drop')
+      .populate('nextBooking', 'bookingId status pickup drop')
       .populate('vehicles', 'vehicleNumber truckType');
 
     if (!driver) {
@@ -138,11 +179,19 @@ class DriverService {
       minRating,
       isBlacklisted,
       status,
-      search
+      search,
+      city,
+      matchPickupCity
     } = filters;
 
     const query = { isDeleted: false };
     const andConditions = [];
+
+    if (city) {
+      // Driver model doesn't have city directly, usually it's in address or lastKnownLocation. 
+      // If we don't have it, we might skip it or check a metadata field if added later.
+      // For now, let's assume we might have it or skip if not in model.
+    }
 
     if (search) {
       andConditions.push({
@@ -157,15 +206,26 @@ class DriverService {
       query.availability = status;
     }
 
+    // Filter by availability for assignment
     if (isAvailable === true) {
-      query.availability = 'available';
-      query.currentBooking = null;
+      // Logic: (not offline) AND (has either slot empty)
+      andConditions.push({ 
+        availability: { $ne: 'offline' } 
+      });
+      andConditions.push({
+        $or: [
+          { nextBooking: null },
+          { nextBooking: { $exists: false } },
+          { currentBooking: null },
+          { currentBooking: { $exists: false } }
+        ]
+      });
       query.isBlacklisted = false;
     } else if (isAvailable === false) {
       andConditions.push({
         $or: [
           { availability: { $ne: 'available' } },
-          { currentBooking: { $ne: null } },
+          { nextBooking: { $ne: null } },
           { isBlacklisted: true }
         ]
       });
@@ -183,7 +243,8 @@ class DriverService {
         $or: [
           { preferredTruckTypes: truckType },
           { preferredTruckTypes: { $size: 0 } },
-          { preferredTruckTypes: { $exists: false } }
+          { preferredTruckTypes: { $exists: false } },
+          { preferredTruckTypes: null }
         ]
       });
     }
@@ -196,7 +257,7 @@ class DriverService {
 
     // Location-based search
     if (location && location.latitude && location.longitude) {
-      query['currentLocation.coordinates'] = {
+      query['lastKnownLocation.coordinates'] = {
         $near: {
           $geometry: {
             type: 'Point',
@@ -213,9 +274,46 @@ class DriverService {
       sort: pagination.sort || { rating: -1, createdAt: -1 },
       populate: [
         { path: 'user', select: 'phone status' },
-        { path: 'currentBooking', select: 'bookingId status' }
+        { path: 'currentBooking', select: 'bookingId status pickup drop' },
+        { path: 'nextBooking', select: 'bookingId status' }
       ]
     });
+
+    // Post-process for "Return Trip" logic and stricter availability
+    if (isAvailable === true && result.data) {
+      const completionStatuses = ['reached-destination', 'delivered', 'pod-received', 'closed'];
+
+      result.data = result.data.filter(driver => {
+        // 1. If completely idle, they are available
+        if (!driver.currentBooking) return true;
+
+        // 2. If on-trip, they must be at destination AND have no next trip
+        const isFinishingCurrent = completionStatuses.includes(driver.currentBooking.status);
+        const hasNoNextTrip = !driver.nextBooking;
+
+        return isFinishingCurrent && hasNoNextTrip;
+      });
+
+      // Tag "Return Trip" candidates and sort them to the top
+      if (matchPickupCity) {
+        result.data = result.data.map(driver => {
+          const dropCity = driver.currentBooking?.drop?.city || '';
+          const isReturn = dropCity.toLowerCase() === matchPickupCity.toLowerCase();
+          
+          return { ...driver, isReturnTrip: isReturn };
+        });
+
+        // Sort: Return candidates first, then by rating
+        result.data.sort((a, b) => {
+          if (a.isReturnTrip && !b.isReturnTrip) return -1;
+          if (!a.isReturnTrip && b.isReturnTrip) return 1;
+          return (b.rating || 0) - (a.rating || 0);
+        });
+      }
+
+      // Update total count after post-filtering
+      result.pagination.total = result.data.length;
+    }
 
     return result;
   }
@@ -228,7 +326,12 @@ class DriverService {
    * @returns {Promise<Object>} Updated driver
    */
   static async updateDriver(driverId, updateData, userId) {
-    const driver = await Driver.findOne({ user: driverId, isDeleted: false });
+    let driver = await Driver.findOne({ _id: driverId, isDeleted: false });
+    
+    // Fallback if not found by primary id
+    if (!driver) {
+      driver = await Driver.findOne({ user: driverId, isDeleted: false });
+    }
 
     if (!driver) {
       throw new ApiError(404, 'Driver not found');
@@ -249,7 +352,15 @@ class DriverService {
 
     allowedFields.forEach(field => {
       if (updateData[field] !== undefined) {
-        driver[field] = updateData[field];
+        if (field === 'aadhaarNumber') {
+          if (!driver.aadhaar) driver.aadhaar = {};
+          driver.aadhaar.number = updateData[field];
+        } else if (field === 'panNumber') {
+          if (!driver.pan) driver.pan = {};
+          driver.pan.number = updateData[field];
+        } else {
+          driver[field] = updateData[field];
+        }
       }
     });
 
@@ -279,20 +390,20 @@ class DriverService {
    * @returns {Promise<void>}
    */
   static async updateLocation(driverId, latitude, longitude) {
-    // const driver = await Driver.findById(driverId);
-    const driver = await Driver.findOne({ user: driverId, isDeleted: false });
+    // Attempt to find by user ID first as used in controllers
+    let driver = await Driver.findOne({ user: driverId, isDeleted: false });
+
+    if (!driver) {
+      // Try by driver ID just in case
+      driver = await Driver.findById(driverId);
+    }
 
     if (!driver) {
       throw new ApiError(404, 'Driver not found');
     }
 
-    driver.currentLocation = {
-      type: 'Point',
-      coordinates: [longitude, latitude]
-    };
-    driver.lastLocationUpdate = new Date();
-
-    await driver.save();
+    // Use document method for consistent field updates and validation
+    await driver.updateLocation(longitude, latitude);
   }
 
   /**
@@ -302,7 +413,11 @@ class DriverService {
    * @returns {Promise<Object>} Updated driver
    */
   static async updateAvailability(driverId, isAvailable) {
-    const driver = await Driver.findOne({ user: driverId, isDeleted: false });
+    let driver = await Driver.findOne({ _id: driverId, isDeleted: false });
+
+    if (!driver) {
+      driver = await Driver.findOne({ user: driverId, isDeleted: false });
+    }
 
     if (!driver) {
       throw new ApiError(404, 'Driver not found');

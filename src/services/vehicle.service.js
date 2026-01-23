@@ -102,6 +102,7 @@ class VehicleService {
     const vehicle = await Vehicle.findOne({ _id: vehicleId, isDeleted: false })
       .populate('owner', 'name phone licenseNumber')
       .populate('currentBooking', 'bookingId status pickup drop')
+      .populate('nextBooking', 'bookingId status pickup drop')
       .populate('documents', 'type status fileUrl expiryDate');
 
     if (!vehicle) {
@@ -216,6 +217,7 @@ class VehicleService {
 
     // Update allowed fields
     const allowedFields = [
+      'vehicleNumber',
       'truckType',
       'length',
       'capacity',
@@ -228,7 +230,8 @@ class VehicleService {
       'permitType',
       'expiryDates',
       'hasGPS',
-      'hasFASTag'
+      'hasFASTag',
+      'status'
     ];
 
     allowedFields.forEach(field => {

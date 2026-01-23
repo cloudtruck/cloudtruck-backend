@@ -39,11 +39,14 @@ class TrackingService {
       timestamp: new Date()
     });
 
-    // Update driver's last known location
+    // Update driver's last known location and timestamp
     await Driver.findByIdAndUpdate(driverId, {
-      'currentLocation.type': 'Point',
-      'currentLocation.coordinates': [longitude, latitude],
-      lastLocationUpdate: new Date()
+      lastKnownLocation: {
+        type: 'Point',
+        coordinates: [longitude, latitude]
+      },
+      lastLocationAt: new Date(),
+      updatedAt: new Date()
     });
 
     // Update booking's last known location

@@ -1,22 +1,82 @@
 import AuthService from '../services/auth.service.js';
+import * as otpService from '../services/otp.service.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
 
 /**
- * Mobile Login with Firebase OTP
- * POST /api/v1/auth/login/mobile
+ * Send OTP
+ * POST /api/v1/auth/otp/send
  */
-export const mobileLogin = asyncHandler(async (req, res) => {
-  const { idToken, role, deviceInfo, phone } = req.body;
+export const sendOTP = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+  
+  const result = await otpService.sendOTP(phone);
+  
+  return res.status(200).json(
+    new ApiResponse(200, { sessionId: result.sessionId }, 'OTP sent successfully')
+  );
+});
 
-  const result = await AuthService.mobileLogin(idToken, role, deviceInfo, phone);
+/**
+ * Resend OTP
+ * POST /api/v1/auth/otp/resend
+ */
+export const resendOTP = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+  
+  const result = await otpService.resendOTP(phone);
+  
+  return res.status(200).json(
+    new ApiResponse(200, null, 'OTP resent successfully')
+  );
+});
+
+/**
+ * Verify OTP and Login
+ * POST /api/v1/auth/otp/verify
+ */
+export const verifyOTP = asyncHandler(async (req, res) => {
+  const { phone, otp, role, deviceInfo } = req.body;
+  
+  const verification = await otpService.verifyOTP(phone, otp);
+  
+  if (!verification.success) {
+    throw new ApiError(401, verification.message || 'Invalid OTP');
+  }
+  
+  // If verification successful, perform login
+  const result = await AuthService.mobileLogin(phone, role, deviceInfo);
 
   // Set tokens in cookies
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+  };
+
+  res.cookie('accessToken', result.accessToken, cookieOptions);
+  res.cookie('refreshToken', result.refreshToken, cookieOptions);
+
+  return res.status(200).json(
+    new ApiResponse(200, result, 'Login successful')
+  );
+});
+
+/**
+ * Mobile Login (Legacy/Direct)
+ * POST /api/v1/auth/login/mobile
+ */
+export const mobileLogin = asyncHandler(async (req, res) => {
+  const { phone, role, deviceInfo } = req.body;
+
+  const result = await AuthService.mobileLogin(phone, role, deviceInfo);
+
+  // Set tokens in cookies
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
   };
 
   res.cookie('accessToken', result.accessToken, cookieOptions);
@@ -40,7 +100,7 @@ export const staffLogin = asyncHandler(async (req, res) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 7 * 24 * 60 * 60 * 1000
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
   };
 
   res.cookie('accessToken', result.accessToken, cookieOptions);
@@ -74,6 +134,16 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
   const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
 
   const result = await AuthService.refreshAccessToken(refreshToken);
+
+  // Set new tokens in cookies (Rotation)
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days for refresh token
+  };
+
+  res.cookie('accessToken', result.accessToken, cookieOptions);
+  res.cookie('refreshToken', result.refreshToken, cookieOptions);
 
   return res.status(200).json(
     new ApiResponse(200, result, 'Token refreshed successfully')

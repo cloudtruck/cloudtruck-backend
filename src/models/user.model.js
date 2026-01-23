@@ -110,7 +110,7 @@ userSchema.methods.incLoginAttempts = function() {
   
   // Lock the account after 5 failed attempts
   const maxAttempts = 5;
-  const lockTime = 2 * 60 * 60 * 1000; // 2 hours
+  const lockTime = 10 * 60 * 1000; // 10 minutes
   
   if (this.loginAttempts + 1 >= maxAttempts && !this.isLocked) {
     updates.$set = { lockUntil: Date.now() + lockTime };

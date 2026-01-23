@@ -12,10 +12,10 @@ import mongoose from 'mongoose';
  */
 export const createBooking = asyncHandler(async (req, res) => {
   const bookingData = req.body;
-  const customerId = req.user._id;
+  const userId = req.user._id;
   const files = req.files; // multer parsed files (cargoImages)
 
-  const booking = await BookingService.createBooking(bookingData, customerId, files);
+  const booking = await BookingService.createBooking(bookingData, userId, files);
 
   return res.status(201).json(
     new ApiResponse(201, booking, 'Booking created successfully')

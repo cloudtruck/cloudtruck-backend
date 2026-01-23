@@ -26,7 +26,8 @@ export const createBookingSchema = z.object({
     isHazardous: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional().default(false),
     isFragile: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional().default(false),
     requiresTemperatureControl: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional().default(false),
-    priority: z.enum(['low', 'medium', 'high', 'urgent']).optional().default('medium')
+    priority: z.enum(['low', 'medium', 'high', 'urgent']).optional().default('medium'),
+    customerId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid customer ID').optional()
   })
 });
 
@@ -75,7 +76,7 @@ export const updateStatusSchema = z.object({
       'created',
       'under-review',
       'assigned',
-      'en-route-pickup',
+      'driver-en-route',
       'reached-pickup',
       'loaded',
       'in-transit',

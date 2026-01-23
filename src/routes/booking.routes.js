@@ -16,8 +16,8 @@ import {
 
 const router = express.Router();
 
-// Customer routes
-router.post('/', verifyJWT, checkRole('customer'), upload.array('cargoImages', 10), validate(createBookingSchema), bookingController.createBooking);
+// Common creation route (Customer/Staff/Admin)
+router.post('/', verifyJWT, checkRole('customer', 'staff', 'internal', 'super-admin'), upload.array('cargoImages', 10), validate(createBookingSchema), bookingController.createBooking);
 router.get('/my-bookings', verifyJWT, checkRole('customer'), bookingController.getMyBookings);
 
 // Driver routes

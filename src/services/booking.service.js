@@ -17,10 +17,11 @@ class BookingService {
   /**
    * Create new booking
    * @param {Object} data - Booking data
-   * @param {string} customerId - Customer ID
+   * @param {string} userId - User ID of the person creating the booking
+   * @param {Array} files - Uploaded files
    * @returns {Promise<Object>} Created booking
    */
-  static async createBooking(data, customerId, files = []) {
+  static async createBooking(data, userId, files = []) {
     const {
       pickupCity,
       pickupLat,
@@ -41,11 +42,18 @@ class BookingService {
       isHazardous,
       isFragile,
       requiresTemperatureControl,
-      priority
+      priority,
+      customerId // Optional customer profile ID for admin creation
     } = data;
 
     // Verify customer exists
-    const customer = await Customer.findOne({ user: customerId, isDeleted: false });
+    let customer;
+    if (customerId && mongoose.isValidObjectId(customerId)) {
+      customer = await Customer.findOne({ _id: customerId, isDeleted: false });
+    } else {
+      customer = await Customer.findOne({ user: userId, isDeleted: false });
+    }
+
     if (!customer) {
       throw new ApiError(404, 'Customer profile not found');
     }
@@ -101,7 +109,7 @@ class BookingService {
       statusHistory: [
         {
           status: 'created',
-          updatedBy: customerId, // This is User ID, which is fine for updatedBy ref User
+          updatedBy: userId,
           timestamp: new Date()
         }
       ]
@@ -350,8 +358,8 @@ class BookingService {
     const validTransitions = {
       created: ['under-review', 'cancelled'],
       'under-review': ['assigned', 'cancelled'],
-      assigned: ['driver-enroute-to-pickup', 'cancelled'],
-      'driver-enroute-to-pickup': ['reached-pickup'],
+      assigned: ['driver-en-route', 'cancelled'],
+      'driver-en-route': ['reached-pickup'],
       'reached-pickup': ['loaded'],
       loaded: ['in-transit'],
       'in-transit': ['reached-destination'],
@@ -376,11 +384,141 @@ class BookingService {
       note: metadata.note
     });
 
-    // Update specific fields based on status
     if (newStatus === 'loaded') {
       booking.actualLoadTime = new Date();
     } else if (newStatus === 'delivered') {
       booking.actualDeliveryTime = new Date();
+
+      // Update metrics for driver, vehicle and customer
+      if (booking.driver) {
+        await Driver.findByIdAndUpdate(booking.driver, {
+          $inc: { 
+            totalTrips: 1, 
+            'performance.completedTrips': 1 
+          }
+        });
+      }
+      if (booking.vehicle) {
+        await Vehicle.findByIdAndUpdate(booking.vehicle, {
+          $inc: { 
+            'stats.totalTrips': 1, 
+            'stats.completedTrips': 1 
+          }
+        });
+      }
+      if (booking.customer) {
+        await Customer.findByIdAndUpdate(booking.customer, {
+          $inc: { 'businessMetrics.completedBookings': 1 }
+        });
+      }
+    } else if (newStatus === 'cancelled') {
+      if (booking.customer) {
+        await Customer.findByIdAndUpdate(booking.customer, {
+          $inc: { 'businessMetrics.cancelledBookings': 1 }
+        });
+      }
+    }
+
+    // Update driver and vehicle availability based on status
+    const onTripStatuses = ['driver-en-route', 'reached-pickup', 'loaded', 'in-transit'];
+    const availableStatuses = ['reached-destination', 'delivered', 'pod-received'];
+
+    if (onTripStatuses.includes(newStatus)) {
+      if (booking.driver) {
+        await Driver.findByIdAndUpdate(booking.driver, { availability: 'on-trip' });
+      }
+      if (booking.vehicle) {
+        await Vehicle.findByIdAndUpdate(booking.vehicle, { availability: 'on-trip' });
+      }
+    } else if (availableStatuses.includes(newStatus)) {
+      if (booking.driver) {
+        const driver = await Driver.findById(booking.driver);
+        if (driver) {
+          // A driver is available to execute their next load if they've reached destination of current
+          // or if they are completely free.
+          if (driver.currentBooking?.toString() === booking._id.toString()) {
+            driver.availability = 'available';
+          }
+
+          // Update last known location to destination on reached-destination
+          if (newStatus === 'reached-destination' && booking.drop && booking.drop.location) {
+            driver.lastKnownLocation = booking.drop.location;
+            driver.lastLocationAt = new Date();
+          }
+          await driver.save();
+
+          if (newStatus === 'reached-destination') {
+            // Send notification to driver about availability
+            await NotificationService.sendNotification({
+              recipient: driver.user,
+              type: 'driver_available_for_return',
+              title: 'You are now available',
+              message: `You have reached destination for ${booking.bookingId} and are available for new bookings from this location.`,
+              entityType: 'driver',
+              entityId: driver._id,
+              channels: ['push', 'in-app']
+            });
+          }
+        }
+      }
+      if (booking.vehicle) {
+        await Vehicle.findByIdAndUpdate(booking.vehicle, { availability: 'available' });
+      }
+    } else if (newStatus === 'closed') {
+      // Final release or promotion of next booking
+      if (booking.driver) {
+        const driver = await Driver.findById(booking.driver);
+        if (driver) {
+          // Only promote/clear if the booking being closed IS the current one
+          if (driver.currentBooking?.toString() === booking._id.toString()) {
+            if (driver.nextBooking) {
+              driver.currentBooking = driver.nextBooking;
+              driver.nextBooking = null;
+              driver.availability = 'on-trip';
+              
+              // Notify driver that next booking is now active
+              try {
+                await NotificationService.sendNotification({
+                  recipient: driver.user,
+                  type: 'next_booking_active',
+                  title: 'Next Trip Active',
+                  message: 'Your next assigned trip is now active.',
+                  entityType: 'booking',
+                  entityId: driver.currentBooking,
+                  channels: ['push', 'in-app']
+                });
+              } catch (notifyError) {
+                console.error('Failed to send notification to driver:', notifyError);
+              }
+            } else {
+              driver.currentBooking = null;
+              driver.availability = 'available';
+            }
+          } else if (driver.nextBooking?.toString() === booking._id.toString()) {
+            // If we closed the next booking instead (e.g. cancelled/closed by mistake), just clear it
+            driver.nextBooking = null;
+          }
+          await driver.save();
+        }
+      }
+      if (booking.vehicle) {
+        const vehicle = await Vehicle.findById(booking.vehicle);
+        if (vehicle) {
+          if (vehicle.currentBooking?.toString() === booking._id.toString()) {
+            if (vehicle.nextBooking) {
+              vehicle.currentBooking = vehicle.nextBooking;
+              vehicle.nextBooking = null;
+              vehicle.availability = 'on-trip';
+            } else {
+              vehicle.currentBooking = null;
+              vehicle.availability = 'available';
+            }
+          } else if (vehicle.nextBooking?.toString() === booking._id.toString()) {
+            vehicle.nextBooking = null;
+          }
+          await vehicle.save();
+        }
+      }
     }
 
     await booking.save();
@@ -529,9 +667,16 @@ class BookingService {
     if (!driver || driver.isDeleted) {
       throw new ApiError(404, 'Driver not found');
     }
-    if (driver.availability !== 'available' || driver.currentBooking) {
-      throw new ApiError(400, 'Driver is not available');
+    
+    if (driver.availability === 'offline') {
+      throw new ApiError(400, 'Driver is offline');
     }
+    
+    // Allow assignment if they have at least one slot empty (current or next)
+    if (driver.currentBooking && driver.nextBooking) {
+      throw new ApiError(400, 'Driver is already fully booked with current and next assignments');
+    }
+
     if (driver.isBlacklisted) {
       throw new ApiError(400, 'Driver is blacklisted');
     }
@@ -541,8 +686,17 @@ class BookingService {
     if (!vehicle || vehicle.isDeleted) {
       throw new ApiError(404, 'Vehicle not found');
     }
-    if (vehicle.availability !== 'available' || vehicle.verificationStatus !== 'verified' || vehicle.currentBooking) {
-      throw new ApiError(400, 'Vehicle is not available');
+    
+    if (vehicle.availability === 'offline') {
+      throw new ApiError(400, 'Vehicle is offline');
+    }
+    
+    if (vehicle.currentBooking && vehicle.nextBooking) {
+      throw new ApiError(400, 'Vehicle already has both current and next bookings assigned');
+    }
+
+    if (vehicle.verificationStatus !== 'verified') {
+      throw new ApiError(400, 'Vehicle is not verified');
     }
 
     // Verify vehicle matches booking requirements
@@ -575,14 +729,23 @@ class BookingService {
 
       await booking.save();
 
-      // Update driver availability
-      driver.availability = 'on-trip';
-      driver.currentBooking = booking._id;
+      // Update driver assignment
+      if (driver.currentBooking) {
+        driver.nextBooking = booking._id;
+        // Keep status as available since they are still on current booking at destination
+      } else {
+        driver.currentBooking = booking._id;
+        driver.availability = 'on-trip';
+      }
       await driver.save();
 
-      // Update vehicle availability
-      vehicle.availability = 'on-trip';
-      vehicle.currentBooking = booking._id;
+      // Update vehicle assignment
+      if (vehicle.currentBooking) {
+        vehicle.nextBooking = booking._id;
+      } else {
+        vehicle.currentBooking = booking._id;
+        vehicle.availability = 'on-trip';
+      }
       await vehicle.save();
 
       // Update staff metrics
@@ -797,9 +960,37 @@ class BookingService {
     if (booking.driver) {
       const driver = await Driver.findById(booking.driver);
       if (driver) {
-        driver.availability = 'available';
-        driver.currentBooking = null;
-        await driver.save();
+        let wasModified = false;
+        
+        if (driver.currentBooking?.toString() === booking._id.toString()) {
+          if (driver.nextBooking) {
+            driver.currentBooking = driver.nextBooking;
+            driver.nextBooking = null;
+          } else {
+            driver.currentBooking = null;
+          }
+          wasModified = true;
+        } else if (driver.nextBooking?.toString() === booking._id.toString()) {
+          driver.nextBooking = null;
+          wasModified = true;
+        }
+
+        // Only update availability if we actually changed their booking status
+        // and they don't have an active trip remaining.
+        if (wasModified) {
+          if (!driver.currentBooking) {
+            driver.availability = 'available';
+          } else {
+            // They still have a booking. If they were on-trip, they stay on-trip.
+            // If they were at destination, they are available.
+            // For safety, if they have a current booking, check its status?
+            // Actually, keep current availability unless it's null.
+            if (driver.availability === null) {
+              driver.availability = 'available';
+            }
+          }
+          await driver.save();
+        }
       }
     }
 
@@ -807,8 +998,17 @@ class BookingService {
     if (booking.vehicle) {
       const vehicle = await Vehicle.findById(booking.vehicle);
       if (vehicle) {
+        if (vehicle.currentBooking?.toString() === booking._id.toString()) {
+          if (vehicle.nextBooking) {
+            vehicle.currentBooking = vehicle.nextBooking;
+            vehicle.nextBooking = null;
+          } else {
+            vehicle.currentBooking = null;
+          }
+        } else if (vehicle.nextBooking?.toString() === booking._id.toString()) {
+          vehicle.nextBooking = null;
+        }
         vehicle.availability = 'available';
-        vehicle.currentBooking = null;
         await vehicle.save();
       }
     }

@@ -144,7 +144,7 @@ const bookingSchema = new Schema(
         'created',
         'under-review',
         'assigned',
-        'driver-enroute-to-pickup',
+        'driver-en-route',
         'reached-pickup',
         'loaded',
         'in-transit',

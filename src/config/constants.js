@@ -100,6 +100,33 @@ export const DOCUMENT_TYPES = {
   OTHER: 'other'
 };
 
+// Permissions
+export const PERMISSIONS = {
+  // Booking permissions
+  BOOKING_CREATE: 'booking.create',
+  BOOKING_READ: 'booking.read',
+  BOOKING_UPDATE: 'booking.update',
+  BOOKING_CANCEL: 'booking.cancel',
+  
+  // Driver permissions
+  DRIVER_READ: 'driver.read',
+  DRIVER_UPDATE: 'driver.update',
+  DRIVER_UPDATE_LOCATION: 'driver.update_location',
+  
+  // User management
+  USER_MANAGE: 'user.manage',
+  STAFF_MANAGE: 'staff.manage',
+  
+  // Reports
+  REPORTS_READ: 'reports.read',
+  
+  // E-way Bill permissions
+  EWAY_BILL_CREATE: 'eway-bill.create',
+  EWAY_BILL_READ: 'eway-bill.read',
+  EWAY_BILL_UPDATE_PART_B: 'eway-bill.update-part-b',
+  EWAY_BILL_CANCEL: 'eway-bill.cancel'
+};
+
 // Staff Departments
 export const STAFF_DEPARTMENTS = {
   OPERATIONS: 'operations',

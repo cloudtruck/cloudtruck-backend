@@ -7,7 +7,10 @@ import Staff from '../models/staff.model.js';
 import AuditLog from '../models/auditLog.model.js';
 import NotificationService from './notification.service.js';
 import DocumentService from './document.service.js';
+import EwayBillService from './ewayBill.service.js';
+import EwayBill from '../models/ewayBill.model.js';
 import ApiError from '../utils/ApiError.js';
+import logger from '../utils/logger.js';
 
 /**
  * Booking Service
@@ -752,6 +755,34 @@ class BookingService {
       staff.performance.bookingsAssigned += 1;
       staff.assignedBookings.push(booking._id);
       await staff.save();
+
+      // Check if booking has linked E-way bill and auto-sync Part-B
+      try {
+        const linkedEwayBill = await EwayBill.findOne({
+          bookingId: booking._id,
+          isDeleted: false,
+          status: { $in: ['draft', 'active'] }
+        });
+
+        if (linkedEwayBill) {
+          logger.info(`Auto-syncing Part-B for E-way bill ${linkedEwayBill.ewayBillNumber} with vehicle ${vehicle.vehicleNumber}`);
+          
+          // Get transporter ID if staff has it in metadata
+          const transporterId = staff.metadata?.transporterId || null;
+          
+          await EwayBillService.autoSyncPartB(
+            linkedEwayBill._id,
+            vehicle.vehicleNumber,
+            transporterId
+          );
+          
+          logger.info(`Part-B auto-synced successfully for E-way bill ${linkedEwayBill.ewayBillNumber}`);
+        }
+      } catch (ewayBillError) {
+        // Log error but don't fail the assignment
+        logger.error(`Error auto-syncing E-way bill Part-B for booking ${booking.bookingId}:`, ewayBillError.message);
+        // Continue with the assignment even if E-way bill sync fails
+      }
 
       // Audit log
       await AuditLog.create({

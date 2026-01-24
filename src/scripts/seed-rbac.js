@@ -18,7 +18,12 @@ const seed = async () => {
     { key: 'driver.update_location', name: 'Update driver location', resource: 'driver', action: 'update_location' },
     { key: 'user.manage', name: 'Manage users', resource: 'user', action: 'manage' },
     { key: 'staff.manage', name: 'Manage staff', resource: 'staff', action: 'manage' },
-    { key: 'reports.read', name: 'View reports', resource: 'reports', action: 'read' }
+    { key: 'reports.read', name: 'View reports', resource: 'reports', action: 'read' },
+    // E-way Bill permissions
+    { key: 'eway-bill.create', name: 'Create E-way bill', resource: 'eway-bill', action: 'create' },
+    { key: 'eway-bill.read', name: 'View E-way bill', resource: 'eway-bill', action: 'read' },
+    { key: 'eway-bill.update-part-b', name: 'Update E-way bill Part-B', resource: 'eway-bill', action: 'update-part-b' },
+    { key: 'eway-bill.cancel', name: 'Cancel E-way bill', resource: 'eway-bill', action: 'cancel' }
   ];
 
   await Promise.all(

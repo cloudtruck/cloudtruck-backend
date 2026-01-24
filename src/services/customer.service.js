@@ -4,7 +4,9 @@ import Booking from '../models/booking.model.js';
 import Route from '../models/route.model.js';
 import AuditLog from '../models/auditLog.model.js';
 import NotificationService from './notification.service.js';
+import GSTVerificationService from './gstVerification.service.js';
 import ApiError from '../utils/ApiError.js';
+import logger from '../utils/logger.js';
 
 /**
  * Customer Service
@@ -86,6 +88,26 @@ class CustomerService {
       }
     }
 
+    // Verify GSTIN via ClearTax API (soft-fail pattern)
+    let gstVerification = null;
+    if (gstNumber) {
+      try {
+        gstVerification = await GSTVerificationService.verifyGstin(gstNumber);
+        if (!gstVerification.verified && !gstVerification.skipped) {
+          logger.warn(`GST verification failed for ${gstNumber}: ${gstVerification.error}`);
+          // Continue with registration even if verification fails
+        }
+      } catch (error) {
+        logger.error(`Error during GST verification for ${gstNumber}:`, error.message);
+        // Don't block registration on verification errors
+        gstVerification = {
+          verified: false,
+          error: 'Verification service unavailable',
+          gstin: gstNumber
+        };
+      }
+    }
+
     const normalizedContactPerson = typeof contactPerson === 'string'
       ? { name: contactPerson }
       : contactPerson;
@@ -119,7 +141,10 @@ class CustomerService {
       },
       paymentTerms: normalizedPaymentTerms || 'prepaid',
       isVerified: false,
-      createdBy: actorUserId
+      createdBy: actorUserId,
+      metadata: {
+        gstVerification: gstVerification || undefined
+      }
     });
 
     // Audit log

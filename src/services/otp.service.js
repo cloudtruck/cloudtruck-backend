@@ -221,10 +221,101 @@ export const resendOTP = async (phoneNumber, retryType = 'text') => {
   }
 };
 
+/**
+ * Send transactional SMS (non-OTP messages)
+ * @param {string} phoneNumber - User's phone number
+ * @param {string} message - Message content to send
+ * @param {string} customerId - Optional customer ID for tracking
+ * @returns {Promise<{success: boolean, messageId: string, error?: string}>}
+ */
+export const sendTransactionalSMS = async (phoneNumber, message, customerId = null) => {
+  try {
+    // Validate API key
+    if (!MSG91_AUTH_KEY) {
+      console.error('MSG91 Auth Key not configured for transactional SMS');
+      return {
+        success: false,
+        error: 'SMS service not configured'
+      };
+    }
+
+    // Format phone number (MSG91 expects 91XXXXXXXXXX)
+    const formattedPhone = formatPhoneNumber(phoneNumber).replace('+', '');
+
+    // Validate message
+    if (!message || message.trim().length === 0) {
+      return {
+        success: false,
+        error: 'Message content is required'
+      };
+    }
+
+    console.log(`Sending transactional SMS to ${formattedPhone}...`);
+
+    // MSG91 transactional SMS endpoint
+    const options = {
+      method: 'POST',
+      url: 'https://control.msg91.com/api/v5/flow/',
+      headers: {
+        'authkey': MSG91_AUTH_KEY,
+        'Content-Type': 'application/json'
+      },
+      data: {
+        flow_id: process.env.MSG91_TRANSACTIONAL_FLOW_ID || MSG91_TEMPLATE_ID,
+        sender: process.env.MSG91_SENDER_ID || 'CLTRCK',
+        mobiles: formattedPhone,
+        message: message,
+        customerId: customerId
+      }
+    };
+
+    // Call MSG91 API
+    const response = await axios.request(options);
+
+    if (response.data && (response.data.type === 'success' || response.data.message)) {
+      console.log(`Transactional SMS sent successfully to ${formattedPhone}`);
+      return {
+        success: true,
+        messageId: response.data.message || response.data.request_id || Date.now().toString(),
+        phoneNumber: formattedPhone
+      };
+    } else {
+      throw new Error(response.data?.message || 'Failed to send transactional SMS');
+    }
+  } catch (error) {
+    console.error('Error sending transactional SMS:', error.message);
+
+    // Handle specific axios errors
+    if (error.response) {
+      // MSG91 API returned an error
+      return {
+        success: false,
+        error: error.response.data?.message || 'Failed to send SMS via MSG91 service',
+        phoneNumber: formatPhoneNumber(phoneNumber).replace('+', '')
+      };
+    } else if (error.request) {
+      // Network error
+      return {
+        success: false,
+        error: 'Network error while contacting MSG91 service',
+        phoneNumber: formatPhoneNumber(phoneNumber).replace('+', '')
+      };
+    } else {
+      // Other errors
+      return {
+        success: false,
+        error: error.message || 'Unknown error sending SMS',
+        phoneNumber: formatPhoneNumber(phoneNumber).replace('+', '')
+      };
+    }
+  }
+};
+
 export default {
   generateOTP,
   sendOTP,
   verifyOTP,
   resendOTP,
   formatPhoneNumber,
+  sendTransactionalSMS
 };

@@ -12,6 +12,12 @@ import documentRoutes from './document.routes.js';
 import trackingRoutes from './tracking.routes.js';
 import notificationRoutes from './notification.routes.js';
 import exportRoutes from './export.routes.js';
+import roleTemplateRoutes from './roleTemplate.routes.js';
+import masterDataRoutes from './masterData.routes.js';
+import accountRoutes from './account.routes.js';
+import organizationRoutes from './organization.routes.js';
+import branchRoutes from './branch.routes.js';
+import cityRoutes from './city.routes.js';
 
 const router = express.Router();
 
@@ -38,6 +44,12 @@ router.use('/documents', documentRoutes);
 router.use('/tracking', trackingRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/exports', exportRoutes);
+router.use('/role-templates', roleTemplateRoutes);
+router.use('/master-data', masterDataRoutes);
+router.use('/accounts', accountRoutes);
+router.use('/organization', organizationRoutes);
+router.use('/branches', branchRoutes);
+router.use('/cities', cityRoutes);
 
 // 404 handler for undefined routes
 router.use('*', (req, res) => {

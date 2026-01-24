@@ -8,6 +8,7 @@ import { connectRedis } from './src/config/redis.js';
 import logger from './src/utils/logger.js';
 import trackingSocketHandler from './src/sockets/tracking.socket.js';
 import notificationSocketHandler from './src/sockets/notification.socket.js';
+import EwayBillExpiryJob from './src/jobs/ewayBillExpiry.job.js';
 
 // Load environment variables from backend/.env
 dotenv.config();
@@ -100,6 +101,15 @@ const startServer = async () => {
     // Connect to Redis
     redisClient = await connectRedis();
     logger.info('Redis connected successfully');
+    
+    // Initialize cron jobs after database connection
+    try {
+      EwayBillExpiryJob.start();
+      logger.info('E-way Bill expiry alert job initialized');
+    } catch (cronError) {
+      logger.error('Failed to initialize E-way Bill expiry job:', cronError);
+      // Don't crash the server if cron job fails to initialize
+    }
     
     // Start HTTP server
     server.listen(PORT, () => {

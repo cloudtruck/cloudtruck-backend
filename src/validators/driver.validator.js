@@ -51,6 +51,7 @@ export const getDriversQuerySchema = z.object({
     longitude: z.string().optional(),
     radius: z.string().optional(),
     minRating: z.string().optional(),
+    matchPickupCity: z.string().optional(),
     page: z.string().optional(),
     limit: z.string().optional(),
     sort: z.string().optional()

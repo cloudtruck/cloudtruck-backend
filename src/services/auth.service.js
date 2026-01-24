@@ -5,8 +5,8 @@ import Staff from '../models/staff.model.js';
 import Permission from '../models/permission.model.js';
 import RefreshToken from '../models/refreshToken.model.js';
 import ApiError from '../utils/ApiError.js';
-import admin from '../config/firebase.js';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -16,30 +16,37 @@ dotenv.config();
  */
 class AuthService {
   /**
-   * Mobile Login with Firebase OTP
-   * @param {string} idToken - Firebase ID token
+   * Helper to calculate expiry date from string (e.g. '7d', '15m')
+   * @param {string} expiryString 
+   * @returns {Date}
+   */
+  static getExpiryDate(expiryString) {
+    const unit = expiryString.slice(-1);
+    const value = parseInt(expiryString.slice(0, -1));
+    const now = new Date();
+    
+    if (isNaN(value)) return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    switch(unit) {
+      case 'd': return new Date(now.getTime() + value * 24 * 60 * 60 * 1000);
+      case 'h': return new Date(now.getTime() + value * 60 * 60 * 1000);
+      case 'm': return new Date(now.getTime() + value * 60 * 1000);
+      case 's': return new Date(now.getTime() + value * 1000);
+      default: return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    }
+  }
+
+  /**
+   * Mobile Login after OTP Verification
+   * @param {string} phone - Verified phone number
    * @param {string} role - User role (customer/driver)
    * @param {Object} deviceInfo - Device information
    * @returns {Promise<Object>} User and tokens
    */
-  static async mobileLogin(idToken, role, deviceInfo = {}, testPhone = null) {
+  static async mobileLogin(phone, role, deviceInfo = {}) {
     try {
-      let phone;
-      let firebaseUid;
-
-      // Allow bypass for testing in development
-      if (process.env.NODE_ENV === 'development' && idToken === 'dev-test-token' && testPhone) {
-        phone = testPhone;
-        firebaseUid = `test-uid-${phone}`;
-      } else {
-        // Verify Firebase ID token
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        phone = decodedToken.phone_number;
-        firebaseUid = decodedToken.uid;
-      }
-
       if (!phone) {
-        throw new ApiError(400, 'Phone number not found in token');
+        throw new ApiError(400, 'Phone number is required');
       }
 
       // Find or create user
@@ -50,7 +57,6 @@ class AuthService {
         user = await User.create({
           phone,
           role,
-          firebaseUid,
           status: 'pending-verification',
           fcmToken: deviceInfo.fcmToken
         });
@@ -109,7 +115,7 @@ class AuthService {
           appVersion: deviceInfo.appVersion
         },
         ipAddress: deviceInfo.ipAddress,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+        expiresAt: this.getExpiryDate(process.env.REFRESH_TOKEN_EXPIRY || '30d')
       });
 
       // Remove sensitive data
@@ -122,12 +128,6 @@ class AuthService {
         refreshToken
       };
     } catch (error) {
-      if (error.code === 'auth/id-token-expired') {
-        throw new ApiError(401, 'Firebase token expired');
-      }
-      if (error.code === 'auth/invalid-id-token') {
-        throw new ApiError(401, 'Invalid Firebase token');
-      }
       throw error;
     }
   }
@@ -195,7 +195,7 @@ class AuthService {
         appVersion: deviceInfo.appVersion
       },
       ipAddress: deviceInfo.ipAddress,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      expiresAt: this.getExpiryDate(process.env.REFRESH_TOKEN_EXPIRY || '30d')
     });
 
     // Remove sensitive data
@@ -290,9 +290,9 @@ class AuthService {
   }
 
   /**
-   * Refresh Access Token
+   * Refresh Access Token with Rotation and Reuse Detection
    * @param {string} refreshToken - Refresh token
-   * @returns {Promise<Object>} New access token
+   * @returns {Promise<Object>} New access and refresh tokens
    */
   static async refreshAccessToken(refreshToken) {
     if (!refreshToken) {
@@ -300,10 +300,10 @@ class AuthService {
     }
 
     try {
-      // Verify refresh token
-      const decoded = await admin.auth().verifyIdToken(refreshToken);
+      // Verify refresh token using JWT (not Firebase)
+      const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
 
-      // Hash the refresh token
+      // Hash the refresh token to find it in DB
       const tokenHash = crypto
         .createHash('sha256')
         .update(refreshToken)
@@ -319,9 +319,11 @@ class AuthService {
         throw new ApiError(401, 'Invalid refresh token');
       }
 
-      // Check if token is revoked
+      // REUSE DETECTION: If token is already revoked, it might be a stolen token being reused
       if (storedToken.isRevoked) {
-        throw new ApiError(401, 'Refresh token has been revoked');
+        // Revoke ALL tokens for this user as a security measure
+        await this.logoutAllDevices(decoded._id);
+        throw new ApiError(401, 'Refresh token has been reused. All sessions revoked for security.');
       }
 
       // Check if token is expired
@@ -335,14 +337,31 @@ class AuthService {
         throw new ApiError(401, 'User not found');
       }
 
-      // Generate new access token
-      const accessToken = user.generateAccessToken();
+      // ROTATION: Revoke current token and issue a new one
+      await storedToken.revoke('token_refresh_rotation');
 
-      // Update last used
-      storedToken.lastUsedAt = new Date();
-      await storedToken.save();
+      // Generate new tokens
+      const newAccessToken = user.generateAccessToken();
+      const newRefreshToken = user.generateRefreshToken();
 
-      return { accessToken };
+      // Store new refresh token hash
+      const newTokenHash = crypto
+        .createHash('sha256')
+        .update(newRefreshToken)
+        .digest('hex');
+
+      await RefreshToken.create({
+        user: user._id,
+        tokenHash: newTokenHash,
+        deviceInfo: storedToken.deviceInfo,
+        ipAddress: storedToken.ipAddress,
+        expiresAt: this.getExpiryDate(process.env.REFRESH_TOKEN_EXPIRY || '30d')
+      });
+
+      return { 
+        accessToken: newAccessToken, 
+        refreshToken: newRefreshToken 
+      };
     } catch (error) {
       if (error.name === 'TokenExpiredError') {
         throw new ApiError(401, 'Refresh token expired');

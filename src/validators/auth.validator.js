@@ -1,16 +1,46 @@
 import { z } from 'zod';
 
 /**
+ * Send OTP Validator
+ * POST /api/v1/auth/otp/send
+ */
+export const sendOTPSchema = z.object({
+  body: z.object({
+    phone: z.string().min(10, 'Phone number must be at least 10 digits')
+  })
+});
+
+/**
+ * Verify OTP Validator
+ * POST /api/v1/auth/otp/verify
+ */
+export const verifyOTPSchema = z.object({
+  body: z.object({
+    phone: z.string().min(10, 'Phone number must be at least 10 digits'),
+    otp: z.string().length(6, 'OTP must be 6 digits'),
+    role: z.enum(['customer', 'driver'], {
+      errorMap: () => ({ message: 'Role must be either customer or driver' })
+    }),
+    deviceInfo: z.object({
+      fcmToken: z.string().optional(),
+      deviceModel: z.string().optional(),
+      os: z.string().optional(),
+      appVersion: z.string().optional(),
+      ipAddress: z.string().optional()
+    }).optional()
+  })
+});
+
+/**
  * Mobile Login Validator
  * POST /api/v1/auth/login/mobile
  */
 export const mobileLoginSchema = z.object({
   body: z.object({
-    idToken: z.string().min(1, 'Firebase ID token is required'),
+    phone: z.string().min(10, 'Phone number must be at least 10 digits'),
     role: z.enum(['customer', 'driver'], {
       errorMap: () => ({ message: 'Role must be either customer or driver' })
     }),
-    phone: z.string().min(5, 'Phone must be at least 5 characters').optional(),
     deviceInfo: z.object({
       fcmToken: z.string().optional(),
       deviceModel: z.string().optional(),

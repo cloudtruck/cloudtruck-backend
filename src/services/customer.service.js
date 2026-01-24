@@ -188,7 +188,7 @@ class CustomerService {
     if (search) {
       query.$or = [
         { companyName: new RegExp(search, 'i') },
-        { gstNumber: new RegExp(search, 'i') }
+        { gst: new RegExp(search, 'i') }
       ];
     }
 

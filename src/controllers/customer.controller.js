@@ -1,6 +1,28 @@
 import CustomerService from '../services/customer.service.js';
+import { mapBooking } from './booking.controller.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
+
+// Helper: normalize customer document to frontend shape
+const mapCustomer = (cust) => {
+  const c = cust.toObject ? cust.toObject() : cust;
+  return {
+    _id: c._id,
+    userId: c.user?._id || c.user,
+    companyName: c.companyName,
+    gstNumber: c.gst,
+    contactPerson: c.contactPerson,
+    phone: c.user?.phone || c.contactPerson?.phone,
+    email: c.user?.email || c.contactPerson?.email,
+    address: c.address,
+    kycStatus: c.isVerified ? 'verified' : 'pending',
+    status: c.isDeleted ? 'inactive' : 'active',
+    totalBookings: c.businessMetrics?.totalBookings || 0,
+    lastBookingDate: c.updatedAt, // Using updatedAt as a fallback for lastBookingDate
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt
+  };
+};
 
 /**
  * Create Customer Profile
@@ -20,7 +42,7 @@ export const createCustomer = asyncHandler(async (req, res) => {
   });
 
   return res.status(201).json(
-    new ApiResponse(201, customer, 'Customer profile created successfully')
+    new ApiResponse(201, mapCustomer(customer), 'Customer profile created successfully')
   );
 });
 
@@ -34,7 +56,7 @@ export const getCustomerById = asyncHandler(async (req, res) => {
   const customer = await CustomerService.getCustomerById(id);
 
   return res.status(200).json(
-    new ApiResponse(200, customer, 'Customer fetched successfully')
+    new ApiResponse(200, mapCustomer(customer), 'Customer fetched successfully')
   );
 });
 
@@ -71,7 +93,15 @@ export const getAllCustomers = asyncHandler(async (req, res) => {
   const result = await CustomerService.getCustomers(filters, pagination);
 
   return res.status(200).json(
-    new ApiResponse(200, result, 'Customers fetched successfully')
+    new ApiResponse(200, {
+      customers: result.data.map(mapCustomer),
+      pagination: {
+        currentPage: result.pagination.page,
+        totalPages: result.pagination.pages,
+        totalItems: result.pagination.total,
+        itemsPerPage: result.pagination.limit
+      }
+    }, 'Customers fetched successfully')
   );
 });
 
@@ -87,7 +117,7 @@ export const updateCustomer = asyncHandler(async (req, res) => {
   const customer = await CustomerService.updateCustomer(id, updateData, userId);
 
   return res.status(200).json(
-    new ApiResponse(200, customer, 'Customer updated successfully')
+    new ApiResponse(200, mapCustomer(customer), 'Customer updated successfully')
   );
 });
 
@@ -103,7 +133,7 @@ export const updateCreditLimit = asyncHandler(async (req, res) => {
   const customer = await CustomerService.updateCreditLimit(id, creditLimit, updatedBy);
 
   return res.status(200).json(
-    new ApiResponse(200, customer, 'Credit limit updated successfully')
+    new ApiResponse(200, mapCustomer(customer), 'Credit limit updated successfully')
   );
 });
 
@@ -118,7 +148,7 @@ export const verifyCustomer = asyncHandler(async (req, res) => {
   const customer = await CustomerService.verifyCustomer(id, verifiedBy);
 
   return res.status(200).json(
-    new ApiResponse(200, customer, 'Customer verified successfully')
+    new ApiResponse(200, mapCustomer(customer), 'Customer verified successfully')
   );
 });
 
@@ -134,7 +164,7 @@ export const assignAccountManager = asyncHandler(async (req, res) => {
   const customer = await CustomerService.assignAccountManager(id, staffId, assignedBy);
 
   return res.status(200).json(
-    new ApiResponse(200, customer, 'Account manager assigned successfully')
+    new ApiResponse(200, mapCustomer(customer), 'Account manager assigned successfully')
   );
 });
 
@@ -184,8 +214,10 @@ export const getBookingHistory = asyncHandler(async (req, res) => {
 
   const result = await CustomerService.getBookingHistory(customer._id, filters, pagination);
 
-  const bookings = result.data || result;
-  const p = result.pagination || result;
+  const docs = result.data || [];
+  const p = result.pagination || {};
+  const bookings = docs.map(mapBooking);
+
   const paginationRes = {
     currentPage: p.page || 1,
     totalPages: p.pages || 1,
@@ -216,8 +248,10 @@ export const getMyBookingHistory = asyncHandler(async (req, res) => {
 
   const result = await CustomerService.getBookingHistory(customer._id, filters, pagination);
 
-  const bookings = result.data || result;
-  const p = result.pagination || result;
+  const docs = result.data || [];
+  const p = result.pagination || {};
+  const bookings = docs.map(mapBooking);
+
   const paginationRes = {
     currentPage: p.page || 1,
     totalPages: p.pages || 1,
@@ -255,6 +289,6 @@ export const getMyProfile = asyncHandler(async (req, res) => {
   const customer = await CustomerService.getCustomerById(customerId);
 
   return res.status(200).json(
-    new ApiResponse(200, customer, 'Profile fetched successfully')
+    new ApiResponse(200, mapCustomer(customer), 'Profile fetched successfully')
   );
 });

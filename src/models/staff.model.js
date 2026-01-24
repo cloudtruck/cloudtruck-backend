@@ -6,8 +6,12 @@ const staffSchema = new mongoose.Schema({
   name: { type: String, required: true, index: true },
   department: { type: String, index: true }, // e.g., ops, sales, support, finance
   title: String, // e.g., 'operations manager'
+  roleTemplate: { type: mongoose.Schema.Types.ObjectId, ref: 'RoleTemplate' },
   permissions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Permission' }],
   reportingManager: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff', alias: 'manager' },
+  
+  // Branch assignment (for future expansion)
+  branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   
   // Work Schedule
   workingHours: {

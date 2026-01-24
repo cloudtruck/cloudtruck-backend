@@ -3,6 +3,8 @@ import * as authController from '../controllers/auth.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validation.middleware.js';
 import {
+  sendOTPSchema,
+  verifyOTPSchema,
   mobileLoginSchema,
   staffLoginSchema,
   registerStaffSchema,
@@ -15,6 +17,9 @@ import {
 const router = express.Router();
 
 // Public routes
+router.post('/otp/send', validate(sendOTPSchema), authController.sendOTP);
+router.post('/otp/resend', validate(sendOTPSchema), authController.resendOTP);
+router.post('/otp/verify', validate(verifyOTPSchema), authController.verifyOTP);
 router.post('/login/mobile', validate(mobileLoginSchema), authController.mobileLogin);
 router.post('/login/staff', validate(staffLoginSchema), authController.staffLogin);
 router.post('/refresh-token', validate(refreshTokenSchema), authController.refreshAccessToken);

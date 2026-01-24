@@ -15,6 +15,9 @@ const mapDriver = (drv) => {
     email: d.user?.email,
     profilePhoto: d.profilePhoto,
     licenseNumber: d.licenseNumber,
+    licenseExpiry: d.licenseExpiry,
+    aadhaarNumber: d.aadhaar?.number,
+    panNumber: d.pan?.number,
     status: d.isBlacklisted ? 'blocked' : d.availability || (d.isBlacklisted ? 'blocked' : 'offline'),
     isVerified: d.isVerified,
     isBlacklisted: d.isBlacklisted,
@@ -24,6 +27,7 @@ const mapDriver = (drv) => {
     lastActive: d.lastLocationAt,
     totalTrips: d.totalTrips,
     rating: d.rating,
+    isReturnTrip: d.isReturnTrip,
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
     rejectionReason: d.rejectionReason,
@@ -75,15 +79,19 @@ export const getDriverByUser = asyncHandler(async (req, res) => {
  * GET /api/v1/drivers/available
  */
 export const getAvailableDrivers = asyncHandler(async (req, res) => {
-  const { truckType, city, latitude, longitude, radius } = req.query;
+  const { truckType, city, latitude, longitude, lat, lng, radius, matchPickupCity } = req.query;
+
+  const latToUse = latitude || lat;
+  const lngToUse = longitude || lng;
 
   const filters = {
     isAvailable: true,
     isVerified: true,
     isBlacklisted: false,
-    truckType,
-    location: latitude && longitude ? { latitude: parseFloat(latitude), longitude: parseFloat(longitude) } : undefined,
-    radius: radius ? parseFloat(radius) : undefined
+    truckType: truckType && truckType !== 'undefined' ? truckType : undefined,
+    location: latToUse && lngToUse ? { latitude: parseFloat(latToUse), longitude: parseFloat(lngToUse) } : undefined,
+    radius: radius ? parseFloat(radius) : undefined,
+    matchPickupCity
   };
 
   const result = await DriverService.getDrivers(filters, { limit: 100 });

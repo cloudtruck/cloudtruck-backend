@@ -209,6 +209,12 @@ const vehicleSchema = new mongoose.Schema(
       index: true
     },
 
+    nextBooking: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Booking',
+      index: true
+    },
+
     availability: {
       type: String,
       enum: ['available', 'on-trip', 'maintenance', 'offline'],
@@ -481,6 +487,7 @@ vehicleSchema.statics.findAvailable = function (filters = {}) {
     availability: 'available',
     verificationStatus: 'verified',
     isDeleted: false,
+    nextBooking: null,
     'expiryDates.insurance': { $gt: new Date() }
   };
 

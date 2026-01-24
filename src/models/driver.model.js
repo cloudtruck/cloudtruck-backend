@@ -33,6 +33,12 @@ const driverSchema = new mongoose.Schema({
     index: true
   },
   
+  nextBooking: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Booking',
+    index: true
+  },
+  
   lastKnownLocation: {
     type: { type: String, enum: ['Point'] },
     coordinates: { type: [Number] } // [lng, lat]
@@ -138,7 +144,7 @@ driverSchema.statics.findAvailable = function() {
     isBlacklisted: false,
     isVerified: true,
     availability: 'available',
-    currentBooking: null
+    $or: [{ nextBooking: null }, { nextBooking: { $exists: false } }]
   });
 };
 

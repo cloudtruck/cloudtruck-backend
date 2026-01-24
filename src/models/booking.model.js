@@ -136,6 +136,7 @@ const bookingSchema = new Schema(
     vehicle: { type: Schema.Types.ObjectId, ref: 'Vehicle', index: true, default: null },
     assignedBy: { type: Schema.Types.ObjectId, ref: 'Staff', default: null },
     assignedAt: { type: Date, index: true },
+    assignedBranch: { type: Schema.Types.ObjectId, ref: 'Branch', default: null, index: true },
 
     // Status
     status: {
@@ -144,7 +145,7 @@ const bookingSchema = new Schema(
         'created',
         'under-review',
         'assigned',
-        'driver-enroute-to-pickup',
+        'driver-en-route',
         'reached-pickup',
         'loaded',
         'in-transit',

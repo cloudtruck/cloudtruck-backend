@@ -17,6 +17,15 @@ const keyGenerator = (req) => {
 };
 
 /**
+ * Check if user is admin or staff
+ */
+const isAdminOrStaff = (req) => {
+  if (!req.user) return false;
+  const role = req.user.role?.toLowerCase();
+  return ['admin', 'super-admin', 'staff', 'operations'].includes(role);
+};
+
+/**
  * Custom handler for rate limit exceeded
  */
 const handler = (req, res) => {
@@ -46,11 +55,20 @@ const createRedisStore = (prefix) => {
 /**
  * Global Rate Limiter
  * Applies to all routes
- * Limits: 100 requests per 15 minutes per IP/user
+ * Limits: 
+ * - Admin/Staff: 1000 requests per 15 minutes
+ * - Regular users: 200 requests per 15 minutes
  */
 export const globalLimiter = rateLimit({
   windowMs: process.env.RATE_LIMIT_WINDOW_MS | 15 * 60 * 1000, // 15 minutes
-  max: process.env.GLOBAL_RATE_LIMIT | 200, // Limit each IP/user to 100 requests per windowMs
+  max: async (req) => {
+    // Higher limits for admin/staff users
+    if (isAdminOrStaff(req)) {
+      return parseInt(process.env.ADMIN_RATE_LIMIT) || 1000;
+    }
+    // Standard limits for regular users
+    return parseInt(process.env.GLOBAL_RATE_LIMIT) || 200;
+  },
   message: 'Too many requests from this IP, please try again later',
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false, // Disable `X-RateLimit-*` headers
@@ -102,11 +120,20 @@ export const otpLimiter = rateLimit({
  * File Upload Rate Limiter
  * For document/image upload endpoints
  * Moderate limits to prevent storage abuse
- * Limits: 20 uploads per hour per user
+ * Limits:
+ * - Admin/Staff: 100 uploads per hour
+ * - Regular users: 20 uploads per hour
  */
 export const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20, // Limit each user to 20 uploads per hour
+  max: async (req) => {
+    // Higher limits for admin/staff users
+    if (isAdminOrStaff(req)) {
+      return 100;
+    }
+    // Standard limits for regular users
+    return 20;
+  },
   message: 'Too many file uploads, please try again later',
   keyGenerator,
   handler,
@@ -132,11 +159,20 @@ export const paymentLimiter = rateLimit({
  * API Rate Limiter
  * For general API endpoints
  * Moderate limits for normal operations
- * Limits: 60 requests per minute per user
+ * Limits:
+ * - Admin/Staff: 300 requests per minute
+ * - Regular users: 60 requests per minute
  */
 export const apiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 60, // Limit each user to 60 requests per minute
+  max: async (req) => {
+    // Higher limits for admin/staff users
+    if (isAdminOrStaff(req)) {
+      return parseInt(process.env.ADMIN_API_RATE_LIMIT) || 300;
+    }
+    // Standard limits for regular users
+    return 60;
+  },
   message: 'Too many requests, please try again later',
   keyGenerator,
   handler,

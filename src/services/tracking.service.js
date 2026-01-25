@@ -1,6 +1,7 @@
 import Tracking from '../models/tracking.model.js';
 import Booking from '../models/booking.model.js';
 import Driver from '../models/driver.model.js';
+import LocationService from './location.service.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
 
@@ -322,6 +323,111 @@ class TrackingService {
 
     logger.info(`Cleaned old tracking data: ${result.deletedCount} records deleted`);
     return result.deletedCount;
+  }
+
+  /**
+   * Get all live trips (active bookings)
+   * @returns {Promise<Array>}
+   */
+  static async getLiveTrips() {
+    const activeStatuses = [
+      'assigned',
+      'driver-en-route',
+      'reached-pickup',
+      'loaded',
+      'in-transit',
+      'reached-destination'
+    ];
+
+    const liveBookings = await Booking.find({
+      status: { $in: activeStatuses },
+      isDeleted: false
+    })
+      .populate('driver', 'name phone profileImage')
+      .populate('vehicle', 'vehicleNumber truckType model bodyType')
+      .populate('customer', 'companyName')
+      .select('bookingId status lastKnownLocation lastLocationUpdate pickup drop driver vehicle customer materialType loadDate')
+      .lean();
+
+    return liveBookings.map(booking => ({
+      id: booking._id,
+      _id: booking._id, // Add _id for frontend compatibility
+      bookingId: booking.bookingId,
+      status: booking.status,
+      materialType: booking.materialType,
+      loadDate: booking.loadDate,
+      customer: booking.customer ? {
+        _id: booking.customer._id,
+        companyName: booking.customer.companyName
+      } : null,
+      driver: booking.driver ? {
+        _id: booking.driver._id,
+        name: booking.driver.name,
+        phone: booking.driver.phone,
+        profileImage: booking.driver.profileImage
+      } : null,
+      vehicle: booking.vehicle ? {
+        _id: booking.vehicle._id,
+        vehicleNumber: booking.vehicle.vehicleNumber,
+        truckType: booking.vehicle.truckType,
+        model: booking.vehicle.model,
+        bodyType: booking.vehicle.bodyType
+      } : null,
+      pickup: {
+        city: booking.pickup.city,
+        address: booking.pickup.address,
+        latLng: booking.pickup.location
+      },
+      drop: {
+        city: booking.drop.city,
+        address: booking.drop.address,
+        latLng: booking.drop.location
+      },
+      lastLocation: booking.lastKnownLocation ? {
+        location: booking.lastKnownLocation,
+        timestamp: booking.lastLocationUpdate
+      } : null
+    }));
+  }
+
+  /**
+   * Get planned route for booking (with caching)
+   * @param {String} bookingId - Booking ID
+   * @returns {Promise<Object>}
+   */
+  static async getPlannedRoute(bookingId) {
+    const booking = await Booking.findById(bookingId);
+    if (!booking) throw new ApiError(404, 'Booking not found');
+
+    // Check if cached route exists and is less than 24 hours old
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    if (booking.estimatedRoute?.polyline && booking.estimatedRoute.calculatedAt > oneDayAgo) {
+      return booking.estimatedRoute;
+    }
+
+    // Calculate new route
+    const origin = {
+      latitude: booking.pickup.location.coordinates[1],
+      longitude: booking.pickup.location.coordinates[0]
+    };
+    const destination = {
+      latitude: booking.drop.location.coordinates[1],
+      longitude: booking.drop.location.coordinates[0]
+    };
+
+    const routeData = await LocationService.calculateRoute(origin, destination);
+    if (!routeData) throw new ApiError(500, 'Could not calculate route');
+
+    // Update booking with cached route
+    booking.estimatedRoute = {
+      polyline: routeData.polyline,
+      distance: routeData.distance.value,
+      duration: routeData.duration.value,
+      calculatedAt: new Date()
+    };
+    await booking.save();
+
+    return booking.estimatedRoute;
   }
 }
 

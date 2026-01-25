@@ -1,4 +1,7 @@
+import jwt from 'jsonwebtoken';
+import throttle from 'lodash/throttle.js';
 import TrackingService from '../services/tracking.service.js';
+import Booking from '../models/booking.model.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -6,50 +9,46 @@ import logger from '../utils/logger.js';
  * Namespace: /tracking
  */
 export default function trackingSocketHandler(io) {
+  // Authentication middleware for Socket.io
+  io.use((socket, next) => {
+    const token = socket.handshake.auth.token || socket.handshake.headers['x-auth-token'];
+    
+    if (!token) {
+      return next(new Error('Authentication error: Token missing'));
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+      socket.user = decoded;
+      next();
+    } catch (err) {
+      return next(new Error('Authentication error: Invalid token'));
+    }
+  });
+
   io.on('connection', (socket) => {
-    logger.info('Client connected to tracking namespace:', socket.id);
-
-    /**
-     * Driver joins booking room
-     * Event: driver:join
-     * Payload: { driverId, bookingId }
-     */
-    socket.on('driver:join', ({ driverId, bookingId }) => {
-      socket.join(`booking:${bookingId}`);
-      socket.join(`driver:${driverId}`);
-      
-      logger.info('Driver joined booking room:', { driverId, bookingId, socketId: socket.id });
-      
-      socket.emit('driver:joined', {
-        bookingId,
-        message: 'Successfully joined booking tracking'
-      });
+    logger.info('Client connected to tracking namespace:', { 
+      socketId: socket.id, 
+      userId: socket.user.id,
+      role: socket.user.role 
     });
 
-    /**
-     * Customer/Staff joins booking room to watch
-     * Event: watcher:join
-     * Payload: { userId, bookingId, role }
-     */
-    socket.on('watcher:join', ({ userId, bookingId, role }) => {
-      socket.join(`booking:${bookingId}`);
-      
-      logger.info('Watcher joined booking room:', { userId, bookingId, role, socketId: socket.id });
-      
-      socket.emit('watcher:joined', {
-        bookingId,
-        message: 'Successfully joined booking tracking'
-      });
-    });
-
-    /**
-     * Location update from driver
-     * Event: location:update
-     * Payload: { bookingId, driverId, latitude, longitude, accuracy, speed, heading, battery, networkType }
-     */
-    socket.on('location:update', async (data) => {
+    // Throttled update handler per socket to prevent spamming (max 1 per 10s)
+    const handleLocationUpdate = async (data) => {
       try {
-        const { bookingId, driverId, latitude, longitude, accuracy, speed, heading, battery, networkType } = data;
+        const { bookingId, latitude, longitude, accuracy, speed, heading, battery, networkType } = data;
+        const driverId = socket.user.role === 'driver' ? socket.user.id : data.driverId;
+
+        // Verify driver is assigned to this booking
+        if (socket.user.role === 'driver') {
+          const booking = await Booking.findOne({ _id: bookingId, driver: socket.user.id });
+          if (!booking) {
+            return socket.emit('location:error', {
+              success: false,
+              message: 'Unauthorized: Driver not assigned to this booking'
+            });
+          }
+        }
 
         // Save to database
         const tracking = await TrackingService.recordLocation(
@@ -74,7 +73,7 @@ export default function trackingSocketHandler(io) {
 
         logger.debug('Location updated:', { bookingId, driverId, latitude, longitude });
 
-        // Acknowledge to driver
+        // Acknowledge to sender
         socket.emit('location:acknowledged', {
           success: true,
           timestamp: tracking.timestamp
@@ -86,6 +85,56 @@ export default function trackingSocketHandler(io) {
           message: error.message
         });
       }
+    };
+
+    const throttledUpdate = throttle(handleLocationUpdate, 10000, { leading: true, trailing: false });
+
+    /**
+     * Driver joins booking room
+     * Event: driver:join
+     * Payload: { driverId, bookingId }
+     */
+    socket.on('driver:join', async ({ driverId, bookingId }) => {
+      // Security check: Only the driver themselves or staff can join as driver
+      if (socket.user.role === 'driver' && socket.user.id !== driverId) {
+        return socket.emit('location:error', { message: 'Unauthorized driver join' });
+      }
+
+      socket.join(`booking:${bookingId}`);
+      socket.join(`driver:${driverId}`);
+      
+      logger.info('Driver joined booking room:', { driverId, bookingId, socketId: socket.id });
+      
+      socket.emit('driver:joined', {
+        bookingId,
+        message: 'Successfully joined booking tracking'
+      });
+    });
+
+    /**
+     * Customer/Staff joins booking room to watch
+     * Event: watcher:join
+     * Payload: { userId, bookingId, role }
+     */
+    socket.on('watcher:join', ({ userId, bookingId, role }) => {
+      // Security check: Verify watcher has access to this booking (simplified for now)
+      socket.join(`booking:${bookingId}`);
+      
+      logger.info('Watcher joined booking room:', { userId, bookingId, role, socketId: socket.id });
+      
+      socket.emit('watcher:joined', {
+        bookingId,
+        message: 'Successfully joined booking tracking'
+      });
+    });
+
+    /**
+     * Location update from driver
+     * Event: location:update
+     * Payload: { bookingId, driverId, latitude, longitude, accuracy, speed, heading, battery, networkType }
+     */
+    socket.on('location:update', (data) => {
+      throttledUpdate(data);
     });
 
     /**

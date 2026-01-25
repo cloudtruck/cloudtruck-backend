@@ -131,6 +131,15 @@ PHONEPE_MERCHANT_ID=your-merchant-id
 PHONEPE_SALT_KEY=your-salt-key
 PHONEPE_SALT_INDEX=1
 PHONEPE_API_URL=https://api-preprod.phonepe.com/apis/pg-sandbox
+
+# Rate Limiting (Optional - defaults provided)
+RATE_LIMIT_WINDOW_MS=900000          # 15 minutes in ms
+GLOBAL_RATE_LIMIT=200                # Regular users: 200 requests per window
+ADMIN_RATE_LIMIT=1000                # Admin/Staff: 1000 requests per window
+ADMIN_API_RATE_LIMIT=300             # Admin/Staff: 300 requests per minute
+
+# Google Maps API (Optional - for geocoding and routing)
+GOOGLE_MAPS_API_KEY=your-google-maps-api-key
 ```
 
 ### 4. Database Setup

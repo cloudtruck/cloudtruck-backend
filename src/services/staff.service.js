@@ -2,6 +2,7 @@ import Staff from '../models/staff.model.js';
 import User from '../models/user.model.js';
 import Booking from '../models/booking.model.js';
 import Permission from '../models/permission.model.js';
+import RoleTemplate from '../models/roleTemplate.model.js';
 import AuditLog from '../models/auditLog.model.js';
 import NotificationService from './notification.service.js';
 import ApiError from '../utils/ApiError.js';
@@ -25,24 +26,75 @@ class StaffService {
    * @returns {Promise<Object>} Created staff
    */
   static async createStaff(data, createdBy) {
-    const {
+    let {
       userId,
+      email,
+      password,
+      phone,
       name,
       department,
       title,
+      roleTemplate: templateIdOrName,
       reportingManager,
       workingHours,
       permissions
     } = data;
 
+    let targetUserId = userId;
+
+    // If userId not provided, create a user first
+    if (!targetUserId && email && password) {
+      // Check if user already exists
+      const existingUser = await User.findOne({ email, isDeleted: false });
+      if (existingUser) {
+        throw new ApiError(400, 'User with this email already exists');
+      }
+
+      const user = await User.create({
+        email,
+        phone,
+        password,
+        role: 'staff',
+        status: 'active',
+        createdBy
+      });
+      targetUserId = user._id;
+    }
+
+    if (!targetUserId) {
+      throw new ApiError(400, 'Either userId or email and password must be provided');
+    }
+
     // Check if staff profile already exists
-    const existingStaff = await Staff.findOne({ user: userId });
+    const existingStaff = await Staff.findOne({ user: targetUserId });
     if (existingStaff) {
       throw new ApiError(400, 'Staff profile already exists for this user');
     }
 
+    // Resolve Role Template if provided
+    let resolvedRoleTemplateId = null;
+    if (templateIdOrName) {
+      let template;
+      // Check if it's an ObjectId or a name
+      if (templateIdOrName.match(/^[0-9a-fA-F]{24}$/)) {
+        template = await RoleTemplate.findById(templateIdOrName);
+      } else {
+        template = await RoleTemplate.findOne({ templateName: templateIdOrName });
+      }
+
+      if (template) {
+        resolvedRoleTemplateId = template._id;
+        // If title not provided, use template name as title
+        if (!title) title = template.templateName;
+        // If permissions not provided, use template permissions
+        if (!permissions || permissions.length === 0) {
+          permissions = template.permissions.map(p => p.toString());
+        }
+      }
+    }
+
     // Verify user exists and has appropriate role
-    const user = await User.findById(userId);
+    const user = await User.findById(targetUserId);
     if (!user || user.isDeleted) {
       throw new ApiError(404, 'User not found');
     }
@@ -71,10 +123,11 @@ class StaffService {
 
     // Create staff
     const staff = await Staff.create({
-      user: userId,
+      user: targetUserId,
       name,
       department,
-      title,
+      title: title || 'Staff Member',
+      roleTemplate: resolvedRoleTemplateId,
       reportingManager,
       workingHours,
       permissions: permissions || [],
@@ -107,9 +160,10 @@ class StaffService {
       $or: [{ _id: staffId }, { user: staffId }],
       isDeleted: false
     })
-      .populate('user', 'email phone status lastLogin')
+      .populate('user', 'email phone status lastLogin role')
       .populate('reportingManager', 'name department title')
       .populate('permissions', 'name key description')
+      .populate('roleTemplate', 'templateName description')
       .populate({
         path: 'assignedBookings',
         select: 'bookingId status pickup drop customer',
@@ -156,10 +210,11 @@ class StaffService {
       limit: pagination.limit || 20,
       sort: pagination.sort || { createdAt: -1 },
       populate: [
-        { path: 'user', select: 'email phone status' },
+        { path: 'user', select: 'email phone status role' },
         { path: 'reportingManager', select: 'name department' },
-        { path: 'permissions', select: 'name key' }
-      ]
+        { path: 'permissions', select: 'name key' },
+        { path: 'roleTemplate', select: 'templateName description' },
+      ],
     });
 
     return result;
@@ -188,14 +243,26 @@ class StaffService {
       'title',
       'reportingManager',
       'workingHours',
-      'isActive'
+      'isActive',
+      'roleTemplate',
     ];
 
-    allowedFields.forEach(field => {
+    allowedFields.forEach((field) => {
       if (updateData[field] !== undefined) {
         staff[field] = updateData[field];
       }
     });
+
+    // Update associated User model if email, phone, or status is provided
+    if (updateData.email || updateData.phone || updateData.status) {
+      const user = await User.findById(staff.user);
+      if (user) {
+        if (updateData.email) user.email = updateData.email;
+        if (updateData.phone) user.phone = updateData.phone;
+        if (updateData.status) user.status = updateData.status;
+        await user.save();
+      }
+    }
 
     staff.updatedBy = userId;
     await staff.save();

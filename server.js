@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import app from './src/app.js';
 import connectDB from './src/config/database.js';
 import { connectRedis } from './src/config/redis.js';
+import { validateEnvironment } from './src/config/environment.js';
 import logger from './src/utils/logger.js';
 import trackingSocketHandler from './src/sockets/tracking.socket.js';
 import notificationSocketHandler from './src/sockets/notification.socket.js';
@@ -12,6 +13,9 @@ import EwayBillExpiryJob from './src/jobs/ewayBillExpiry.job.js';
 
 // Load environment variables from backend/.env
 dotenv.config();
+
+// Validate environment variables
+validateEnvironment();
 
 // Environment variables
 const PORT = process.env.PORT || 5000;

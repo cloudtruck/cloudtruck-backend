@@ -7,6 +7,7 @@ import Staff from '../models/staff.model.js';
 import AuditLog from '../models/auditLog.model.js';
 import NotificationService from './notification.service.js';
 import DocumentService from './document.service.js';
+import LocationService from './location.service.js';
 import EwayBillService from './ewayBill.service.js';
 import EwayBill from '../models/ewayBill.model.js';
 import ApiError from '../utils/ApiError.js';
@@ -70,6 +71,48 @@ class BookingService {
     const count = await Booking.countDocuments();
     const bookingId = `BK${Date.now()}${String(count + 1).padStart(4, '0')}`;
 
+    // Validate and Geocode Pickup
+    let finalPickupLat = pickupLat;
+    let finalPickupLng = pickupLng;
+    let finalPickupAddress = pickupAddress;
+    let pickupPlaceId = null;
+
+    if (!pickupLat || !pickupLng) {
+      const geocoded = await LocationService.geocodeAddress(`${pickupAddress}, ${pickupCity}`);
+      if (!geocoded) throw new ApiError(400, 'Could not geocode pickup address');
+      finalPickupLat = geocoded.latitude;
+      finalPickupLng = geocoded.longitude;
+      finalPickupAddress = geocoded.formattedAddress;
+      pickupPlaceId = geocoded.placeId;
+    } else {
+      const reversed = await LocationService.reverseGeocode(pickupLat, pickupLng);
+      if (reversed) {
+        pickupPlaceId = reversed.placeId;
+        if (!pickupAddress) finalPickupAddress = reversed.formattedAddress;
+      }
+    }
+
+    // Validate and Geocode Drop
+    let finalDropLat = dropLat;
+    let finalDropLng = dropLng;
+    let finalDropAddress = dropAddress;
+    let dropPlaceId = null;
+
+    if (!dropLat || !dropLng) {
+      const geocoded = await LocationService.geocodeAddress(`${dropAddress}, ${dropCity}`);
+      if (!geocoded) throw new ApiError(400, 'Could not geocode drop address');
+      finalDropLat = geocoded.latitude;
+      finalDropLng = geocoded.longitude;
+      finalDropAddress = geocoded.formattedAddress;
+      dropPlaceId = geocoded.placeId;
+    } else {
+      const reversed = await LocationService.reverseGeocode(dropLat, dropLng);
+      if (reversed) {
+        dropPlaceId = reversed.placeId;
+        if (!dropAddress) finalDropAddress = reversed.formattedAddress;
+      }
+    }
+
     const loadDateObj = new Date(loadDate);
 
     // Create booking
@@ -78,19 +121,21 @@ class BookingService {
       customer: customer._id,
       pickup: {
         city: pickupCity,
-        address: pickupAddress,
+        address: finalPickupAddress,
         location: {
           type: 'Point',
-          coordinates: [pickupLng, pickupLat]
-        }
+          coordinates: [finalPickupLng, finalPickupLat]
+        },
+        placeId: pickupPlaceId
       },
       drop: {
         city: dropCity,
-        address: dropAddress,
+        address: finalDropAddress,
         location: {
           type: 'Point',
-          coordinates: [dropLng, dropLat]
-        }
+          coordinates: [finalDropLng, finalDropLat]
+        },
+        placeId: dropPlaceId
       },
       materialType,
       weight: {

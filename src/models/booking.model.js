@@ -45,7 +45,8 @@ const addressBlockSchema = new Schema(
     pincode: { type: String, trim: true, match: [/^\d{6}$/, 'Invalid pincode'] },
     landmark: String,
     contactPerson: { type: contactPersonSchema, default: {} },
-    location: { type: pointSchema, required: true }
+    location: { type: pointSchema, required: true },
+    placeId: String
   },
   { _id: false }
 );
@@ -257,6 +258,17 @@ const bookingSchema = new Schema(
       cancelledAt: Date,
       reason: String,
       cancellationCharges: Number
+    },
+
+    // Real-time tracking
+    lastKnownLocation: { type: pointSchema },
+    lastLocationUpdate: Date,
+
+    estimatedRoute: {
+      polyline: String,
+      distance: Number, // km
+      duration: Number, // minutes
+      calculatedAt: Date
     },
 
     bookingSource: { type: String, enum: ['web', 'mobile-app', 'phone', 'staff', 'api'], default: 'web' },

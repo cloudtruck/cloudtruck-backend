@@ -8,6 +8,7 @@
     "dev": "nodemon --env-file .env server.js",
     "start": "node --env-file .env server.js",
     "seed": "node src/scripts/seed-rbac.js",
+    "seed:org": "node src/scripts/seed-organization.js",
     "create-admin": "node src/scripts/create-admin.js",
     "test": "mocha --exit --recursive test --timeout 10000"
   },
@@ -33,6 +34,7 @@
     "firebase-admin": "13.6.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
+    "lodash": "^4.17.23",
     "mongoose": "^8.0.0",
     "morgan": "^1.10.0",
     "multer": "^2.0.2",

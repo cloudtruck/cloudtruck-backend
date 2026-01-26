@@ -49,8 +49,14 @@ export const getAllStaff = asyncHandler(async (req, res) => {
 
   const result = await StaffService.getStaff(filters, pagination);
 
+  // Transform response to match frontend expectations
+  const responseData = {
+    staff: result.data,
+    pagination: result.pagination
+  };
+
   return res.status(200).json(
-    new ApiResponse(200, result, 'Staff fetched successfully')
+    new ApiResponse(200, responseData, 'Staff fetched successfully')
   );
 });
 

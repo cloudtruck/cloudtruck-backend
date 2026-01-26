@@ -2,6 +2,7 @@ import Staff from '../models/staff.model.js';
 import User from '../models/user.model.js';
 import Booking from '../models/booking.model.js';
 import Permission from '../models/permission.model.js';
+import RoleTemplate from '../models/roleTemplate.model.js';
 import AuditLog from '../models/auditLog.model.js';
 import NotificationService from './notification.service.js';
 import ApiError from '../utils/ApiError.js';
@@ -26,26 +27,55 @@ class StaffService {
    */
   static async createStaff(data, createdBy) {
     const {
-      userId,
-      name,
-      department,
-      title,
-      reportingManager,
-      workingHours,
-      permissions
-    } = data;
+    userId,
+    email,
+    phone,
+    password,
+    name,
+    department,
+    title,
+    reportingManager,
+    workingHours,
+    permissions,
+    roleTemplate
+  } = data;
+
+    let user = null;
+    let userToAssign = userId;
+
+    if (userToAssign) {
+      user = await User.findById(userToAssign);
+      if (!user || user.isDeleted) {
+        throw new ApiError(404, 'User not found');
+      }
+    } else {
+      if (!email || !password) {
+        throw new ApiError(400, 'Email and password are required to create a new staff user');
+      }
+
+      const existingUserByEmail = await User.findOne({ email, isDeleted: false });
+      if (existingUserByEmail) {
+        throw new ApiError(400, 'Email already registered');
+      }
+
+      // Create new staff user
+      user = await User.create({
+        email,
+        phone,
+        password,
+        role: 'staff',
+        status: 'active',
+        createdBy
+      });
+      userToAssign = user._id;
+    }
 
     // Check if staff profile already exists
-    const existingStaff = await Staff.findOne({ user: userId });
+    const existingStaff = await Staff.findOne({ user: userToAssign });
     if (existingStaff) {
       throw new ApiError(400, 'Staff profile already exists for this user');
     }
 
-    // Verify user exists and has appropriate role
-    const user = await User.findById(userId);
-    if (!user || user.isDeleted) {
-      throw new ApiError(404, 'User not found');
-    }
     if (!['staff', 'internal', 'super-admin'].includes(user.role)) {
       throw new ApiError(400, 'User role not eligible for staff profile');
     }
@@ -58,8 +88,25 @@ class StaffService {
       }
     }
 
+    let templateEntity = null;
+    let permissionIds = permissions;
+
     // Verify permissions if provided
-    if (permissions && permissions.length > 0) {
+    if (roleTemplate) {
+      const query = { isDeleted: false };
+      if (/^[0-9a-fA-F]{24}$/.test(roleTemplate)) {
+        query._id = roleTemplate;
+      } else {
+        query.templateName = new RegExp(roleTemplate, 'i');
+      }
+      templateEntity = await RoleTemplate.findOne(query);
+      if (!templateEntity) {
+        console.warn(`[Staff Creation] Role template not found: ${roleTemplate}. Proceeding without template.`);
+        // Continue without template - use permissions if provided
+      }
+    }
+    
+    if (!templateEntity && permissions && permissions.length > 0) {
       const validPermissions = await Permission.find({
         _id: { $in: permissions },
         isDeleted: false
@@ -67,17 +114,19 @@ class StaffService {
       if (validPermissions.length !== permissions.length) {
         throw new ApiError(400, 'One or more invalid permissions');
       }
+      permissionIds = validPermissions.map((perm) => perm._id);
     }
 
     // Create staff
     const staff = await Staff.create({
-      user: userId,
+      user: userToAssign,
       name,
       department,
       title,
       reportingManager,
       workingHours,
-      permissions: permissions || [],
+      permissions: templateEntity ? templateEntity.permissions : permissionIds || [],
+      roleTemplate: templateEntity ? templateEntity._id : undefined,
       isActive: true,
       createdBy
     });

@@ -14,9 +14,17 @@ async function testStaffAPI() {
     
     // Test 1: Login to get token
     console.log('1️⃣ Logging in as admin...');
+    
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@cloudtruck.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin1234';
+    
+    if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD) {
+      console.log('⚠️  Warning: Using default credentials. Set ADMIN_EMAIL and ADMIN_PASSWORD env variables for security.\n');
+    }
+    
     const loginResponse = await axios.post(`${API_BASE}/auth/login/staff`, {
-      email: 'admin@cloudtruck.com',
-      password: 'Admin1234'
+      email: adminEmail,
+      password: adminPassword
     });
     
     const token = loginResponse.data.data.tokens.accessToken;

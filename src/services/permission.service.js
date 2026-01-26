@@ -20,7 +20,7 @@ class PermissionService {
    * Get permissions grouped by resource
    */
   async getPermissionsGroupedByResource() {
-    const permissions = await Permission.find({ isActive: true })
+    const permissions = await Permission.find({ isActive: true, isDeleted: false })
       .sort({ resource: 1, action: 1 })
       .lean();
 
@@ -117,6 +117,7 @@ class PermissionService {
 
     // Soft delete
     permission.isActive = false;
+    permission.isDeleted = true;
     await permission.save();
 
     // Create audit log

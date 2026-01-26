@@ -534,13 +534,13 @@ const seedPermissions = async () => {
     let updated = 0;
 
     for (const permission of permissions) {
-      const existing = await Permission.findOne({ key: permission.key });
+      const existing = await Permission.findOne({ key: permission.key, isDeleted: false });
       
       if (existing) {
         // Update existing permission
         await Permission.findOneAndUpdate(
-          { key: permission.key },
-          { $set: permission },
+          { key: permission.key, isDeleted: false },
+          { $set: { ...permission, isDeleted: false } },
           { new: true }
         );
         updated++;

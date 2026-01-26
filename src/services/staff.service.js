@@ -48,6 +48,12 @@ class StaffService {
       if (!user || user.isDeleted) {
         throw new ApiError(404, 'User not found');
       }
+      
+      // Check if staff profile already exists for this user
+      const existingStaff = await Staff.findOne({ user: userToAssign });
+      if (existingStaff) {
+        throw new ApiError(400, 'Staff profile already exists for this user');
+      }
     } else {
       if (!email || !password) {
         throw new ApiError(400, 'Email and password are required to create a new staff user');
@@ -68,12 +74,6 @@ class StaffService {
         createdBy
       });
       userToAssign = user._id;
-    }
-
-    // Check if staff profile already exists
-    const existingStaff = await Staff.findOne({ user: userToAssign });
-    if (existingStaff) {
-      throw new ApiError(400, 'Staff profile already exists for this user');
     }
 
     if (!['staff', 'internal', 'super-admin'].includes(user.role)) {

@@ -424,13 +424,16 @@ const seedRoleTemplates = async () => {
         isActive: template.isActive
       };
 
-      const existing = await RoleTemplate.findOne({ templateName: template.templateName });
+      const existing = await RoleTemplate.findOne({ 
+        templateName: template.templateName,
+        isDeleted: false 
+      });
       
       if (existing) {
         // Update existing template
         await RoleTemplate.findOneAndUpdate(
-          { templateName: template.templateName },
-          { $set: templateData },
+          { templateName: template.templateName, isDeleted: false },
+          { $set: { ...templateData, isDeleted: false } },
           { new: true }
         );
         updated++;

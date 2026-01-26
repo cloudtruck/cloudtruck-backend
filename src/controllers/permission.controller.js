@@ -19,7 +19,7 @@ export const getAllPermissions = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(true, permissions, 'Permissions fetched successfully'));
+    .json(new ApiResponse(200, permissions, 'Permissions fetched successfully'));
 });
 
 /**
@@ -32,7 +32,7 @@ export const getPermissionById = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(true, permission, 'Permission fetched successfully'));
+    .json(new ApiResponse(200, permission, 'Permission fetched successfully'));
 });
 
 /**
@@ -45,7 +45,7 @@ export const createPermission = asyncHandler(async (req, res) => {
 
   return res
     .status(201)
-    .json(new ApiResponse(true, permission, 'Permission created successfully'));
+    .json(new ApiResponse(201, permission, 'Permission created successfully'));
 });
 
 /**
@@ -62,7 +62,7 @@ export const updatePermission = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(true, permission, 'Permission updated successfully'));
+    .json(new ApiResponse(200, permission, 'Permission updated successfully'));
 });
 
 /**
@@ -75,7 +75,7 @@ export const deletePermission = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(true, null, 'Permission deleted successfully'));
+    .json(new ApiResponse(200, null, 'Permission deleted successfully'));
 });
 
 /**
@@ -88,5 +88,5 @@ export const getGroupedPermissions = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(true, groupedPermissions, 'Grouped permissions fetched successfully'));
+    .json(new ApiResponse(200, groupedPermissions, 'Grouped permissions fetched successfully'));
 });

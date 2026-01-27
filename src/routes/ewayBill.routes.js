@@ -9,7 +9,8 @@ import {
   getEwayBillByIdSchema,
   updatePartBSchema,
   getPartBHistorySchema,
-  cancelEwayBillSchema
+  cancelEwayBillSchema,
+  syncEwayBillSchema
 } from '../validators/ewayBill.validator.js';
 
 const router = express.Router();
@@ -34,6 +35,15 @@ router.get(
   checkRole('staff', 'internal', 'super-admin'),
   validate(getEwayBillsQuerySchema),
   ewayBillController.getAllEwayBills
+);
+
+// Sync/Find E-way bill by number from portal
+router.post(
+  '/sync',
+  verifyJWT,
+  checkRole('staff', 'internal', 'super-admin'),
+  validate(syncEwayBillSchema),
+  ewayBillController.syncEwayBill
 );
 
 // Get E-way bill by ID (Staff/Internal/Super-admin only)

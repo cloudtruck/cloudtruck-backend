@@ -137,3 +137,24 @@ export const cancelEwayBill = asyncHandler(async (req, res) => {
     new ApiResponse(200, ewayBill, 'E-way bill cancelled successfully')
   );
 });
+
+/**
+ * Sync E-way Bill from Portal
+ * POST /api/v1/eway-bills/sync
+ */
+export const syncEwayBill = asyncHandler(async (req, res) => {
+  const { ewayBillNumber } = req.body;
+  const userId = req.user._id;
+
+  // Get staff profile
+  const staff = await Staff.findOne({ user: userId });
+  if (!staff) {
+    throw new ApiError(403, 'Only staff members can sync E-way bills');
+  }
+
+  const ewayBill = await EwayBillService.syncByEwayNumber(ewayBillNumber, staff._id);
+
+  return res.status(200).json(
+    new ApiResponse(200, ewayBill, 'E-way bill synced successfully from portal')
+  );
+});

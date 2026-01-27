@@ -198,6 +198,20 @@ export const cancelEwayBillSchema = z.object({
 });
 
 /**
+ * Sync E-way bill from Portal by Number
+ * POST /api/v1/eway-bills/sync
+ */
+export const syncEwayBillSchema = z.object({
+  body: z.object({
+    ewayBillNumber: z.string()
+      .min(12, 'E-way bill number must be 12 digits')
+      .max(12, 'E-way bill number must be 12 digits')
+      .regex(/^\d{12}$/, 'E-way bill number must be 12 digits')
+      .transform(val => val.trim())
+  })
+});
+
+/**
  * Get Part-B History Validator
  * GET /api/v1/eway-bills/:id/history
  */

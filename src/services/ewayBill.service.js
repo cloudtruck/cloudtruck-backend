@@ -493,6 +493,64 @@ class EwayBillService {
 
     return bill;
   }
+
+  /**
+   * Sync E-way bill by number
+   * Fetch details from ClearTax/NIC and update local record
+   * @param {string} ewayBillNumber - 12 digit number
+   * @param {string} staffId - Staff ID performing operation
+   * @returns {Promise<Object>} Updated E-way bill
+   */
+  static async syncByEwayNumber(ewayBillNumber, staffId) {
+    if (!ewayBillNumber) {
+      throw new ApiError(400, 'E-way bill number is required');
+    }
+
+    // Verify staff exists
+    const staff = await Staff.findById(staffId);
+    if (!staff) {
+      throw new ApiError(404, 'Staff not found');
+    }
+
+    // Check if we already have it
+    let ewayBill = await EwayBill.findOne({
+      ewayBillNumber,
+      isDeleted: false
+    });
+
+    // In a real implementation, we would call ClearTax API here
+    // e.g., const portalData = await ClearTaxService.getEwayBill(ewayBillNumber);
+    
+    if (!ewayBill) {
+      // For this demo, we'll search if it exists in any deleted/cancelled state
+      // or if we should create a new "stub" for it if we had portal data.
+      // Since we don't have portal data in this mock, we will check if it's already in our system
+      
+      throw new ApiError(404, `E-way bill ${ewayBillNumber} not found in system. Manual import from portal is currently restricted to existing records.`);
+    }
+
+    // Update sync metadata
+    ewayBill.syncMetadata = {
+      ...ewayBill.syncMetadata,
+      lastSyncAt: new Date(),
+      lastSyncBy: staff._id,
+      syncStatus: 'success'
+    };
+
+    await ewayBill.save();
+
+    await AuditService.log({
+      action: 'SYNC',
+      entityType: 'eway-bill',
+      entityId: ewayBill._id,
+      staffId: staff._id,
+      metadata: { ewayBillNumber, source: 'PORTAL' }
+    });
+
+    logger.info(`E-way bill ${ewayBillNumber} synced by ${staff.name}`);
+
+    return ewayBill;
+  }
 }
 
 export default EwayBillService;

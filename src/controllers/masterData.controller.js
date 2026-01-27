@@ -26,8 +26,9 @@ export const getMasterData = asyncHandler(async (req, res) => {
 // @access  Super-admin, Staff
 export const getMasterDataByCategory = asyncHandler(async (req, res) => {
   const { category } = req.params;
+  const { includeInactive } = req.query;
   
-  const data = await MasterData.findByCategory(category);
+  const data = await MasterData.findByCategory(category, includeInactive === 'true');
   
   res.json(
     new ApiResponse(200, data, `${category} data fetched successfully`)

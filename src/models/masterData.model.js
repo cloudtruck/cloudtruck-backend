@@ -63,12 +63,18 @@ masterDataSchema.statics.findActive = function() {
   return this.find({ isDeleted: false, isActive: true });
 };
 
-masterDataSchema.statics.findByCategory = function(category) {
-  return this.find({ 
+masterDataSchema.statics.findByCategory = function(category, includeInactive = false) {
+  const query = { 
     isDeleted: false, 
-    isActive: true, 
     category 
-  }).sort({ displayOrder: 1, displayName: 1 });
+  };
+  
+  // Only filter by isActive if not including inactive items
+  if (!includeInactive) {
+    query.isActive = true;
+  }
+  
+  return this.find(query).sort({ displayOrder: 1, displayName: 1 });
 };
 
 masterDataSchema.statics.incrementUsage = async function(category, key) {

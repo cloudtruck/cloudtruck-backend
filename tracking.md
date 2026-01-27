@@ -2,6 +2,8 @@
 
 This document tracks the implementation status of the Cloudtruck backend against the PRD requirements.
 
+**Last Updated:** January 26, 2026
+**Status:** ✅ MVP Complete + RBAC Complete + Permissions API
 **Last Updated:** January 25, 2026
 **Status:** ✅ MVP Complete + Advanced Features
 
@@ -28,6 +30,9 @@ This document tracks the implementation status of the Cloudtruck backend against
 | :--- | :---: | :--- |
 | **Authentication** | ✅ Complete | Mobile OTP (Firebase), Staff Email/Pass, JWT, Refresh Tokens, Role-based Access. |
 | **User Management** | ✅ Complete | Customer, Driver, Staff profiles. KYC verification flows. |
+| **RBAC & Permissions** | ✅ Complete | 66 permissions, 14 role templates, Permission API, Seed scripts, Full UI integration. |
+| **Vehicle Master** | ✅ Complete | Vehicle types (14ft-32ft, etc.), Document management, Expiry tracking. |
+| **Booking Core** | ✅ Complete | Creation, GeoJSON locations, Material types, Lifecycle management. |
 | **Vehicle Master** | ✅ Complete | Vehicle types (14ft-32ft, etc.), Document management, Expiry tracking, Approval workflow. |
 | **Booking Core** | ✅ Complete | Creation, GeoJSON locations, Material types, Lifecycle management, Edit capabilities. |
 | **Driver Assignment** | ✅ Complete | Staff assignment, Validation (availability/blacklist), Notifications. |
@@ -36,6 +41,28 @@ This document tracks the implementation status of the Cloudtruck backend against
 | **Documents** | ✅ Complete | Cloudinary integration, POD upload, Loading images, Signed URLs. |
 | **Notifications** | ✅ Complete | Firebase Cloud Messaging (FCM), Multicast support, In-app notifications. |
 | **Audit Logging** | ✅ Complete | Comprehensive audit logs for all critical actions (Create, Update, Delete). |
+| **E-way Bills** | ✅ Complete | Full e-way bill management with Part-B updates and expiry alerts. |
+| **Master Data** | ✅ Complete | Dynamic master data system for truck types, materials, body types, etc. |
+
+---
+
+## Recent Updates
+
+### 2026-01-26: Permission Management API
+**Added:**
+- Permission CRUD API endpoints (`/api/v1/permissions`)
+- Permission service with validation and audit logging
+- Grouped permissions endpoint for UI consumption
+- Integration with role template management UI
+- Dynamic role template fetching in employee creation
+
+**Files Created:**
+- `src/controllers/permission.controller.js` - 6 endpoints (CRUD + grouped/filtered)
+- `src/services/permission.service.js` - Business logic with validation
+- `src/routes/permission.routes.js` - Route definitions with auth
+
+**Files Modified:**
+- `src/routes/index.js` - Registered permissions routes
 | **Google Maps** | ✅ Complete | Geocoding validation, Route calculation, Encoded polylines, Caching, Live tracking. |
 | **E-way Bills** | ✅ Complete | Part A/B management, History tracking, Expiry alerts, GST validation. |
 | **Role Templates** | ✅ Complete | Permission templates, Role management, Assignment to staff. |

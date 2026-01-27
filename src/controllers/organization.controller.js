@@ -97,7 +97,7 @@ export const updateBookingConfig = asyncHandler(async (req, res) => {
 // @route   PATCH /api/v1/organization/settings/operational
 // @access  Super-admin
 export const updateOperationalSettings = asyncHandler(async (req, res) => {
-  const { advancePaymentPercentage, allowPartialPayment } = req.body;
+  const { advancePaymentPercentage, allowPartialPayment, podMandatory } = req.body;
   
   const settings = await OrganizationSettings.getInstance();
   
@@ -108,6 +108,7 @@ export const updateOperationalSettings = asyncHandler(async (req, res) => {
     settings.advancePaymentPercentage = advancePaymentPercentage;
   }
   if (allowPartialPayment !== undefined) settings.allowPartialPayment = allowPartialPayment;
+  if (podMandatory !== undefined) settings.podMandatory = podMandatory;
   settings.updatedBy = req.user._id;
   
   await settings.save();

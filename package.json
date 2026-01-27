@@ -8,6 +8,9 @@
     "dev": "nodemon --env-file .env server.js",
     "start": "node --env-file .env server.js",
     "seed": "node src/scripts/seed-rbac.js",
+    "seed:rbac": "node src/scripts/seed-all.js",
+    "seed:permissions": "node src/scripts/seed-permissions.js",
+    "seed:roles": "node src/scripts/seed-role-templates.js",
     "seed:org": "node src/scripts/seed-organization.js",
     "create-admin": "node src/scripts/create-admin.js",
     "test": "mocha --exit --recursive test --timeout 10000"

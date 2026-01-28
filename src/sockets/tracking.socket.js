@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import throttle from 'lodash/throttle.js';
 import TrackingService from '../services/tracking.service.js';
 import Booking from '../models/booking.model.js';
+import Driver from '../models/driver.model.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -29,7 +30,7 @@ export default function trackingSocketHandler(io) {
   io.on('connection', (socket) => {
     logger.info('Client connected to tracking namespace:', { 
       socketId: socket.id, 
-      userId: socket.user.id,
+      userId: socket.user._id,
       role: socket.user.role 
     });
 
@@ -37,11 +38,21 @@ export default function trackingSocketHandler(io) {
     const handleLocationUpdate = async (data) => {
       try {
         const { bookingId, latitude, longitude, accuracy, speed, heading, battery, networkType } = data;
-        const driverId = socket.user.role === 'driver' ? socket.user.id : data.driverId;
+        let driverId = data.driverId;
 
-        // Verify driver is assigned to this booking
+        // If it's a driver connecting, resolve their Driver model ID
         if (socket.user.role === 'driver') {
-          const booking = await Booking.findOne({ _id: bookingId, driver: socket.user.id });
+          const driverRecord = await Driver.findOne({ user: socket.user._id });
+          if (!driverRecord) {
+            return socket.emit('location:error', {
+              success: false,
+              message: 'Driver profile not found'
+            });
+          }
+          driverId = driverRecord._id;
+
+          // Verify driver is assigned to this booking
+          const booking = await Booking.findOne({ _id: bookingId, driver: driverId });
           if (!booking) {
             return socket.emit('location:error', {
               success: false,
@@ -68,7 +79,7 @@ export default function trackingSocketHandler(io) {
           speed,
           heading,
           battery,
-          timestamp: tracking.timestamp
+          timestamp: tracking.ts
         });
 
         logger.debug('Location updated:', { bookingId, driverId, latitude, longitude });
@@ -76,7 +87,7 @@ export default function trackingSocketHandler(io) {
         // Acknowledge to sender
         socket.emit('location:acknowledged', {
           success: true,
-          timestamp: tracking.timestamp
+          timestamp: tracking.ts
         });
       } catch (error) {
         logger.error('Location update error:', error);
@@ -96,8 +107,11 @@ export default function trackingSocketHandler(io) {
      */
     socket.on('driver:join', async ({ driverId, bookingId }) => {
       // Security check: Only the driver themselves or staff can join as driver
-      if (socket.user.role === 'driver' && socket.user.id !== driverId) {
-        return socket.emit('location:error', { message: 'Unauthorized driver join' });
+      if (socket.user.role === 'driver') {
+        const driverRecord = await Driver.findOne({ user: socket.user._id });
+        if (!driverRecord || driverRecord._id.toString() !== driverId.toString()) {
+          return socket.emit('location:error', { message: 'Unauthorized driver join' });
+        }
       }
 
       socket.join(`booking:${bookingId}`);

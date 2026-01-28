@@ -37,7 +37,7 @@ class TrackingService {
       heading: heading || 0,
       battery: location.battery,
       networkType: location.networkType,
-      timestamp: new Date()
+      ts: new Date()
     });
 
     // Update driver's last known location and timestamp

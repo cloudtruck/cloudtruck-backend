@@ -63,9 +63,9 @@ class PermissionService {
     // Create audit log
     await AuditLog.create({
       user: userId,
-      action: 'create',
-      resource: 'Permission',
-      resourceId: permission._id,
+      action: 'CREATE_PERMISSION',
+      entityType: 'permission',
+      entityId: permission._id,
       details: { permissionKey: permission.key },
     });
 
@@ -90,15 +90,20 @@ class PermissionService {
       }
     }
 
+    const before = permission.toObject();
     Object.assign(permission, updateData);
     await permission.save();
 
     // Create audit log
     await AuditLog.create({
       user: userId,
-      action: 'update',
-      resource: 'Permission',
-      resourceId: permission._id,
+      action: 'UPDATE_PERMISSION',
+      entityType: 'permission',
+      entityId: permission._id,
+      changes: {
+        before,
+        after: permission.toObject()
+      },
       details: { updates: updateData },
     });
 
@@ -117,14 +122,17 @@ class PermissionService {
 
     // Soft delete
     permission.isActive = false;
+    permission.isDeleted = true;
+    permission.deletedAt = new Date();
+    permission.deletedBy = userId;
     await permission.save();
 
     // Create audit log
     await AuditLog.create({
       user: userId,
-      action: 'delete',
-      resource: 'Permission',
-      resourceId: permission._id,
+      action: 'DELETE_PERMISSION',
+      entityType: 'permission',
+      entityId: permission._id,
       details: { permissionKey: permission.key },
     });
 

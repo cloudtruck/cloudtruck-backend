@@ -2,8 +2,6 @@ import axios from 'axios';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
 
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
-
 class LocationService {
   /**
    * Geocode address to coordinates
@@ -11,7 +9,8 @@ class LocationService {
    * @returns {Promise<Object>} - {latitude, longitude, formattedAddress}
    */
   static async geocodeAddress(address) {
-    if (!GOOGLE_MAPS_API_KEY) {
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
       logger.warn('Google Maps API key not configured');
       return null;
     }
@@ -20,7 +19,7 @@ class LocationService {
       const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
         params: {
           address,
-          key: GOOGLE_MAPS_API_KEY
+          key: apiKey
         }
       });
 
@@ -49,7 +48,8 @@ class LocationService {
    * @returns {Promise<Object>} - {polyline, distance, duration}
    */
   static async calculateRoute(origin, destination) {
-    if (!GOOGLE_MAPS_API_KEY) {
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
       logger.warn('Google Maps API key not configured');
       return null;
     }
@@ -59,7 +59,7 @@ class LocationService {
         params: {
           origin: `${origin.latitude},${origin.longitude}`,
           destination: `${destination.latitude},${destination.longitude}`,
-          key: GOOGLE_MAPS_API_KEY
+          key: apiKey
         }
       });
 
@@ -94,7 +94,8 @@ class LocationService {
    * @returns {Promise<Object>} - {formattedAddress, city, state, country}
    */
   static async reverseGeocode(latitude, longitude) {
-    if (!GOOGLE_MAPS_API_KEY) {
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
       logger.warn('Google Maps API key not configured');
       return null;
     }
@@ -103,7 +104,7 @@ class LocationService {
       const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
         params: {
           latlng: `${latitude},${longitude}`,
-          key: GOOGLE_MAPS_API_KEY
+          key: apiKey
         }
       });
 

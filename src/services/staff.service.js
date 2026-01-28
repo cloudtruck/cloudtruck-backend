@@ -247,6 +247,17 @@ class StaffService {
       'roleTemplate',
     ];
 
+    // Verify reporting manager if provided
+    if (updateData.reportingManager) {
+      if (updateData.reportingManager.toString() === staffId.toString()) {
+        throw new ApiError(400, 'Staff member cannot report to themselves');
+      }
+      const manager = await Staff.findOne({ _id: updateData.reportingManager, isDeleted: false });
+      if (!manager) {
+        throw new ApiError(404, 'Reporting manager not found');
+      }
+    }
+
     allowedFields.forEach((field) => {
       if (updateData[field] !== undefined) {
         staff[field] = updateData[field];

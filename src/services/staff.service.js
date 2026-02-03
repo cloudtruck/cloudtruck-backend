@@ -139,7 +139,12 @@ class StaffService {
       roleTemplate: resolvedRoleTemplateId,
       reportingManager,
       workingHours,
-      permissions: permissionIds || [],
+      permissions: permissionIds || []
+    });
+
+    // Audit log for creation
+    await AuditLog.create({
+      user: createdBy,
       action: 'CREATE_STAFF_PROFILE',
       entityType: 'staff',
       entityId: staff._id,

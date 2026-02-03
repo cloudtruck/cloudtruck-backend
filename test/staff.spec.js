@@ -25,7 +25,7 @@ describe('Staff API', function() {
           email: 'staff1@example.com',
           password: 'Password123!',
           name: 'Alice Staff',
-          department: 'Operations',
+          department: 'operations',
           title: 'Operator'
         });
 

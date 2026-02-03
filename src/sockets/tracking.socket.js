@@ -108,7 +108,19 @@ export default function trackingSocketHandler(io) {
       // Security check: Only the driver themselves or staff can join as driver
       if (socket.user.role === 'driver') {
         const driverRecord = await Driver.findById(driverId);
-        if (!driverRecord || driverRecord.user.toString() !== socket.user.id.toString()) {
+        if (!driverRecord) {
+          return socket.emit('location:error', { message: 'Driver record not found' });
+        }
+        
+        const driverUserId = driverRecord.user.toString();
+        const socketUserId = socket.user.id || socket.user._id?.toString() || socket.user._id;
+        
+        if (driverUserId !== socketUserId) {
+          logger.warn('Driver authorization failed:', {
+            driverUserId,
+            socketUserId,
+            socketUser: socket.user
+          });
           return socket.emit('location:error', { message: 'Unauthorized driver join' });
         }
       }

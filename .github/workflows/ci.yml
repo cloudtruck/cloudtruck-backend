@@ -17,10 +17,6 @@ jobs:
         ports:
           - 6379:6379
 
-    defaults:
-      run:
-        working-directory: backend
-
     steps:
       - uses: actions/checkout@v4
 
@@ -29,7 +25,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: 'backend/package-lock.json'
+          cache-dependency-path: 'package-lock.json'
 
       - name: Install dependencies
         run: npm ci

@@ -329,6 +329,20 @@ const ewayBillSchema = new Schema(
 
     cancellationReason: String,
 
+    // Sync metadata from Govt Portal
+    syncMetadata: {
+      lastSyncAt: Date,
+      lastSyncBy: {
+        type: Schema.Types.ObjectId,
+        ref: 'Staff'
+      },
+      syncStatus: {
+        type: String,
+        enum: ['pending', 'success', 'failed'],
+        default: 'pending'
+      }
+    },
+
     // Metadata for additional information
     metadata: {
       type: Object,

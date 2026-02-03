@@ -95,7 +95,11 @@ const auditLogSchema = new mongoose.Schema(
         'SYSTEM_CONFIG_CHANGE',
         'BULK_UPDATE',
         'DATA_EXPORT',
-        'DATA_IMPORT'
+        'DATA_IMPORT',
+        'SYNC_EWAY_BILL',
+        'CREATE_EWAY_BILL',
+        'UPDATE_EWAY_BILL',
+        'CANCEL_EWAY_BILL'
       ]
     },
 
@@ -114,7 +118,8 @@ const auditLogSchema = new mongoose.Schema(
         'document',
         'tracking',
         'notification',
-        'system'
+        'system',
+        'eway-bill'
       ],
       index: true
     },

@@ -539,11 +539,12 @@ class EwayBillService {
 
     await ewayBill.save();
 
-    await AuditService.log({
-      action: 'SYNC',
+    await AuditService.createLog({
+      user: staff._id,
+      action: 'SYNC_EWAY_BILL',
       entityType: 'eway-bill',
       entityId: ewayBill._id,
-      staffId: staff._id,
+      changes: { before: null, after: ewayBill.syncMetadata },
       metadata: { ewayBillNumber, source: 'PORTAL' }
     });
 

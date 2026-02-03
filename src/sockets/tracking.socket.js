@@ -78,7 +78,7 @@ export default function trackingSocketHandler(io) {
           speed,
           heading,
           battery,
-          timestamp: tracking.timestamp
+          timestamp: tracking.ts || tracking.timestamp
         });
 
         logger.debug('Location updated:', { bookingId, driverId, latitude, longitude });
@@ -86,7 +86,7 @@ export default function trackingSocketHandler(io) {
         // Acknowledge to sender
         socket.emit('location:acknowledged', {
           success: true,
-          timestamp: tracking.timestamp
+          timestamp: tracking.ts || tracking.timestamp
         });
       } catch (error) {
         logger.error('Location update error:', error);

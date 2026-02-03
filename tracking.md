@@ -9,6 +9,9 @@ This document tracks the implementation status of the Cloudtruck backend against
 
 ## 🛠 Recent Core Fixes
 - **Driver Management**: Resolved issue where drivers without emails couldn't be registered due to incorrect duplicate check matching `undefined` emails in the database.
+- **WebSocket Tracking**: Resolved "Unauthorized" join errors by standardizing User ID resolution; implemented location update throttling.
+- **CI/CD**: Initialized GitHub Actions pipeline for automated regression testing.
+- **Staff Service**: Fixed `ReferenceError` in creation flow; added staff API integration tests.
 
 ## 1. Module Status Overview
 

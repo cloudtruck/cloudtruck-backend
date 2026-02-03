@@ -2,10 +2,13 @@
 
 This document tracks the implementation status of the Cloudtruck backend against the PRD requirements.
 
-**Last Updated:** December 14, 2025
-**Status:** ✅ MVP Complete
+**Last Updated:** 2026-01-31
+**Status:** ✅ MVP Complete (Maintenance)
 
 ---
+
+## 🛠 Recent Core Fixes
+- **Driver Management**: Resolved issue where drivers without emails couldn't be registered due to incorrect duplicate check matching `undefined` emails in the database.
 
 ## 1. Module Status Overview
 

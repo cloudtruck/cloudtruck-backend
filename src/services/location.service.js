@@ -43,6 +43,51 @@ class LocationService {
   }
 
   /**
+   * Calculate route between two points
+   * @param {Object} origin - {latitude, longitude}
+   * @param {Object} destination - {latitude, longitude}
+   * @returns {Promise<Object>} - {polyline, distance, duration}
+   */
+  static async calculateRoute(origin, destination) {
+    if (!GOOGLE_MAPS_API_KEY) {
+      logger.warn('Google Maps API key not configured');
+      return null;
+    }
+
+    try {
+      const response = await axios.get('https://maps.googleapis.com/maps/api/directions/json', {
+        params: {
+          origin: `${origin.latitude},${origin.longitude}`,
+          destination: `${destination.latitude},${destination.longitude}`,
+          key: GOOGLE_MAPS_API_KEY
+        }
+      });
+
+      if (response.data.status === 'OK' && response.data.routes.length > 0) {
+        const route = response.data.routes[0];
+        const leg = route.legs[0];
+        return {
+          polyline: route.overview_polyline.points,
+          distance: {
+            text: leg.distance.text,
+            value: leg.distance.value / 1000 // km
+          },
+          duration: {
+            text: leg.duration.text,
+            value: leg.duration.value / 60 // minutes
+          }
+        };
+      }
+
+      logger.warn('Route calculation failed:', { status: response.data.status });
+      return null;
+    } catch (error) {
+      logger.error('Route calculation error:', error);
+      return null;
+    }
+  }
+
+  /**
    * Reverse geocode coordinates to address
    * @param {Number} latitude
    * @param {Number} longitude

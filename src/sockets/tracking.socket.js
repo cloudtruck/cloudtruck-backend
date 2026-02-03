@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import throttle from 'lodash/throttle.js';
 import TrackingService from '../services/tracking.service.js';
 import Booking from '../models/booking.model.js';
+import Driver from '../models/driver.model.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -39,18 +40,25 @@ export default function trackingSocketHandler(io) {
     const handleLocationUpdate = async (data) => {
       try {
         const { bookingId, latitude, longitude, accuracy, speed, heading, battery, networkType } = data;
-        const driverId = socket.user.role === 'driver' ? socket.user.id : data.driverId;
 
-        // Verify driver is assigned to this booking
+        // Resolve the booking and its driver record
+        const booking = await Booking.findById(bookingId).populate('driver');
+        if (!booking) {
+          return socket.emit('location:error', { success: false, message: 'Booking not found' });
+        }
+
+        const driverRecord = booking.driver;
+        // If sender is a driver, verify they own the driver record for this booking
         if (socket.user.role === 'driver') {
-          const booking = await Booking.findOne({ _id: bookingId, driver: socket.user.id });
-          if (!booking) {
+          if (!driverRecord || driverRecord.user.toString() !== socket.user.id.toString()) {
             return socket.emit('location:error', {
               success: false,
               message: 'Unauthorized: Driver not assigned to this booking'
             });
           }
         }
+
+        const driverId = socket.user.role === 'driver' ? driverRecord._id.toString() : data.driverId;
 
         // Save to database
         const tracking = await TrackingService.recordLocation(
@@ -98,8 +106,11 @@ export default function trackingSocketHandler(io) {
      */
     socket.on('driver:join', async ({ driverId, bookingId }) => {
       // Security check: Only the driver themselves or staff can join as driver
-      if (socket.user.role === 'driver' && socket.user.id !== driverId) {
-        return socket.emit('location:error', { message: 'Unauthorized driver join' });
+      if (socket.user.role === 'driver') {
+        const driverRecord = await Driver.findById(driverId);
+        if (!driverRecord || driverRecord.user.toString() !== socket.user.id.toString()) {
+          return socket.emit('location:error', { message: 'Unauthorized driver join' });
+        }
       }
 
       socket.join(`booking:${bookingId}`);

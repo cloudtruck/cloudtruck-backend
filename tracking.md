@@ -115,4 +115,4 @@ These items are mentioned in "Architecture Readiness" or as future scope in the 
 ## 4. Technical Debt / Notes
 
 - **Email Service**: `auth.service.js` has a TODO for sending actual emails. Currently returns temp password in response (Dev mode).
-- **Test Coverage**: No unit/integration tests found in `src`.
+- **Test Coverage**: Added `backend/test/staff.spec.js` increasing backend test coverage; further test additions planned for permissions, workload and performance endpoints.

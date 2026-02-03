@@ -2,12 +2,26 @@ import rateLimit from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import redisClient from '../config/redis.js';
 import ApiError from '../utils/ApiError.js';
+import jwt from 'jsonwebtoken';
 
 /**
  * Custom key generator for rate limiter
  * Uses user ID if authenticated, otherwise IP address
  */
 const keyGenerator = (req) => {
+  // Try to get user from token if not already present
+  if (!req.user && req.headers.authorization) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.decode(token);
+      if (decoded && decoded._id) {
+        return `user:${decoded._id}`;
+      }
+    } catch (err) {
+      // Ignore errors in decoding
+    }
+  }
+
   // Use user ID if authenticated
   if (req.user && req.user._id) {
     return `user:${req.user._id}`;
@@ -20,9 +34,27 @@ const keyGenerator = (req) => {
  * Check if user is admin or staff
  */
 const isAdminOrStaff = (req) => {
-  if (!req.user) return false;
-  const role = req.user.role?.toLowerCase();
-  return ['admin', 'super-admin', 'staff', 'operations'].includes(role);
+  // If req.user is already populated
+  if (req.user) {
+    const role = req.user.role?.toLowerCase();
+    return ['admin', 'super-admin', 'staff', 'operations'].includes(role);
+  }
+
+  // Check token if not populated
+  if (req.headers.authorization) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.decode(token);
+      if (decoded && decoded.role) {
+        const role = decoded.role.toLowerCase();
+        return ['admin', 'super-admin', 'staff', 'operations'].includes(role);
+      }
+    } catch (err) {
+      // Ignore
+    }
+  }
+
+  return false;
 };
 
 /**

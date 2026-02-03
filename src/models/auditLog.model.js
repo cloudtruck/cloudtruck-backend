@@ -64,6 +64,14 @@ const auditLogSchema = new mongoose.Schema(
         'UPDATE_STAFF_PROFILE',
         'UPDATE_STAFF_PERMISSIONS',
         'DELETE_STAFF',
+
+        // RBAC actions
+        'CREATE_PERMISSION',
+        'UPDATE_PERMISSION',
+        'DELETE_PERMISSION',
+        'CREATE_ROLE_TEMPLATE',
+        'UPDATE_ROLE_TEMPLATE',
+        'DELETE_ROLE_TEMPLATE',
         
         // Payment actions
         'CREATE_PAYMENT',
@@ -118,6 +126,8 @@ const auditLogSchema = new mongoose.Schema(
         'document',
         'tracking',
         'notification',
+        'permission',
+        'role-template',
         'system',
         'eway-bill'
       ],

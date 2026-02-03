@@ -6,6 +6,7 @@ const permissionSchema = new mongoose.Schema({
   description: String,
   resource: String, // 'booking', 'driver', 'vehicle'
   action: String, // 'create', 'read', 'update', 'delete'
+  isActive: { type: Boolean, default: true },
   
   // Soft Delete
   isDeleted: { type: Boolean, default: false, index: true },

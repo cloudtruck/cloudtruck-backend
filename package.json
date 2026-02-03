@@ -55,6 +55,7 @@
     "mongodb-memory-server": "^9.2.2",
     "nodemon": "^3.0.2",
     "sinon": "^15.0.1",
+    "socket.io-client": "^4.6.0",
     "supertest": "^6.3.3"
   }
 }

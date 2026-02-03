@@ -14,6 +14,9 @@ const router = express.Router();
 // All routes require authentication
 router.use(verifyJWT);
 
+// Get all live trips (staff only)
+router.get('/live-trips', checkRole('staff', 'internal', 'super-admin'), trackingController.getLiveTrips);
+
 // Record location (driver only)
 router.post('/:bookingId/location', checkRole('driver'), validate(recordLocationSchema), trackingController.recordLocation);
 
@@ -29,5 +32,8 @@ router.get('/:bookingId/distance', validate(bookingIdParamSchema), trackingContr
 router.get('/:bookingId/statistics', checkRole('staff', 'internal', 'super-admin'), validate(bookingIdParamSchema), trackingController.getTrackingStatistics);
 
 router.get('/:bookingId/route', validate(getTrackingRouteSchema), trackingController.getTrackingRoute);
+
+// Get planned route for booking
+router.get('/:bookingId/planned-route', validate(bookingIdParamSchema), trackingController.getPlannedRoute);
 
 export default router;

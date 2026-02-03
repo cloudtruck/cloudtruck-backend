@@ -39,17 +39,20 @@ class DriverService {
     if (!targetUserId && newUser) {
       const { phone, email, password } = newUser;
 
-      // Check for existing user with same phone/email
-      const existingUser = await User.findOne({
-        $or: [
-          { phone: phone || undefined },
-          { email: email || undefined }
-        ],
-        isDeleted: false
-      });
+      // Check for existing user with same phone/email (only check if provided)
+      const orConditions = [];
+      if (phone) orConditions.push({ phone });
+      if (email) orConditions.push({ email });
 
-      if (existingUser) {
-        throw new ApiError(400, 'A user with this phone or email already exists');
+      if (orConditions.length > 0) {
+        const existingUser = await User.findOne({
+          $or: orConditions,
+          isDeleted: false
+        });
+
+        if (existingUser) {
+          throw new ApiError(400, 'A user with this phone or email already exists');
+        }
       }
 
       const createdUser = await User.create({

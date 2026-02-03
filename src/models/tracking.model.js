@@ -30,7 +30,11 @@ const trackingSchema = new mongoose.Schema({
     enum: ['app', 'device', 'manual'],
     default: 'app'
   },
-  ts: { type: Date, default: Date.now, index: true },
+  ts: { 
+    type: Date, 
+    default: Date.now, 
+    index: { expires: '90d' } // TTL index: automatic cleanup after 90 days
+  },
   meta: {}
 }, { 
   timestamps: false,
@@ -38,8 +42,9 @@ const trackingSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-trackingSchema.index({ driver: 1, ts: 1 });
-trackingSchema.index({ booking: 1, ts: -1 });
+trackingSchema.index({ driver: 1, ts: 1 }); // Forward index for history
+trackingSchema.index({ driver: 1, ts: -1, isMoving: 1 }); // For driver activity queries
+trackingSchema.index({ booking: 1, ts: -1 }); // For latest location and reverse history
 trackingSchema.index({ location: '2dsphere' });
 
 /* Static Methods */

@@ -81,3 +81,20 @@ export const getTrackingRoute = asyncHandler(async (req, res) => {
 
   return res.status(200).json(new ApiResponse(200, routeData, 'Tracking route retrieved'));
 });
+
+/**
+ * Get all live trips
+ */
+export const getLiveTrips = asyncHandler(async (req, res) => {
+  const liveTrips = await TrackingService.getLiveTrips();
+  return res.status(200).json(new ApiResponse(200, liveTrips, 'Live trips retrieved'));
+});
+
+/**
+ * Get planned route for booking
+ */
+export const getPlannedRoute = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const route = await TrackingService.getPlannedRoute(bookingId);
+  return res.status(200).json(new ApiResponse(200, route, 'Planned route retrieved'));
+});

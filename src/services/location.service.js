@@ -48,8 +48,12 @@ class LocationService {
    * @returns {Promise<Object>} - {polyline, distance, duration}
    */
   static async calculateRoute(origin, destination) {
+<<<<<<< Updated upstream
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
+=======
+    if (!GOOGLE_MAPS_API_KEY) {
+>>>>>>> Stashed changes
       logger.warn('Google Maps API key not configured');
       return null;
     }
@@ -59,7 +63,11 @@ class LocationService {
         params: {
           origin: `${origin.latitude},${origin.longitude}`,
           destination: `${destination.latitude},${destination.longitude}`,
+<<<<<<< Updated upstream
           key: apiKey
+=======
+          key: GOOGLE_MAPS_API_KEY
+>>>>>>> Stashed changes
         }
       });
 

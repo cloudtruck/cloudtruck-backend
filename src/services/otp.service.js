@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // MSG91 API Configuration
 const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY;
-const MSG91_TEMPLATE_ID = process.env.MSG91_TEMPLATE_ID || 'otp1';
+const MSG91_TEMPLATE_ID = process.env.MSG91_TEMPLATE_ID || '1207176821857480259';
 const MSG91_BASE_URL = 'https://control.msg91.com/api/v5/otp';
 
 /**
@@ -262,7 +262,7 @@ export const sendTransactionalSMS = async (phoneNumber, message, customerId = nu
       },
       data: {
         flow_id: process.env.MSG91_TRANSACTIONAL_FLOW_ID || MSG91_TEMPLATE_ID,
-        sender: process.env.MSG91_SENDER_ID || 'CLTRCK',
+        sender: process.env.MSG91_SENDER_ID || 'CLDTRC',
         mobiles: formattedPhone,
         message: message,
         customerId: customerId

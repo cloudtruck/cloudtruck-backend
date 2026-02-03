@@ -19,7 +19,9 @@ export default function trackingSocketHandler(io) {
 
     try {
       const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+      // Normalize user object: some tokens use _id while existing code expects id
       socket.user = decoded;
+      socket.user.id = decoded._id ? decoded._id.toString() : (decoded.id || decoded.userId);
       next();
     } catch (err) {
       return next(new Error('Authentication error: Invalid token'));

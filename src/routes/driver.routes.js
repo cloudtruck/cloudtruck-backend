@@ -16,7 +16,8 @@ import {
   rejectDriverSchema,
   getPerformanceQuerySchema,
   getNearbyDriversQuerySchema,
-  getTripHistoryQuerySchema
+  getTripHistoryQuerySchema,
+  getMyTripHistoryQuerySchema
 } from '../validators/driver.validator.js';
 
 const router = express.Router();
@@ -29,7 +30,7 @@ router.get('/nearby', verifyJWT, checkRole('staff', 'internal', 'super-admin'), 
 router.post('/', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(createDriverSchema), driverController.createDriver);
 router.get('/my-profile', verifyJWT, checkRole('driver'), driverController.getMyProfile);
 router.get('/my-performance', verifyJWT, checkRole('driver'), validate(getPerformanceQuerySchema), driverController.getMyPerformance);
-router.get('/my-trip-history', verifyJWT, checkRole('driver'), driverController.getMyTripHistory);
+router.get('/my-trip-history', verifyJWT, checkRole('driver'), validate(getMyTripHistoryQuerySchema), driverController.getMyTripHistory);
 router.post('/my-location', verifyJWT, checkRole('driver'), validate(updateLocationSchema), driverController.updateMyLocation);
 router.patch('/my-availability', verifyJWT, checkRole('driver'), validate(updateAvailabilitySchema), driverController.updateMyAvailability);
 

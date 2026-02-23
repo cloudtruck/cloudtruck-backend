@@ -197,6 +197,27 @@ export const getNearbyDriversQuerySchema = z.object({
 });
 
 /**
+ * Trip history filter query (shared between admin and driver self-service)
+ */
+const tripHistoryQueryFields = z.object({
+  page: z.string().optional(),
+  limit: z.string().optional(),
+  sort: z.string().optional(),
+  status: z.string().optional(),
+  startDate: z.string().refine(
+    (val) => !isNaN(Date.parse(val)),
+    'Invalid date format. Use YYYY-MM-DD or ISO datetime'
+  ).optional(),
+  endDate: z.string().refine(
+    (val) => !isNaN(Date.parse(val)),
+    'Invalid date format. Use YYYY-MM-DD or ISO datetime'
+  ).optional(),
+  search: z.string().optional(),
+  truckType: z.string().optional(),
+  customerName: z.string().optional()
+});
+
+/**
  * Get Trip History Query Validator
  * GET /api/v1/drivers/:id/trip-history
  */
@@ -204,9 +225,13 @@ export const getTripHistoryQuerySchema = z.object({
   params: z.object({
     id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid driver ID')
   }),
-  query: z.object({
-    page: z.string().optional(),
-    limit: z.string().optional(),
-    sort: z.string().optional()
-  })
+  query: tripHistoryQueryFields
+});
+
+/**
+ * Get My Trip History Query Validator
+ * GET /api/v1/drivers/my-trip-history
+ */
+export const getMyTripHistoryQuerySchema = z.object({
+  query: tripHistoryQueryFields
 });

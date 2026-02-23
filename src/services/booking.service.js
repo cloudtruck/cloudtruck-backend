@@ -79,11 +79,15 @@ class BookingService {
 
     if (!pickupLat || !pickupLng) {
       const geocoded = await LocationService.geocodeAddress(`${pickupAddress}, ${pickupCity}`);
-      if (!geocoded) throw new ApiError(400, 'Could not geocode pickup address');
-      finalPickupLat = geocoded.latitude;
-      finalPickupLng = geocoded.longitude;
-      finalPickupAddress = geocoded.formattedAddress;
-      pickupPlaceId = geocoded.placeId;
+      if (geocoded) {
+        finalPickupLat = geocoded.latitude;
+        finalPickupLng = geocoded.longitude;
+        finalPickupAddress = geocoded.formattedAddress;
+        pickupPlaceId = geocoded.placeId;
+      } else {
+        finalPickupLat = 0;
+        finalPickupLng = 0;
+      }
     } else {
       const reversed = await LocationService.reverseGeocode(pickupLat, pickupLng);
       if (reversed) {
@@ -100,11 +104,15 @@ class BookingService {
 
     if (!dropLat || !dropLng) {
       const geocoded = await LocationService.geocodeAddress(`${dropAddress}, ${dropCity}`);
-      if (!geocoded) throw new ApiError(400, 'Could not geocode drop address');
-      finalDropLat = geocoded.latitude;
-      finalDropLng = geocoded.longitude;
-      finalDropAddress = geocoded.formattedAddress;
-      dropPlaceId = geocoded.placeId;
+      if (geocoded) {
+        finalDropLat = geocoded.latitude;
+        finalDropLng = geocoded.longitude;
+        finalDropAddress = geocoded.formattedAddress;
+        dropPlaceId = geocoded.placeId;
+      } else {
+        finalDropLat = 0;
+        finalDropLng = 0;
+      }
     } else {
       const reversed = await LocationService.reverseGeocode(dropLat, dropLng);
       if (reversed) {

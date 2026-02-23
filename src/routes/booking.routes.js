@@ -16,9 +16,11 @@ import {
 
 const router = express.Router();
 
+// Truck types for booking form (any authenticated user)
+router.get('/truck-types', verifyJWT, bookingController.getTruckTypes);
+
 // Common creation route (Customer/Staff/Admin)
 router.post('/', verifyJWT, checkRole('customer', 'staff', 'internal', 'super-admin'), upload.array('cargoImages', 10), validate(createBookingSchema), bookingController.createBooking);
-router.get('/my-bookings', verifyJWT, checkRole('customer'), bookingController.getMyBookings);
 
 // Driver routes
 router.get('/driver-bookings', verifyJWT, checkRole('driver'), bookingController.getDriverBookings);

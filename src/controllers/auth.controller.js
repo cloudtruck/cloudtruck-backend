@@ -268,3 +268,18 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
     new ApiResponse(200, req.user, 'User fetched successfully')
   );
 });
+
+/**
+ * Update Language Preference
+ * PATCH /api/v1/auth/language
+ */
+export const updateLanguage = asyncHandler(async (req, res) => {
+  const { language } = req.body;
+
+  req.user.preferredLanguage = language;
+  await req.user.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, { preferredLanguage: language }, 'Language updated successfully')
+  );
+});

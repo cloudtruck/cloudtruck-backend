@@ -89,6 +89,17 @@ export const updateCustomerSchema = z.object({
 });
 
 /**
+ * Update My GST Validator
+ * PATCH /api/v1/customers/my-gst
+ */
+export const updateMyGstSchema = z.object({
+  body: z.object({
+    gstNumber: z.string()
+      .regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, 'Invalid GST number format')
+  })
+});
+
+/**
  * Update Credit Limit Validator
  * PATCH /api/v1/customers/:id/credit-limit
  */

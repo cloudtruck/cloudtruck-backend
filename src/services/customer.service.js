@@ -258,7 +258,9 @@ class CustomerService {
 
     allowedFields.forEach(field => {
       if (updateData[field] !== undefined) {
-        customer[field] = updateData[field];
+        // Map gstNumber from request to gst model field
+        const modelField = field === 'gstNumber' ? 'gst' : field;
+        customer[modelField] = updateData[field];
       }
     });
 

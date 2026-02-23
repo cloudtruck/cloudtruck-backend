@@ -23,6 +23,9 @@ const userSchema = new mongoose.Schema({
   
   // FCM Token for push notifications
   fcmToken: String,
+
+  // Preferred language for app UI
+  preferredLanguage: { type: String, enum: ['en', 'hi'], default: 'en' },
   
   // Password security
   lastPasswordChange: Date,

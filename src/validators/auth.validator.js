@@ -137,6 +137,18 @@ export const resetPasswordSchema = z.object({
  * User ID Param Validator
  * For routes with :userId parameter
  */
+/**
+ * Update Language Preference Validator
+ * PATCH /api/v1/auth/language
+ */
+export const updateLanguageSchema = z.object({
+  body: z.object({
+    language: z.enum(['en', 'hi'], {
+      errorMap: () => ({ message: 'Language must be either en (English) or hi (Hindi)' })
+    })
+  })
+});
+
 export const userIdParamSchema = z.object({
   params: z.object({
     userId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid user ID format')

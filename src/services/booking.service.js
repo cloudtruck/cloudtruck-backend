@@ -10,6 +10,7 @@ import DocumentService from './document.service.js';
 import LocationService from './location.service.js';
 import EwayBillService from './ewayBill.service.js';
 import EwayBill from '../models/ewayBill.model.js';
+import MasterData from '../models/masterData.model.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
 
@@ -37,6 +38,7 @@ class BookingService {
       dropAddress,
       materialType,
       weight,
+      weightUnit,
       truckType,
       bodyType,
       loadDate,
@@ -67,11 +69,18 @@ class BookingService {
       throw new ApiError(400, 'Credit limit exceeded. Please clear dues.');
     }
 
-    // Generate booking ID
-    const count = await Booking.countDocuments();
-    const bookingId = `BK${Date.now()}${String(count + 1).padStart(4, '0')}`;
+    // Validate truckType against master data
+    const validTruckType = await MasterData.findOne({
+      category: 'truck-type',
+      key: truckType,
+      isActive: true,
+      isDeleted: false
+    });
+    if (!validTruckType) {
+      throw new ApiError(400, `Invalid truck type: '${truckType}'. Use a valid truck type from master data.`);
+    }
 
-    // Validate and Geocode Pickup
+    // Geocode Pickup
     let finalPickupLat = pickupLat;
     let finalPickupLng = pickupLng;
     let finalPickupAddress = pickupAddress;
@@ -85,8 +94,7 @@ class BookingService {
         finalPickupAddress = geocoded.formattedAddress;
         pickupPlaceId = geocoded.placeId;
       } else {
-        finalPickupLat = 0;
-        finalPickupLng = 0;
+        throw new ApiError(400, 'Could not resolve pickup location. Please provide valid pickup coordinates.');
       }
     } else {
       const reversed = await LocationService.reverseGeocode(pickupLat, pickupLng);
@@ -96,7 +104,7 @@ class BookingService {
       }
     }
 
-    // Validate and Geocode Drop
+    // Geocode Drop
     let finalDropLat = dropLat;
     let finalDropLng = dropLng;
     let finalDropAddress = dropAddress;
@@ -110,8 +118,7 @@ class BookingService {
         finalDropAddress = geocoded.formattedAddress;
         dropPlaceId = geocoded.placeId;
       } else {
-        finalDropLat = 0;
-        finalDropLng = 0;
+        throw new ApiError(400, 'Could not resolve drop location. Please provide valid drop coordinates.');
       }
     } else {
       const reversed = await LocationService.reverseGeocode(dropLat, dropLng);
@@ -123,59 +130,69 @@ class BookingService {
 
     const loadDateObj = new Date(loadDate);
 
-    // Create booking
-    const booking = await Booking.create({
-      bookingId,
-      customer: customer._id,
-      pickup: {
-        city: pickupCity,
-        address: finalPickupAddress,
-        location: {
-          type: 'Point',
-          coordinates: [finalPickupLng, finalPickupLat]
-        },
-        placeId: pickupPlaceId
-      },
-      drop: {
-        city: dropCity,
-        address: finalDropAddress,
-        location: {
-          type: 'Point',
-          coordinates: [finalDropLng, finalDropLat]
-        },
-        placeId: dropPlaceId
-      },
-      materialType,
-      weight: {
-        value: weight,
-        unit: 'tons' // Default unit
-      },
-      truckTypeNeeded: truckType,
-      bodyType: bodyType || 'open',
-      loadDate: loadDateObj,
-      loadTime: loadDateObj.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
-      advanceRequired,
-      additionalInstructions,
-      expectedAmount,
-      isHazardous: isHazardous || false,
-      isFragile: isFragile || false,
-      requiresTemperatureControl: requiresTemperatureControl || false,
-      priority: priority || 'medium',
-      status: 'created',
-      statusHistory: [
-        {
+    // Create booking + update customer metrics in a transaction
+    const session = await mongoose.startSession();
+    let booking;
+    try {
+      await session.withTransaction(async () => {
+        // bookingId is generated atomically by the model's pre-save hook
+        const [created] = await Booking.create([{
+          customer: customer._id,
+          pickup: {
+            city: pickupCity,
+            address: finalPickupAddress,
+            location: {
+              type: 'Point',
+              coordinates: [finalPickupLng, finalPickupLat]
+            },
+            placeId: pickupPlaceId
+          },
+          drop: {
+            city: dropCity,
+            address: finalDropAddress,
+            location: {
+              type: 'Point',
+              coordinates: [finalDropLng, finalDropLat]
+            },
+            placeId: dropPlaceId
+          },
+          materialType,
+          weight: {
+            value: weight,
+            unit: weightUnit || 'tons'
+          },
+          truckTypeNeeded: truckType,
+          bodyType: bodyType || 'open',
+          loadDate: loadDateObj,
+          loadTime: loadDateObj.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+          advanceRequired,
+          additionalInstructions,
+          expectedAmount,
+          isHazardous: isHazardous || false,
+          isFragile: isFragile || false,
+          requiresTemperatureControl: requiresTemperatureControl || false,
+          priority: priority || 'medium',
           status: 'created',
-          updatedBy: userId,
-          timestamp: new Date()
-        }
-      ]
-    });
+          statusHistory: [
+            {
+              status: 'created',
+              updatedBy: userId,
+              timestamp: new Date()
+            }
+          ]
+        }], { session });
 
-    // Update customer metrics
-    customer.businessMetrics.totalBookings += 1;
-    await customer.save();
+        booking = created;
 
-    // Attach uploaded cargo images (if any)
+        // Update customer metrics atomically
+        customer.businessMetrics.totalBookings += 1;
+        await customer.save({ session });
+      });
+    } finally {
+      await session.endSession();
+    }
+
+    // Attach uploaded cargo images (if any) — outside transaction, non-critical
     if (Array.isArray(files) && files.length > 0) {
       const cargoFiles = files.filter(f => f.fieldname === 'cargoImages');
       if (cargoFiles.length > 0) {
@@ -187,13 +204,12 @@ class BookingService {
               entityId: booking._id,
               documentType: 'cargo-image',
               file
-            }, customerId);
+            }, customer._id);
             uploadedDocs.push(doc);
             booking.cargoDocuments = booking.cargoDocuments || [];
             booking.cargoDocuments.push(doc._id);
           } catch (err) {
-            // Log and continue; document upload failure shouldn't block booking creation
-            console.error('Failed to upload cargo image during booking creation:', err);
+            logger.error('Failed to upload cargo image during booking creation:', err);
           }
         }
         if (uploadedDocs.length) {
@@ -202,34 +218,39 @@ class BookingService {
       }
     }
 
-    // Send notifications
-    await NotificationService.sendNotification({
-      recipient: customerId,
+    // Send notifications — fire-and-forget, don't block API response
+    const bookingId = booking.bookingId;
+
+    NotificationService.sendNotification({
+      recipient: customer._id,
       type: 'booking_created',
       title: 'Booking Created',
       message: `Your booking ${bookingId} has been created successfully`,
       entityType: 'booking',
       entityId: booking._id,
       channels: ['push', 'in-app']
-    });
+    }).catch(err => logger.error('Failed to send booking created notification:', err));
 
-    // Notify staff
-    const staffUsers = await Staff.find({ isActive: true, department: 'operations' });
-    for (const staff of staffUsers) {
-      await NotificationService.sendNotification({
-        recipient: staff.user,
-        type: 'new_booking_request',
-        title: 'New Booking Request',
-        message: `New booking ${bookingId} from ${pickupCity} to ${dropCity}`,
-        entityType: 'booking',
-        entityId: booking._id,
-        channels: ['in-app']
-      });
-    }
+    // Notify staff in parallel
+    Staff.find({ isActive: true, department: 'operations' }).then(staffUsers => {
+      Promise.allSettled(
+        staffUsers.map(staff =>
+          NotificationService.sendNotification({
+            recipient: staff.user,
+            type: 'new_booking_request',
+            title: 'New Booking Request',
+            message: `New booking ${bookingId} from ${pickupCity} to ${dropCity}`,
+            entityType: 'booking',
+            entityId: booking._id,
+            channels: ['in-app']
+          })
+        )
+      ).catch(err => logger.error('Failed to send staff notifications:', err));
+    }).catch(err => logger.error('Failed to fetch staff for notifications:', err));
 
-    // Audit log
-    await AuditLog.create({
-      user: customerId,
+    // Audit log — fire-and-forget
+    AuditLog.create({
+      user: userId,
       action: 'CREATE_BOOKING',
       entityType: 'booking',
       entityId: booking._id,
@@ -237,7 +258,7 @@ class BookingService {
         before: null,
         after: booking.toObject()
       }
-    });
+    }).catch(err => logger.error('Failed to create audit log for booking:', err));
 
     return booking;
   }

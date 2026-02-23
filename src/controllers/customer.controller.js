@@ -292,3 +292,18 @@ export const getMyProfile = asyncHandler(async (req, res) => {
     new ApiResponse(200, mapCustomer(customer), 'Profile fetched successfully')
   );
 });
+
+/**
+ * Update My GST Number (Customer)
+ * PATCH /api/v1/customers/my-gst
+ */
+export const updateMyGst = asyncHandler(async (req, res) => {
+  const customerId = req.user._id;
+  const { gstNumber } = req.body;
+
+  const customer = await CustomerService.updateCustomer(customerId, { gstNumber }, req.user._id);
+
+  return res.status(200).json(
+    new ApiResponse(200, mapCustomer(customer), 'GST number updated successfully')
+  );
+});

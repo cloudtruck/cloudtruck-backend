@@ -11,6 +11,7 @@ import {
   refreshTokenSchema,
   changePasswordSchema,
   resetPasswordSchema,
+  updateLanguageSchema,
   userIdParamSchema
 } from '../validators/auth.validator.js';
 
@@ -30,6 +31,7 @@ router.post('/logout', verifyJWT, authController.logout);
 router.post('/logout-all', verifyJWT, authController.logoutAllDevices);
 router.post('/change-password', verifyJWT, validate(changePasswordSchema), authController.changePassword);
 router.get('/me', verifyJWT, authController.getCurrentUser);
+router.patch('/language', verifyJWT, validate(updateLanguageSchema), authController.updateLanguage);
 
 // Staff/Admin only routes
 router.post(

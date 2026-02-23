@@ -7,6 +7,7 @@ import {
   getCustomersQuerySchema,
   customerIdParamSchema,
   updateCustomerSchema,
+  updateMyGstSchema,
   updateCreditLimitSchema,
   assignAccountManagerSchema,
   getBookingHistoryQuerySchema
@@ -19,6 +20,7 @@ router.post('/', verifyJWT, checkRole('customer', 'staff', 'internal', 'super-ad
 router.get('/my-profile', verifyJWT, checkRole('customer'), customerController.getMyProfile);
 router.get('/my-dashboard', verifyJWT, checkRole('customer'), customerController.getMyDashboard);
 router.get('/my-bookings', verifyJWT, checkRole('customer'), validate(getBookingHistoryQuerySchema), customerController.getMyBookingHistory);
+router.patch('/my-gst', verifyJWT, checkRole('customer'), validate(updateMyGstSchema), customerController.updateMyGst);
 
 // Staff/Admin routes - list and view
 router.get('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getCustomersQuerySchema), customerController.getAllCustomers);

@@ -4,6 +4,13 @@ import { z } from 'zod';
  * Create Booking Validator
  * POST /api/v1/bookings
  */
+export const MATERIAL_TYPES = [
+  'FMCG', 'electronics', 'furniture', 'steel', 'cement', 'tiles',
+  'chemicals', 'textiles', 'agriculture', 'automobile-parts', 'machinery',
+  'paper', 'pharma', 'plastic', 'food-grains', 'vegetables-fruits',
+  'general-cargo', 'other'
+];
+
 export const createBookingSchema = z.object({
   body: z.object({
     pickupCity: z.string().min(1, 'Pickup city is required'),
@@ -14,11 +21,15 @@ export const createBookingSchema = z.object({
     dropLat: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-90).max(90, 'Invalid drop latitude')),
     dropLng: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-180).max(180, 'Invalid drop longitude')),
     dropAddress: z.string().min(1, 'Drop address is required'),
-    materialType: z.string().min(1, 'Material type is required'),
+    materialType: z.enum(MATERIAL_TYPES, { errorMap: () => ({ message: `Material type must be one of: ${MATERIAL_TYPES.join(', ')}` }) }),
     weight: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().positive('Weight must be positive')),
+    weightUnit: z.enum(['kg', 'tons', 'quintal']).optional().default('tons'),
     truckType: z.string().min(1, 'Truck type is required'),
     bodyType: z.enum(['open', 'closed', 'container', 'tanker', 'flatbed']).optional().default('open'),
-    loadDate: z.string().datetime('Invalid date format'),
+    loadDate: z.string().datetime('Invalid date format').refine(
+      (val) => new Date(val) > new Date(),
+      'Load date must be in the future'
+    ),
     advanceRequired: z.preprocess((v) => (v === undefined ? 0 : parseFloat(v)), z.number().nonnegative('Advance amount cannot be negative')).default(0),
     additionalInstructions: z.string().optional(),
     expectedAmount: z.preprocess((v) => (v === undefined ? undefined : parseFloat(v)), z.number().positive().optional()),

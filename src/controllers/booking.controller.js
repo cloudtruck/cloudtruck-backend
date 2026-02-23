@@ -1,6 +1,6 @@
 import BookingService from '../services/booking.service.js';
-import Customer from '../models/customer.model.js';
 import Driver from '../models/driver.model.js';
+import MasterData from '../models/masterData.model.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
@@ -19,6 +19,24 @@ export const createBooking = asyncHandler(async (req, res) => {
 
   return res.status(201).json(
     new ApiResponse(201, booking, 'Booking created successfully')
+  );
+});
+
+/**
+ * Get Truck Types
+ * GET /api/v1/bookings/truck-types
+ */
+export const getTruckTypes = asyncHandler(async (req, res) => {
+  const truckTypes = await MasterData.findByCategory('truck-type');
+
+  const data = truckTypes.map(t => ({
+    key: t.key,
+    displayName: t.displayName,
+    displayOrder: t.displayOrder
+  }));
+
+  return res.status(200).json(
+    new ApiResponse(200, data, 'Truck types fetched successfully')
   );
 });
 
@@ -279,53 +297,6 @@ export const getStatistics = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, stats, 'Statistics fetched successfully')
-  );
-});
-
-/**
- * Get My Bookings (Customer)
- * GET /api/v1/bookings/my-bookings
- */
-export const getMyBookings = asyncHandler(async (req, res) => {
-  // Map authenticated user to their Customer document
-  const customerDoc = await Customer.findOne({ user: req.user._id, isDeleted: false });
-  if (!customerDoc) {
-    throw new ApiError(404, 'Customer profile not found');
-  }
-
-  const customerId = customerDoc._id;
-  const { status, startDate, endDate, page, limit } = req.query;
-
-  const filters = {
-    customerId,
-    status: status ? status.split(',') : undefined,
-    startDate,
-    endDate
-  };
-
-  const pagination = { page, limit };
-
-  const result = await BookingService.getBookings(filters, pagination);
-
-  // Support multiple paginate shapes
-  let docs = [];
-  let p = {};
-  if (Array.isArray(result)) docs = result;
-  else if (Array.isArray(result.data)) docs = result.data, p = result.pagination || {};
-  else if (Array.isArray(result.docs)) docs = result.docs, p = { page: result.page, limit: result.limit, total: result.totalDocs };
-  else if (Array.isArray(result.results)) docs = result.results, p = { page: result.page, limit: result.limit, total: result.totalDocs };
-
-  const bookings = docs.map(mapBooking);
-
-  const paginationRes = {
-    currentPage: p.page || result.page || 1,
-    totalPages: p.pages || result.pages || Math.ceil((p.total || result.total || 0) / (p.limit || result.limit || 20)),
-    totalItems: p.total || result.total || result.totalDocs || 0,
-    itemsPerPage: p.limit || result.limit || 20
-  };
-
-  return res.status(200).json(
-    new ApiResponse(200, { bookings, pagination: paginationRes }, 'Bookings fetched successfully')
   );
 });
 

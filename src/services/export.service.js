@@ -150,8 +150,8 @@ class ExportService {
         license: d.licenseNumber,
         status: d.isBlacklisted ? 'Blocked' : (d.availability || 'Offline'),
         isVerified: d.isVerified ? 'Yes' : 'No',
-        totalTrips: d.totalTrips || 0,
-        rating: d.rating || 0,
+        totalTrips: d.performance?.completedTrips || 0,
+        rating: d.performance?.averageRating || 0,
         createdAt: format(d.createdAt, 'yyyy-MM-dd')
       });
     });

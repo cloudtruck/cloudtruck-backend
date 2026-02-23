@@ -252,7 +252,7 @@ class DriverService {
       });
     }
 
-    if (minRating) query.rating = { $gte: minRating };
+    if (minRating) query['performance.averageRating'] = { $gte: minRating };
 
     if (andConditions.length > 0) {
       query.$and = andConditions;
@@ -274,7 +274,7 @@ class DriverService {
     const result = await Driver.paginate(query, {
       page: pagination.page || 1,
       limit: pagination.limit || 20,
-      sort: pagination.sort || { rating: -1, createdAt: -1 },
+      sort: pagination.sort || { 'performance.averageRating': -1, createdAt: -1 },
       populate: [
         { path: 'user', select: 'phone status' },
         { path: 'currentBooking', select: 'bookingId status pickup drop' },
@@ -310,7 +310,7 @@ class DriverService {
         result.data.sort((a, b) => {
           if (a.isReturnTrip && !b.isReturnTrip) return -1;
           if (!a.isReturnTrip && b.isReturnTrip) return 1;
-          return (b.rating || 0) - (a.rating || 0);
+          return (b.performance?.averageRating || 0) - (a.performance?.averageRating || 0);
         });
       }
 
@@ -458,7 +458,7 @@ class DriverService {
       driver.performance.onTimeDeliveryRate = (metrics.onTimeDeliveries / total) * 100;
     }
     if (metrics.rating !== undefined) {
-      driver.performance.rating = metrics.rating;
+      driver.performance.averageRating = metrics.rating;
     }
     if (metrics.totalEarnings !== undefined) {
       driver.performance.totalEarnings = metrics.totalEarnings;
@@ -507,6 +507,10 @@ class DriverService {
 
     if (!driver) {
       throw new ApiError(404, 'Driver not found');
+    }
+
+    if (driver.licenseExpiry && new Date(driver.licenseExpiry) < new Date()) {
+      throw new ApiError(400, 'Cannot verify driver: license has expired');
     }
 
     driver.isVerified = true;
@@ -707,7 +711,7 @@ class DriverService {
     return {
       driver: {
         name: driver.name,
-        rating: driver.performance.rating,
+        rating: driver.performance.averageRating,
         totalTrips: driver.performance.completedTrips
       },
       period: { startDate, endDate },
@@ -718,10 +722,11 @@ class DriverService {
   /**
    * Get driver trip history
    * @param {string} driverId - Driver ID
+   * @param {Object} filters - Query filters (status, startDate, endDate, search, truckType, customerName)
    * @param {Object} pagination - Pagination options
    * @returns {Promise<Object>} Paginated bookings
    */
-  static async getTripHistory(driverId, pagination = {}) {
+  static async getTripHistory(driverId, filters = {}, pagination = {}) {
     const isValidId = mongoose.Types.ObjectId.isValid(driverId);
     if (!isValidId) {
       throw new ApiError(400, 'Invalid driver ID');
@@ -729,20 +734,72 @@ class DriverService {
 
     // Resolve driver document ID if user ID is provided
     let driverDocId = driverId;
-    const driver = await Driver.findOne({ 
-      $or: [{ _id: driverId }, { user: driverId }], 
-      isDeleted: false 
+    const driver = await Driver.findOne({
+      $or: [{ _id: driverId }, { user: driverId }],
+      isDeleted: false
     }).select('_id');
-    
+
     if (!driver) {
       throw new ApiError(404, 'Driver not found');
     }
     driverDocId = driver._id;
 
+    const { status, startDate, endDate, search, truckType, customerName } = filters;
+
     const query = {
       driver: driverDocId,
       isDeleted: false
     };
+
+    // Filter by booking status
+    if (status) {
+      query.status = status;
+    }
+
+    // Filter by date range (based on createdAt)
+    // Bare dates (YYYY-MM-DD) are treated as IST (UTC+05:30) since the business operates in India.
+    // Full ISO strings with offset (e.g. 2026-02-23T00:00:00+05:30) are used as-is.
+    if (startDate || endDate) {
+      const IST_OFFSET = '+05:30';
+      query.createdAt = {};
+      if (startDate) {
+        const isBareDateStart = /^\d{4}-\d{2}-\d{2}$/.test(startDate);
+        query.createdAt.$gte = isBareDateStart
+          ? new Date(`${startDate}T00:00:00${IST_OFFSET}`)
+          : new Date(startDate);
+      }
+      if (endDate) {
+        const isBareDateEnd = /^\d{4}-\d{2}-\d{2}$/.test(endDate);
+        query.createdAt.$lte = isBareDateEnd
+          ? new Date(`${endDate}T23:59:59.999${IST_OFFSET}`)
+          : new Date(endDate);
+      }
+    }
+
+    // Search by bookingId or pickup/drop city
+    if (search) {
+      query.$or = [
+        { bookingId: { $regex: search, $options: 'i' } },
+        { 'pickup.city': { $regex: search, $options: 'i' } },
+        { 'drop.city': { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Filter by truck type
+    if (truckType) {
+      query.truckTypeNeeded = truckType;
+    }
+
+    // Filter by customer/company name — resolve matching customer IDs first
+    if (customerName) {
+      const Customer = mongoose.model('Customer');
+      const matchingCustomers = await Customer.find({
+        companyName: { $regex: customerName, $options: 'i' },
+        isDeleted: false
+      }).select('_id').lean();
+
+      query.customer = { $in: matchingCustomers.map(c => c._id) };
+    }
 
     const result = await Booking.paginate(query, {
       page: pagination.page || 1,
@@ -771,7 +828,7 @@ class DriverService {
       availability: 'available',
       isVerified: true,
       isBlacklisted: false,
-      currentLocation: {
+      lastKnownLocation: {
         $near: {
           $geometry: {
             type: 'Point',
@@ -787,7 +844,7 @@ class DriverService {
     }
 
     const drivers = await Driver.find(query)
-      .select('name phone currentLocation performance')
+      .select('name phone lastKnownLocation performance')
       .populate('user', 'phone')
       .limit(20);
 

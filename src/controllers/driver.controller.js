@@ -25,8 +25,8 @@ const mapDriver = (drv) => {
     preferredTruckTypes: d.preferredTruckTypes,
     currentLocation: d.lastKnownLocation,
     lastActive: d.lastLocationAt,
-    totalTrips: d.totalTrips,
-    rating: d.rating,
+    totalTrips: d.performance?.completedTrips || 0,
+    rating: d.performance?.averageRating || 0,
     isReturnTrip: d.isReturnTrip,
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
@@ -189,8 +189,8 @@ export const getAllDrivers = asyncHandler(async (req, res) => {
       preferredTruckTypes: drv.preferredTruckTypes,
       currentLocation: drv.lastKnownLocation,
       lastActive: drv.lastLocationAt,
-      totalTrips: drv.totalTrips,
-      rating: drv.rating,
+      totalTrips: drv.performance?.completedTrips || 0,
+      rating: drv.performance?.averageRating || 0,
       createdAt: drv.createdAt,
       updatedAt: drv.updatedAt,
       rejectionReason: drv.rejectionReason,
@@ -394,11 +394,12 @@ export const getMyPerformance = asyncHandler(async (req, res) => {
  */
 export const getTripHistory = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { page, limit, sort } = req.query;
+  const { page, limit, sort, status, startDate, endDate, search, truckType, customerName } = req.query;
 
+  const filters = { status, startDate, endDate, search, truckType, customerName };
   const pagination = { page, limit, sort };
 
-  const result = await DriverService.getTripHistory(id, pagination);
+  const result = await DriverService.getTripHistory(id, filters, pagination);
   const trips = result.data.map(mapBooking);
 
   const paginationRes = {
@@ -419,11 +420,12 @@ export const getTripHistory = asyncHandler(async (req, res) => {
  */
 export const getMyTripHistory = asyncHandler(async (req, res) => {
   const driverId = req.user._id;
-  const { page, limit, sort } = req.query;
+  const { page, limit, sort, status, startDate, endDate, search, truckType, customerName } = req.query;
 
+  const filters = { status, startDate, endDate, search, truckType, customerName };
   const pagination = { page, limit, sort };
 
-  const result = await DriverService.getTripHistory(driverId, pagination);
+  const result = await DriverService.getTripHistory(driverId, filters, pagination);
   const trips = result.data.map(mapBooking);
 
   const paginationRes = {

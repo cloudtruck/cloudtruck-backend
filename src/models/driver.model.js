@@ -57,9 +57,6 @@ const driverSchema = new mongoose.Schema({
     totalEarnings: { type: Number, default: 0 }
   },
   
-  totalTrips: { type: Number, default: 0 },
-  rating: { type: Number, default: 0 },
-  
   // KYC - Aadhaar
   aadhaar: {
     number: { type: String, select: false },
@@ -144,7 +141,10 @@ driverSchema.statics.findAvailable = function() {
     isBlacklisted: false,
     isVerified: true,
     availability: 'available',
-    $or: [{ nextBooking: null }, { nextBooking: { $exists: false } }]
+    $and: [
+      { $or: [{ nextBooking: null }, { nextBooking: { $exists: false } }] },
+      { $or: [{ licenseExpiry: { $gt: new Date() } }, { licenseExpiry: null }, { licenseExpiry: { $exists: false } }] }
+    ]
   });
 };
 
@@ -218,6 +218,9 @@ driverSchema.methods.updateAvailability = function(status) {
 
 // Assign booking
 driverSchema.methods.assignBooking = function(bookingId) {
+  if (this.licenseExpiry && new Date(this.licenseExpiry) < new Date()) {
+    throw new Error('Cannot assign booking: driver license has expired');
+  }
   this.currentBooking = bookingId;
   this.availability = 'on-trip';
   return this.save();
@@ -227,7 +230,6 @@ driverSchema.methods.assignBooking = function(bookingId) {
 driverSchema.methods.completeBooking = async function(onTime = true) {
   this.currentBooking = null;
   this.availability = 'available';
-  this.totalTrips += 1;
   this.performance.completedTrips += 1;
   
   // Update on-time delivery rate
@@ -257,11 +259,9 @@ driverSchema.methods.updateRating = function(newRating) {
   const totalTrips = this.performance.completedTrips;
   if (totalTrips === 0) {
     this.performance.averageRating = newRating;
-    this.rating = newRating;
   } else {
     const totalRating = (this.performance.averageRating * (totalTrips - 1)) + newRating;
     this.performance.averageRating = totalRating / totalTrips;
-    this.rating = this.performance.averageRating;
   }
   return this.save();
 };

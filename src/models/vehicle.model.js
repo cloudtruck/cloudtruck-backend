@@ -21,28 +21,6 @@ const vehicleSchema = new mongoose.Schema(
     truckType: {
       type: String,
       required: [true, 'Truck type is required'],
-      enum: {
-        values: [
-          '14ft',
-          '17ft',
-          '19ft',
-          '20ft',
-          '22ft',
-          '24ft',
-          '32ft',
-          'container-20ft',
-          'container-40ft',
-          'trailer',
-          'tanker',
-          'tipper',
-          'flatbed',
-          'refrigerated',
-          'car-carrier',
-          'open-body',
-          'closed-body'
-        ],
-        message: '{VALUE} is not a valid truck type'
-      },
       index: true
     },
 
@@ -77,10 +55,6 @@ const vehicleSchema = new mongoose.Schema(
     bodyType: {
       type: String,
       required: [true, 'Body type is required'],
-      enum: {
-        values: ['open', 'closed', 'container', 'tanker', 'flatbed'],
-        message: '{VALUE} is not a valid body type'
-      },
       index: true
     },
 

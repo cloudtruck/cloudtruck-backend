@@ -9,25 +9,7 @@ export const createVehicleSchema = z.object({
     vehicleNumber: z.string()
       .min(5, 'Vehicle number must be at least 5 characters')
       .transform(v => v.toUpperCase().replace(/[-\s]/g, '')),
-    truckType: z.enum([
-      '14ft',
-      '17ft',
-      '19ft',
-      '20ft',
-      '22ft',
-      '24ft',
-      '32ft',
-      'container-20ft',
-      'container-40ft',
-      'trailer',
-      'tanker',
-      'tipper',
-      'flatbed',
-      'refrigerated',
-      'car-carrier',
-      'open-body',
-      'closed-body'
-    ]),
+    truckType: z.string().min(1, 'Truck type is required'),
     length: z.object({
       value: z.number().positive('Length must be positive'),
       unit: z.enum(['ft', 'meter', 'm']).transform(u => u === 'm' ? 'meter' : u).default('ft')
@@ -36,7 +18,7 @@ export const createVehicleSchema = z.object({
       value: z.number().positive('Capacity must be positive'),
       unit: z.enum(['tons', 'kg']).default('tons')
     }),
-    bodyType: z.enum(['open', 'closed', 'container', 'tanker', 'flatbed']),
+    bodyType: z.string().min(1, 'Body type is required'),
     manufacturer: z.string().optional(),
     model: z.string().optional(),
     year: z.number()
@@ -124,11 +106,7 @@ export const updateVehicleSchema = z.object({
     id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid vehicle ID')
   }),
   body: z.object({
-    truckType: z.enum([
-      '14ft', '17ft', '19ft', '20ft', '22ft', '24ft', '32ft', 'container-20ft',
-      'container-40ft', 'trailer', 'tanker', 'tipper', 'flatbed', 'refrigerated',
-      'car-carrier', 'open-body', 'closed-body'
-    ]).optional(),
+    truckType: z.string().min(1, 'Truck type is required').optional(),
     length: z.object({
       value: z.number().positive(),
       unit: z.enum(['ft', 'meter', 'm']).transform(u => u === 'm' ? 'meter' : u)
@@ -137,7 +115,7 @@ export const updateVehicleSchema = z.object({
       value: z.number().positive(),
       unit: z.enum(['tons', 'kg'])
     }).optional(),
-    bodyType: z.enum(['open', 'closed', 'container', 'tanker', 'flatbed']).optional(),
+    bodyType: z.string().min(1, 'Body type is required').optional(),
     manufacturer: z.string().optional(),
     model: z.string().optional(),
     year: z.number().int().min(1990).max(new Date().getFullYear() + 1).optional(),

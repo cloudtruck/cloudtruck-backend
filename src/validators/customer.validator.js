@@ -126,6 +126,54 @@ export const assignAccountManagerSchema = z.object({
 });
 
 /**
+ * Bank Account ID Param Validator
+ */
+export const bankAccountIdParamSchema = z.object({
+  params: z.object({
+    accountId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid bank account ID')
+  })
+});
+
+/**
+ * Add Bank Account Validator
+ * POST /api/v1/customers/my-bank-accounts
+ */
+export const addBankAccountSchema = z.object({
+  body: z.object({
+    accountNumber: z.string().min(1, 'Account number is required').trim(),
+    ifscCode: z.string().min(1, 'IFSC code is required').trim()
+      .regex(/^[A-Z]{4}0[A-Z0-9]{6}$/i, 'Invalid IFSC code format'),
+    accountHolderName: z.string().min(1, 'Account holder name is required').trim(),
+    bankName: z.string().min(1, 'Bank name is required').trim(),
+    branchName: z.string().trim().optional(),
+    accountType: z.enum(['savings', 'current', 'od']).optional(),
+    upiId: z.string().trim().optional(),
+    isPrimary: z.boolean().optional()
+  })
+});
+
+/**
+ * Update Bank Account Validator
+ * PATCH /api/v1/customers/my-bank-accounts/:accountId
+ */
+export const updateBankAccountSchema = z.object({
+  params: z.object({
+    accountId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid bank account ID')
+  }),
+  body: z.object({
+    accountNumber: z.string().min(1).trim().optional(),
+    ifscCode: z.string().trim()
+      .regex(/^[A-Z]{4}0[A-Z0-9]{6}$/i, 'Invalid IFSC code format').optional(),
+    accountHolderName: z.string().min(1).trim().optional(),
+    bankName: z.string().min(1).trim().optional(),
+    branchName: z.string().trim().optional(),
+    accountType: z.enum(['savings', 'current', 'od']).optional(),
+    upiId: z.string().trim().optional(),
+    isPrimary: z.boolean().optional()
+  })
+});
+
+/**
  * Get Booking History Query Validator
  * GET /api/v1/customers/:id/bookings
  */
@@ -135,6 +183,8 @@ export const getBookingHistoryQuerySchema = z.object({
   }).optional(),
   query: z.object({
     status: z.string().optional(),
+    truckType: z.string().optional(),
+    podPending: z.enum(['true', 'false']).optional(),
     startDate: z.string().datetime().optional(),
     endDate: z.string().datetime().optional(),
     page: z.string().optional(),

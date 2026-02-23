@@ -99,6 +99,7 @@ export const getAllBookings = asyncHandler(async (req, res) => {
     dateFrom,
     dateTo,
     truckType,
+    podPending,
     city,
     search,
     page,
@@ -113,7 +114,8 @@ export const getAllBookings = asyncHandler(async (req, res) => {
     paymentStatus,
     startDate: startDate || dateFrom,
     endDate: endDate || dateTo,
-    truckType,
+    truckType: truckType ? truckType.split(',') : undefined,
+    podPending: podPending === 'true' ? true : podPending === 'false' ? false : undefined,
     city,
     search
   };

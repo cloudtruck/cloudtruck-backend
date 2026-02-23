@@ -57,6 +57,7 @@ export const getBookingsQuerySchema = z.object({
     dateFrom: z.string().optional(),
     dateTo: z.string().optional(),
     truckType: z.string().optional(),
+    podPending: z.enum(['true', 'false']).optional(),
     city: z.string().optional(),
     search: z.string().optional(),
     page: z.string().optional(),

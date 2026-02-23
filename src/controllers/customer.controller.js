@@ -10,11 +10,22 @@ const mapCustomer = (cust) => {
     _id: c._id,
     userId: c.user?._id || c.user,
     companyName: c.companyName,
+    companyType: c.companyType,
     gstNumber: c.gst,
     contactPerson: c.contactPerson,
     phone: c.user?.phone || c.contactPerson?.phone,
     email: c.user?.email || c.contactPerson?.email,
     address: c.address,
+    billingAddress: c.billingAddress,
+    paymentTerms: c.paymentTerms,
+    creditLimit: c.creditLimit ? {
+      amount: c.creditLimit.amount,
+      currency: c.creditLimit.currency,
+      utilized: c.creditLimit.utilized,
+      availableCredit: (c.creditLimit.amount || 0) - (c.creditLimit.utilized || 0)
+    } : undefined,
+    rating: c.rating,
+    bankDetails: c.bankDetails || [],
     kycStatus: c.isVerified ? 'verified' : 'pending',
     status: c.isDeleted ? 'inactive' : 'active',
     totalBookings: c.businessMetrics?.totalBookings || 0,
@@ -236,10 +247,12 @@ export const getBookingHistory = asyncHandler(async (req, res) => {
  */
 export const getMyBookingHistory = asyncHandler(async (req, res) => {
   const customer = await CustomerService.getCustomerById(req.user._id);
-  const { status, startDate, endDate, page, limit, sort } = req.query;
+  const { status, truckType, podPending, startDate, endDate, page, limit, sort } = req.query;
 
   const filters = {
     status: status ? status.split(',') : undefined,
+    truckType: truckType ? truckType.split(',') : undefined,
+    podPending: podPending === 'true' ? true : podPending === 'false' ? false : undefined,
     startDate,
     endDate
   };
@@ -261,6 +274,61 @@ export const getMyBookingHistory = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, { bookings, pagination: paginationRes }, 'Booking history fetched successfully')
+  );
+});
+
+/**
+ * Get My Bank Accounts
+ * GET /api/v1/customers/my-bank-accounts
+ */
+export const getMyBankAccounts = asyncHandler(async (req, res) => {
+  const bankAccounts = await CustomerService.getBankAccounts(req.user._id);
+  return res.status(200).json(
+    new ApiResponse(200, bankAccounts, 'Bank accounts fetched successfully')
+  );
+});
+
+/**
+ * Add Bank Account
+ * POST /api/v1/customers/my-bank-accounts
+ */
+export const addBankAccount = asyncHandler(async (req, res) => {
+  const account = await CustomerService.addBankAccount(req.user._id, req.body);
+  return res.status(201).json(
+    new ApiResponse(201, account, 'Bank account added successfully')
+  );
+});
+
+/**
+ * Update Bank Account
+ * PATCH /api/v1/customers/my-bank-accounts/:accountId
+ */
+export const updateBankAccount = asyncHandler(async (req, res) => {
+  const account = await CustomerService.updateBankAccount(req.user._id, req.params.accountId, req.body);
+  return res.status(200).json(
+    new ApiResponse(200, account, 'Bank account updated successfully')
+  );
+});
+
+/**
+ * Remove Bank Account
+ * DELETE /api/v1/customers/my-bank-accounts/:accountId
+ */
+export const removeBankAccount = asyncHandler(async (req, res) => {
+  const result = await CustomerService.removeBankAccount(req.user._id, req.params.accountId);
+  return res.status(200).json(
+    new ApiResponse(200, result, 'Bank account removed successfully')
+  );
+});
+
+/**
+ * Set Primary Bank Account
+ * PATCH /api/v1/customers/my-bank-accounts/:accountId/primary
+ */
+export const setPrimaryBankAccount = asyncHandler(async (req, res) => {
+  const account = await CustomerService.setPrimaryBankAccount(req.user._id, req.params.accountId);
+  return res.status(200).json(
+    new ApiResponse(200, account, 'Primary bank account set successfully')
   );
 });
 

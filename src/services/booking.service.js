@@ -278,6 +278,7 @@ class BookingService {
       startDate,
       endDate,
       truckType,
+      podPending,
       city,
       search
     } = filters;
@@ -296,7 +297,18 @@ class BookingService {
       }
     }
     if (paymentStatus) query.paymentStatus = paymentStatus;
-    if (truckType) query.truckTypeNeeded = truckType;
+    if (truckType) {
+      query.truckTypeNeeded = Array.isArray(truckType) ? { $in: truckType } : truckType;
+    }
+    if (podPending === true) {
+      query.status = query.status || { $in: ['delivered'] };
+      query.$or = [
+        { podDocuments: { $exists: false } },
+        { podDocuments: { $size: 0 } }
+      ];
+    } else if (podPending === false) {
+      query.podDocuments = { $exists: true, $not: { $size: 0 } };
+    }
     if (startDate || endDate) {
       query.loadDate = {};
       if (startDate) query.loadDate.$gte = new Date(startDate);

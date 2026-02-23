@@ -65,6 +65,18 @@ const customerSchema = new mongoose.Schema({
     ref: 'Staff'
   },
   
+  // Bank Details
+  bankDetails: [{
+    accountNumber: { type: String, required: true, trim: true },
+    ifscCode: { type: String, required: true, trim: true, uppercase: true },
+    accountHolderName: { type: String, required: true, trim: true },
+    bankName: { type: String, required: true, trim: true },
+    branchName: { type: String, trim: true },
+    accountType: { type: String, enum: ['savings', 'current', 'od'], default: 'current' },
+    upiId: { type: String, trim: true },
+    isPrimary: { type: Boolean, default: false }
+  }],
+
   // Soft Delete
   isDeleted: { type: Boolean, default: false, index: true },
   deletedAt: Date,

@@ -565,10 +565,24 @@ class CustomerService {
     if (filters.status) {
       query.status = Array.isArray(filters.status) ? { $in: filters.status } : filters.status;
     }
+    if (filters.truckType) {
+      query.truckTypeNeeded = Array.isArray(filters.truckType) ? { $in: filters.truckType } : filters.truckType;
+    }
+    if (filters.podPending === true) {
+      // Delivered but no POD documents uploaded yet
+      query.status = query.status || { $in: ['delivered'] };
+      query.$or = [
+        { podDocuments: { $exists: false } },
+        { podDocuments: { $size: 0 } }
+      ];
+    } else if (filters.podPending === false) {
+      // Has POD documents
+      query.podDocuments = { $exists: true, $not: { $size: 0 } };
+    }
     if (filters.startDate || filters.endDate) {
-      query.loadDateTime = {};
-      if (filters.startDate) query.loadDateTime.$gte = new Date(filters.startDate);
-      if (filters.endDate) query.loadDateTime.$lte = new Date(filters.endDate);
+      query.loadDate = {};
+      if (filters.startDate) query.loadDate.$gte = new Date(filters.startDate);
+      if (filters.endDate) query.loadDate.$lte = new Date(filters.endDate);
     }
 
     const result = await Booking.paginate(query, {
@@ -582,6 +596,98 @@ class CustomerService {
     });
 
     return result;
+  }
+
+  /**
+   * Get customer bank accounts
+   */
+  static async getBankAccounts(userId) {
+    const customer = await Customer.findOne({ user: userId, isDeleted: false });
+    if (!customer) throw new ApiError(404, 'Customer not found');
+    return customer.bankDetails || [];
+  }
+
+  /**
+   * Add bank account to customer
+   */
+  static async addBankAccount(userId, data) {
+    const customer = await Customer.findOne({ user: userId, isDeleted: false });
+    if (!customer) throw new ApiError(404, 'Customer not found');
+
+    // If this is marked primary, unset others
+    if (data.isPrimary) {
+      customer.bankDetails.forEach(acc => { acc.isPrimary = false; });
+    }
+
+    // If this is the first account, make it primary
+    if (customer.bankDetails.length === 0) {
+      data.isPrimary = true;
+    }
+
+    customer.bankDetails.push(data);
+    await customer.save();
+
+    return customer.bankDetails[customer.bankDetails.length - 1];
+  }
+
+  /**
+   * Update a specific bank account
+   */
+  static async updateBankAccount(userId, accountId, data) {
+    const customer = await Customer.findOne({ user: userId, isDeleted: false });
+    if (!customer) throw new ApiError(404, 'Customer not found');
+
+    const account = customer.bankDetails.id(accountId);
+    if (!account) throw new ApiError(404, 'Bank account not found');
+
+    // If setting this as primary, unset others
+    if (data.isPrimary) {
+      customer.bankDetails.forEach(acc => { acc.isPrimary = false; });
+    }
+
+    Object.assign(account, data);
+    await customer.save();
+
+    return account;
+  }
+
+  /**
+   * Remove a bank account
+   */
+  static async removeBankAccount(userId, accountId) {
+    const customer = await Customer.findOne({ user: userId, isDeleted: false });
+    if (!customer) throw new ApiError(404, 'Customer not found');
+
+    const account = customer.bankDetails.id(accountId);
+    if (!account) throw new ApiError(404, 'Bank account not found');
+
+    const wasPrimary = account.isPrimary;
+    customer.bankDetails.pull(accountId);
+
+    // If removed account was primary, promote the first remaining
+    if (wasPrimary && customer.bankDetails.length > 0) {
+      customer.bankDetails[0].isPrimary = true;
+    }
+
+    await customer.save();
+    return { message: 'Bank account removed successfully' };
+  }
+
+  /**
+   * Set a bank account as primary
+   */
+  static async setPrimaryBankAccount(userId, accountId) {
+    const customer = await Customer.findOne({ user: userId, isDeleted: false });
+    if (!customer) throw new ApiError(404, 'Customer not found');
+
+    const account = customer.bankDetails.id(accountId);
+    if (!account) throw new ApiError(404, 'Bank account not found');
+
+    customer.bankDetails.forEach(acc => { acc.isPrimary = false; });
+    account.isPrimary = true;
+    await customer.save();
+
+    return account;
   }
 
   /**

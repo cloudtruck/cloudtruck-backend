@@ -10,7 +10,10 @@ import {
   updateMyGstSchema,
   updateCreditLimitSchema,
   assignAccountManagerSchema,
-  getBookingHistoryQuerySchema
+  getBookingHistoryQuerySchema,
+  addBankAccountSchema,
+  updateBankAccountSchema,
+  bankAccountIdParamSchema
 } from '../validators/customer.validator.js';
 
 const router = express.Router();
@@ -21,6 +24,13 @@ router.get('/my-profile', verifyJWT, checkRole('customer'), customerController.g
 router.get('/my-dashboard', verifyJWT, checkRole('customer'), customerController.getMyDashboard);
 router.get('/my-bookings', verifyJWT, checkRole('customer'), validate(getBookingHistoryQuerySchema), customerController.getMyBookingHistory);
 router.patch('/my-gst', verifyJWT, checkRole('customer'), validate(updateMyGstSchema), customerController.updateMyGst);
+
+// Customer bank account routes
+router.get('/my-bank-accounts', verifyJWT, checkRole('customer'), customerController.getMyBankAccounts);
+router.post('/my-bank-accounts', verifyJWT, checkRole('customer'), validate(addBankAccountSchema), customerController.addBankAccount);
+router.patch('/my-bank-accounts/:accountId', verifyJWT, checkRole('customer'), validate(updateBankAccountSchema), customerController.updateBankAccount);
+router.delete('/my-bank-accounts/:accountId', verifyJWT, checkRole('customer'), validate(bankAccountIdParamSchema), customerController.removeBankAccount);
+router.patch('/my-bank-accounts/:accountId/primary', verifyJWT, checkRole('customer'), validate(bankAccountIdParamSchema), customerController.setPrimaryBankAccount);
 
 // Staff/Admin routes - list and view
 router.get('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getCustomersQuerySchema), customerController.getAllCustomers);

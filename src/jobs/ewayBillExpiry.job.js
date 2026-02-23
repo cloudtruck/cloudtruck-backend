@@ -140,16 +140,18 @@ class EwayBillExpiryJob {
 
       // Notify the staff member who created the bill
       if (createdByStaff?._id) {
-        await NotificationService.createNotification({
-          user: createdByStaff._id,
+        await NotificationService.sendNotification({
+          recipient: createdByStaff._id,
           type: 'eway_bill_expiry',
           title: 'E-way Bill Expiry Alert',
           message: staffNotificationMessage,
-          metadata: {
-            ewayBillId: bill._id,
+          entityType: 'system',
+          entityId: bill._id,
+          channels: ['push', 'in-app'],
+          data: {
             ewayBillNumber: bill.ewayBillNumber,
-            bookingId: booking?._id,
-            expiryDate: bill.expiryTracking.validUpto
+            bookingId: booking?._id?.toString(),
+            expiryDate: bill.expiryTracking.validUpto?.toISOString()
           }
         });
         logger.info(`Staff notification sent to ${createdByStaff.name || createdByStaff._id}`);
@@ -163,16 +165,18 @@ class EwayBillExpiryJob {
 
       for (const staff of operationsStaff) {
         if (staff.user && staff.user.toString() !== createdByStaff?._id?.toString()) {
-          await NotificationService.createNotification({
-            user: staff.user,
+          await NotificationService.sendNotification({
+            recipient: staff.user,
             type: 'eway_bill_expiry',
             title: 'E-way Bill Expiry Alert',
             message: staffNotificationMessage,
-            metadata: {
-              ewayBillId: bill._id,
+            entityType: 'system',
+            entityId: bill._id,
+            channels: ['push', 'in-app'],
+            data: {
               ewayBillNumber: bill.ewayBillNumber,
-              bookingId: booking?._id,
-              expiryDate: bill.expiryTracking.validUpto
+              bookingId: booking?._id?.toString(),
+              expiryDate: bill.expiryTracking.validUpto?.toISOString()
             }
           });
         }

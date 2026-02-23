@@ -26,3 +26,17 @@ export const testNotificationSchema = z.object({
     message: z.string().min(1).max(500).optional()
   })
 });
+
+export const getNotificationsSchema = z.object({
+  query: z.object({
+    page: z.string().regex(/^\d+$/).optional(),
+    limit: z.string().regex(/^\d+$/).optional(),
+    status: z.enum(['read', 'unread']).optional()
+  })
+});
+
+export const notificationIdParamSchema = z.object({
+  params: z.object({
+    id: z.string().regex(objectIdRegex, 'Invalid notification ID')
+  })
+});

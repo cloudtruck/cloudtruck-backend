@@ -6,7 +6,16 @@ import Customer from '../models/customer.model.js';
 import Staff from '../models/staff.model.js';
 import Notification from '../models/notification.model.js';
 
+let _io = null;
+
 class NotificationService {
+  /**
+   * Set the Socket.io instance for real-time emission
+   * Called once from server.js after creating namespaces
+   */
+  static setIO(io) {
+    _io = io;
+  }
   /**
    * Send push notification via Firebase
    * @param {String} fcmToken - Firebase Cloud Messaging token
@@ -392,7 +401,19 @@ class NotificationService {
           entity: { type: entityType || 'system', id: entityId }
         }));
 
-        await Notification.insertMany(notifications);
+        const insertedDocs = await Notification.insertMany(notifications);
+
+        // Emit real-time socket notifications
+        if (_io) {
+          const notifNs = _io.of('/notifications');
+          for (let i = 0; i < userIds.length; i++) {
+            const uid = userIds[i];
+            const doc = insertedDocs[i];
+            notifNs.to(`user:${uid}`).emit('notification:new', doc);
+            const unreadCount = await Notification.getUnreadCount(uid);
+            notifNs.to(`user:${uid}`).emit('notifications:count:updated', { count: unreadCount });
+          }
+        }
 
         // Send push to multiple users if needed
         if (channels.includes('push') || channels.includes('in-app')) {
@@ -415,7 +436,7 @@ class NotificationService {
       }
 
       // Create a notification record
-      await Notification.create({
+      const createdNotification = await Notification.create({
         user: userId,
         type: channels.includes('sms') ? 'sms' : channels.includes('in-app') ? 'in-app' : 'push',
         channel: channels.includes('sms') ? 'twilio' : 'firebase',
@@ -424,6 +445,14 @@ class NotificationService {
         data: payload.data,
         entity: { type: entityType || 'system', id: entityId }
       });
+
+      // Emit real-time socket notification
+      if (_io) {
+        const notifNs = _io.of('/notifications');
+        notifNs.to(`user:${userId}`).emit('notification:new', createdNotification);
+        const unreadCount = await Notification.getUnreadCount(userId);
+        notifNs.to(`user:${userId}`).emit('notifications:count:updated', { count: unreadCount });
+      }
 
       // Send push/in-app as appropriate
       if (channels.includes('push') || channels.includes('in-app')) {

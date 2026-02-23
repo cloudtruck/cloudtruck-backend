@@ -9,6 +9,7 @@ import { validateEnvironment } from './src/config/environment.js';
 import logger from './src/utils/logger.js';
 import trackingSocketHandler from './src/sockets/tracking.socket.js';
 import notificationSocketHandler from './src/sockets/notification.socket.js';
+import NotificationService from './src/services/notification.service.js';
 import EwayBillExpiryJob from './src/jobs/ewayBillExpiry.job.js';
 
 // Load environment variables from backend/.env
@@ -41,6 +42,9 @@ const notificationNamespace = io.of('/notifications');
 // Socket handlers
 trackingSocketHandler(trackingNamespace);
 notificationSocketHandler(notificationNamespace);
+
+// Initialize NotificationService with Socket.io for real-time emission
+NotificationService.setIO(io);
 
 // Make io accessible to routes
 app.set('io', io);

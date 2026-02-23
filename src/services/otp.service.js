@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // MSG91 API Configuration
 const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY;
-const MSG91_TEMPLATE_ID = process.env.MSG91_TEMPLATE_ID || '1207176821857480259';
+const MSG91_TEMPLATE_ID = process.env.MSG91_TEMPLATE_ID || '699c177a2f10b82ae90a1542';
 const MSG91_BASE_URL = 'https://control.msg91.com/api/v5/otp';
 
 /**
@@ -55,31 +55,34 @@ export const sendOTP = async (phoneNumber, otp = null) => {
     // Format phone number (MSG91 expects 91XXXXXXXXXX)
     const formattedPhone = formatPhoneNumber(phoneNumber).replace('+', '');
     
-    const options = {
-      method: 'POST',
-      url: MSG91_BASE_URL,
-      params: {
-        mobile: formattedPhone,
-        authkey: MSG91_AUTH_KEY,
-        template_id: MSG91_TEMPLATE_ID,
-        realTimeResponse: '1'
-      },
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      data: {}
+    const queryParams = {
+      template_id: MSG91_TEMPLATE_ID,
+      mobile: formattedPhone,
     };
 
     // If specific OTP is provided, add it to params
     if (otp) {
-      options.params.otp = otp;
+      queryParams.otp = otp;
     }
 
+    const options = {
+      method: 'POST',
+      url: MSG91_BASE_URL,
+      params: queryParams,
+      headers: {
+        'authkey': MSG91_AUTH_KEY,
+        'Content-Type': 'application/json'
+      }
+    };
+
     console.log(`Sending OTP to ${formattedPhone} via MSG91...`);
-    
+    console.log('MSG91 Config:', { template_id: MSG91_TEMPLATE_ID, authkey: MSG91_AUTH_KEY ? 'SET' : 'NOT SET', mobile: formattedPhone });
+
     // Call MSG91 API
     const response = await axios.request(options);
-    
+
+    console.log('MSG91 Response:', JSON.stringify(response.data));
+
     if (response.data.type === 'success') {
       return {
         success: true,

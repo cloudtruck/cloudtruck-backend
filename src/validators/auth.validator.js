@@ -17,7 +17,7 @@ export const sendOTPSchema = z.object({
 export const verifyOTPSchema = z.object({
   body: z.object({
     phone: z.string().min(10, 'Phone number must be at least 10 digits'),
-    otp: z.string().length(6, 'OTP must be 6 digits'),
+    otp: z.string().min(4, 'OTP must be at least 4 digits').max(6, 'OTP must be at most 6 digits'),
     role: z.enum(['customer', 'driver'], {
       errorMap: () => ({ message: 'Role must be either customer or driver' })
     }),

@@ -55,6 +55,17 @@ const seedAll = async () => {
     process.exit(1);
   }
   
+  // Step 3: Seed Market Rates
+  const step3 = await runScript(
+    'src/scripts/seed-market-rates.js',
+    'Step 3: Seeding Market Rates'
+  );
+
+  if (!step3) {
+    console.log('\n❌ Failed to seed market rates. Aborting...\n');
+    process.exit(1);
+  }
+
   const endTime = Date.now();
   const duration = ((endTime - startTime) / 1000).toFixed(2);
   

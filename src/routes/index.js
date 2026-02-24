@@ -20,6 +20,7 @@ import organizationRoutes from './organization.routes.js';
 import branchRoutes from './branch.routes.js';
 import cityRoutes from './city.routes.js';
 import ewayBillRoutes from './ewayBill.routes.js';
+import marketRateRoutes from './marketRate.routes.js';
 
 const router = express.Router();
 
@@ -54,6 +55,7 @@ router.use('/organization', organizationRoutes);
 router.use('/branches', branchRoutes);
 router.use('/cities', cityRoutes);
 router.use('/eway-bills', ewayBillRoutes);
+router.use('/market-rates', marketRateRoutes);
 
 // 404 handler for undefined routes
 router.use('*', (req, res) => {

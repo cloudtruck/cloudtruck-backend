@@ -13,6 +13,7 @@
     "seed:roles": "node src/scripts/seed-role-templates.js",
     "seed:org": "node src/scripts/seed-organization.js",
     "create-admin": "node src/scripts/create-admin.js",
+    "seed:market-rates": "node src/scripts/seed-market-rates.js",
     "test": "mocha --exit --recursive test --timeout 10000"
   },
   "keywords": [

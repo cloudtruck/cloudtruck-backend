@@ -1,0 +1,17 @@
+{
+  "workspace": {
+    "id": "7a89f144-b1a5-4157-90ab-3fc20f8d7521"
+  },
+  "entities": {
+    "environments": [
+      "../cloudtruck.local.postman_environment.json"
+    ],
+    "flows": [],
+    "globals": [],
+    "mocks": [],
+    "specs": [],
+    "collections": [
+      "../cloudtruck.postman_collection.json"
+    ]
+  }
+}

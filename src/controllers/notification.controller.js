@@ -9,7 +9,7 @@ import ApiError from '../utils/ApiError.js';
  */
 export const getNotifications = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const { page = 1, limit = 20, status } = req.query;
+  const { page = 1, limit = 20, status, category } = req.query;
 
   const pageNum = Math.max(parseInt(page), 1);
   const limitNum = Math.min(Math.max(parseInt(limit), 1), 50);
@@ -18,6 +18,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
   const filter = { user: userId, isDeleted: false };
   if (status === 'read') filter.readAt = { $ne: null };
   else if (status === 'unread') filter.readAt = null;
+  if (category) filter.category = category;
 
   const [items, total] = await Promise.all([
     Notification.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),

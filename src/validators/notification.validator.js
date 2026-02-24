@@ -31,7 +31,8 @@ export const getNotificationsSchema = z.object({
   query: z.object({
     page: z.string().regex(/^\d+$/).optional(),
     limit: z.string().regex(/^\d+$/).optional(),
-    status: z.enum(['read', 'unread']).optional()
+    status: z.enum(['read', 'unread']).optional(),
+    category: z.enum(['truck', 'loading', 'delivery', 'pod', 'payment', 'general']).optional()
   })
 });
 

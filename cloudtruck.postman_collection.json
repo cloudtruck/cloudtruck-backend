@@ -451,6 +451,64 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Send OTP",
+          "id": "2f0613d5-6876-4eba-940f-cc39f22fede0",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone\": \"919270083791\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/otp/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "otp",
+                "send"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "New Request",
+          "id": "d1309e0a-d88c-4a98-b903-a77992e9ce1a",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone\": \"9270083791\",\n    \"otp\": \"9198\",\n    \"role\": \"customer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/otp/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "otp",
+                "verify"
+              ]
+            }
+          },
+          "response": []
         }
       ],
       "id": "ae8e295d-8318-48ff-b4d9-0a51006f06a3"
@@ -3591,6 +3649,39 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "All Notifications",
+          "id": "46bd0da5-bd67-4968-a42d-00d7beef8ec8",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "truck",
+                  "uuid": "f7343800-8002-4ece-ab72-69801bd98062",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "unread",
+                  "type": "text",
+                  "uuid": "5f55290d-ef5b-40e1-837a-a86b5357ee94",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
         }
       ],
       "id": "8eabacac-dc02-443a-a247-c1ce8c0e3a11"
@@ -3843,31 +3934,13 @@
       "name": "Rates",
       "item": [
         {
-          "name": "Get all market rates",
-          "id": "aafc7dcb-fc38-4cce-993e-24df5828776b",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/market-rates",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "market-rates"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
           "name": "Get price trends",
           "id": "e908d16b-f862-40e0-a64f-8b1ed0e24b94",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/market-rates/trends?fromCity=Mumbai&toCity=Delhi",
+              "raw": "{{baseUrl}}/market-rates/trends",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3879,16 +3952,19 @@
                 {
                   "key": "fromCity",
                   "value": "Mumbai",
-                  "uuid": "4535440d-10eb-4a24-b488-a85d523a6add"
+                  "uuid": "4535440d-10eb-4a24-b488-a85d523a6add",
+                  "disabled": true
                 },
                 {
                   "key": "toCity",
                   "value": "Delhi",
-                  "uuid": "6132cab6-7a11-4cf0-a718-3a9c895deda8"
+                  "uuid": "6132cab6-7a11-4cf0-a718-3a9c895deda8",
+                  "disabled": true
                 },
                 {
-                  "key": "truckCategory",
-                  "value": "32FT",
+                  "key": "truckType",
+                  "value": "32ft-mxl",
+                  "uuid": "8b7add72-fc29-4f22-94b0-72a7501c7ffb",
                   "disabled": true
                 }
               ]

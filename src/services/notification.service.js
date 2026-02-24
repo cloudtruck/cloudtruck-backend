@@ -8,6 +8,50 @@ import Notification from '../models/notification.model.js';
 
 let _io = null;
 
+/**
+ * Derive notification category from event type and status data
+ * Maps to mobile app tabs: truck, loading, delivery, pod, payment, general
+ */
+const deriveCategory = (eventType, data = {}) => {
+  // Truck assignment
+  if (['driver_assigned', 'vehicle_assigned', 'booking_assigned', 'booking_truck-assigned'].includes(eventType)) {
+    return 'truck';
+  }
+
+  // Loading
+  if (eventType === 'booking_loaded') {
+    return 'loading';
+  }
+
+  // Delivery
+  if (['booking_in-transit', 'booking_delivered', 'booking_reached-destination',
+       'booking_driver-en-route', 'booking_reached-pickup',
+       'booking_delayed', 'delay_notification',
+       'driver_available_for_return', 'next_booking_active'].includes(eventType)) {
+    return 'delivery';
+  }
+
+  // POD
+  if (['booking_pod-received', 'pod_uploaded'].includes(eventType)) {
+    return 'pod';
+  }
+
+  // Payment
+  if (['payment_success', 'payment_received', 'payment_failed'].includes(eventType)) {
+    return 'payment';
+  }
+
+  // Legacy status_update events (from notifyStatusUpdate)
+  if (eventType === 'status_update') {
+    const status = data.status;
+    if (status === 'loaded') return 'loading';
+    if (status === 'pod-received') return 'pod';
+    if (['in-transit', 'delivered', 'reached-destination', 'driver-en-route', 'reached-pickup'].includes(status)) return 'delivery';
+  }
+
+  return 'general';
+};
+
 class NotificationService {
   /**
    * Set the Socket.io instance for real-time emission
@@ -389,6 +433,8 @@ class NotificationService {
       // If explicit recipients array provided
       const userIds = Array.isArray(recipients) ? recipients.map(resolveId) : (Array.isArray(recipient) ? recipient.map(resolveId) : null);
 
+      const category = deriveCategory(type, data);
+
       if (userIds && userIds.length > 0) {
         // Create notification records
         const notifications = userIds.map((uid) => ({
@@ -398,6 +444,7 @@ class NotificationService {
           title: payload.title,
           body: payload.body,
           data: payload.data,
+          category,
           entity: { type: entityType || 'system', id: entityId }
         }));
 
@@ -443,6 +490,7 @@ class NotificationService {
         title: payload.title,
         body: payload.body,
         data: payload.data,
+        category,
         entity: { type: entityType || 'system', id: entityId }
       });
 

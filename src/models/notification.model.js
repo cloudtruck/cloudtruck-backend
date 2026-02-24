@@ -39,6 +39,14 @@ const notificationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed
   },
   
+  // Category for filtering (maps to mobile app tabs)
+  category: {
+    type: String,
+    enum: ['truck', 'loading', 'delivery', 'pod', 'payment', 'general'],
+    default: 'general',
+    index: true
+  },
+
   // Related Entity (booking, payment, driver, vehicle)
   entity: {
     type: {

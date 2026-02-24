@@ -59,28 +59,28 @@ userSchema.virtual('isLocked').get(function() {
 
 /* Instance Methods */
 
-// Generate Access Token (15 minutes)
+// Generate Access Token (7 days)
 userSchema.methods.generateAccessToken = function() {
   return jwt.sign(
-    { 
+    {
       _id: this._id,
       role: this.role,
       phone: this.phone,
       email: this.email
     },
     process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || '15m' }
+    { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || '7d' }
   );
 };
 
-// Generate Refresh Token (7 days)
+// Generate Refresh Token (30 days)
 userSchema.methods.generateRefreshToken = function() {
   return jwt.sign(
-    { 
+    {
       _id: this._id
     },
     process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || '7d' }
+    { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || '30d' }
   );
 };
 

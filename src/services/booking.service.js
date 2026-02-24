@@ -128,7 +128,7 @@ class BookingService {
       }
     }
 
-    const loadDateObj = new Date(loadDate);
+    const loadDateObj = loadDate ? new Date(loadDate) : null;
 
     // Create booking + update customer metrics in a transaction
     const session = await mongoose.startSession();
@@ -163,8 +163,10 @@ class BookingService {
           },
           truckTypeNeeded: truckType,
           bodyType: bodyType || 'open',
-          loadDate: loadDateObj,
-          loadTime: loadDateObj.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+          ...(loadDateObj && {
+            loadDate: loadDateObj,
+            loadTime: loadDateObj.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+          }),
           advanceRequired,
           additionalInstructions,
           expectedAmount,

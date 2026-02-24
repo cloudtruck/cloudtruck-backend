@@ -29,7 +29,7 @@ export const createBookingSchema = z.object({
     loadDate: z.string().datetime('Invalid date format').refine(
       (val) => new Date(val) > new Date(),
       'Load date must be in the future'
-    ),
+    ).optional(),
     advanceRequired: z.preprocess((v) => (v === undefined ? 0 : parseFloat(v)), z.number().nonnegative('Advance amount cannot be negative')).default(0),
     additionalInstructions: z.string().optional(),
     expectedAmount: z.preprocess((v) => (v === undefined ? undefined : parseFloat(v)), z.number().positive().optional()),

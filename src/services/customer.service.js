@@ -238,7 +238,10 @@ class CustomerService {
    * @returns {Promise<Object>} Updated customer
    */
   static async updateCustomer(customerId, updateData, userId) {
-    const customer = await Customer.findOne({ _id: customerId, isDeleted: false });
+    const customer = await Customer.findOne({
+      $or: [{ _id: customerId }, { user: customerId }],
+      isDeleted: false
+    });
 
     if (!customer) {
       throw new ApiError(404, 'Customer not found');

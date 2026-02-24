@@ -1,0 +1,421 @@
+{
+  "info": {
+    "_postman_id": "23511ff4-2005-4b26-a116-26ae30b9167f",
+    "name": "Driver App APIs Copy",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Send OTP",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code >= 200 && pm.response.code < 300) {",
+              "  const json = pm.response.json();",
+              "  const data = json.data || {};",
+              "  if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+              "  if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);",
+              "  if (data.user && data.user._id) pm.collectionVariables.set('userId', data.user._id);",
+              "}"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {},
+            "id": "8fc9d431-784f-4310-83e5-9b27d580b0c4"
+          }
+        }
+      ],
+      "id": "0871803f-cce4-4736-9aa3-3ad890c7a5ce",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"919270083791\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/otp/send",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "otp",
+            "send"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Verify OTP",
+      "id": "0e32e861-4d99-4483-8a5d-0472364fd6a9",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"phone\": \"9270083791\",\n    \"otp\": \"1067\",\n    \"role\": \"driver\",\n    \"deviceInfo\": {\n        \"fcmToken\": \"fcm_token_from_firebase\",\n        \"deviceModel\":\"iPhone 15 Pro\",\n        \"ipAddress\": \"192.168.1.1\",\n        \"appVersion\": \"1.0.0\",\n        \"os\": \"iOS\"\n    } //deviceInfo is optional but recommended\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/otp/verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "otp",
+            "verify"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Driver Bookings",
+      "id": "7d8313d1-1302-46a9-9d91-b1c8c58f7159",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/bookings/driver-bookings?page=1&limit=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "bookings",
+            "driver-bookings"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "My Profile",
+      "id": "fb7742e4-da56-40a1-917e-0995b39d1a69",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/drivers/my-profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "drivers",
+            "my-profile"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "My Performance",
+      "id": "9b56bd9c-4fa8-4830-8170-9431b785cbb8",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/drivers/my-performance?startDate=2025-12-01T00:00:00.000Z&endDate=2025-12-31T23:59:59.000Z",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "drivers",
+            "my-performance"
+          ],
+          "query": [
+            {
+              "key": "startDate",
+              "value": "2025-12-01T00:00:00.000Z"
+            },
+            {
+              "key": "endDate",
+              "value": "2025-12-31T23:59:59.000Z"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Update My Location",
+      "id": "f68fcb04-7a87-4625-8f93-2b2c076b8fcb",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"latitude\": 19.076,\n  \"longitude\": 72.8777\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/drivers/my-location",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "drivers",
+            "my-location"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Upload POD (booking)",
+      "id": "d547d70f-ceac-47bc-ac63-88ad7c059363",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": [
+                ""
+              ]
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/documents/booking/{{bookingId}}/pod",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "documents",
+            "booking",
+            "{{bookingId}}",
+            "pod"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Upload Loading Images (booking)",
+      "id": "202dbeec-7535-4cde-8642-0d16aff8a639",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "files",
+              "type": "file",
+              "src": [
+                ""
+              ]
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/documents/booking/{{bookingId}}/loading-images",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "documents",
+            "booking",
+            "{{bookingId}}",
+            "loading-images"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Add Delay",
+      "id": "06a1c9dc-c517-4bec-bbc6-ac283bef7f6e",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Traffic jam near highway\",\n  \"estimatedDelay\": 45\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bookings/{{bookingId}}/delay",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "bookings",
+            "{{bookingId}}",
+            "delay"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Update My Availability",
+      "id": "20352cd4-17f6-4942-8ec5-2238b27d29da",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"isAvailable\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/drivers/my-availability",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "drivers",
+            "my-availability"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "My Trip History",
+      "id": "8fdcc9a9-9c7e-4882-969f-b3f673d2c0ce",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/drivers/my-trip-history?page=1&limit=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "drivers",
+            "my-trip-history"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            },
+            {
+              "key": "sort",
+              "value": null,
+              "disabled": true
+            },
+            {
+              "key": "startDate",
+              "value": "2026-02-01",
+              "disabled": true
+            },
+            {
+              "key": "endDate",
+              "value": "2026-02-23",
+              "disabled": true
+            },
+            {
+              "key": "status",
+              "value": "created, assigned, in-transit, delivered, closed, cancelled",
+              "type": "text",
+              "disabled": true
+            },
+            {
+              "key": "search",
+              "value": "booking ID, pickup city, or drop city",
+              "type": "text",
+              "disabled": true
+            },
+            {
+              "key": "customerName",
+              "value": null,
+              "type": "text",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

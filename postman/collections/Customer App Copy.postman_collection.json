@@ -1,0 +1,528 @@
+{
+  "info": {
+    "_postman_id": "e01722aa-2d03-4b98-a7f6-221f60f5a366",
+    "name": "Customer App Copy",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Customer App",
+      "item": [
+        {
+          "name": "Send OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  const data = json.data || {};",
+                  "  if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "  if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);",
+                  "  if (data.user && data.user._id) pm.collectionVariables.set('userId', data.user._id);",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {},
+                "id": "62cc57a2-71c4-45de-b1f2-5f810cf3a8fd"
+              }
+            }
+          ],
+          "id": "af77b505-5ec6-4b59-a301-13b0b8688d1d",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+918459727003\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/otp/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "otp",
+                "send"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify OTP",
+          "id": "1e2b92be-ba03-4ef3-bd68-8c423858c1de",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone\": \"918459727003\",\n    \"otp\": \"6998\",\n    \"role\": \"customer\",\n    \"deviceInfo\": {\n        \"fcmToken\": \"fcm_token_from_firebase\",\n        \"deviceModel\":\"iPhone 15 Pro\",\n        \"ipAddress\": \"192.168.1.1\",\n        \"appVersion\": \"1.0.0\",\n        \"os\": \"iOS\"\n    } //deviceInfo is optional but recommended\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/otp/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "otp",
+                "verify"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "id": "43423435-8b97-4f9c-9b2b-b541d80a1e92",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Is Logged In",
+          "id": "21cf7892-6efe-4a35-8e85-2f0a82bf41e0",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Booking (customer) - saves bookingId Copy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data._id) pm.collectionVariables.set('bookingId', json.data._id);",
+                  "}"
+                ],
+                "id": "6f167e15-2e03-459f-8707-31dac08bdf41"
+              }
+            }
+          ],
+          "id": "98d19c3d-c080-4394-a193-026a32192819",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupCity\": \"Mumbai\",\n  \"pickupLat\": 19.076\n,  \"pickupLng\": 72.8777,\n  \"pickupAddress\": \"Mumbai, Maharashtra\",\n  \"dropCity\": \"Pune\",\n  \"dropLat\": 18.5204,\n  \"dropLng\": 73.8567,\n  \"dropAddress\": \"Pune, Maharashtra\",\n  \"materialType\": \"FMCG\",\n  \"weight\": 10,\n  \"truckType\": \"17ft\",\n  \"loadDate\": \"2025-12-13T10:00:00.000Z\",\n  \"advanceRequired\": 0,\n  \"additionalInstructions\": \"Handle with care\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Booking By ID Copy",
+          "id": "3f68f093-82ca-4cb8-8dd4-b4253f9aac1f",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/699cb11654f9bb9bcf096eb0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "699cb11654f9bb9bcf096eb0"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Booking (customer/staff/internal/super-admin) Copy",
+          "id": "122d271b-e187-46e2-83a0-231129ef7708",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Customer cancelled - change of plan\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "{{bookingId}}",
+                "cancel"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "My Profile",
+          "id": "60ecdcdf-0b75-4545-b5b9-ef3ac304d7c8",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/my-profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "my-profile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "My Booking History (customer) Copy",
+          "id": "61bede94-0515-4419-8bdb-8410cbc13386",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/my-bookings?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "my-bookings"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "in-transit,delivered",
+                  "disabled": true
+                },
+                {
+                  "key": "truckType",
+                  "value": "tata-ace,eicher-17ft",
+                  "disabled": true
+                },
+                {
+                  "key": "podPending",
+                  "value": "true",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Enter GST",
+          "id": "703c9bf0-d217-4fbf-8e25-6fb4261ec854",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": " { \"gstNumber\": \"27AAPFU0939F1ZV\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/my-gst",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "my-gst"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Truck Types",
+          "id": "a22ee2af-63fc-4330-a7c3-e92e556d16b4",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/truck-types",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "truck-types"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Bank Accounts",
+          "id": "3279da37-6d79-44f4-83ff-eedddffecc6a",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/customers/my-bank-accounts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "my-bank-accounts"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Bank Account",
+          "id": "9046d809-0ad1-41ba-95d9-90edb0f249b9",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer <TOKEN>"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n      \"accountNumber\": \"1234567890\",\n      \"ifscCode\": \"SBIN0001234\",\n      \"accountHolderName\": \"Ahmad Parizaad\",\n      \"bankName\": \"State Bank of India\",\n      \"branchName\": \"Main Branch\",\n      \"accountType\": \"current\",\n      \"upiId\": \"ahmad@sbi\",\n      \"isPrimary\": true\n    }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/my-bank-accounts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "my-bank-accounts"
+              ]
+            },
+            "description": "Generated from cURL: curl -X POST http://localhost:5000/api/v1/customers/my-bank-accounts \\\n    -H \"Authorization: Bearer <TOKEN>\" \\\n    -H \"Content-Type: application/json\" \\\n    -d '{\n      \"accountNumber\": \"1234567890\",\n      \"ifscCode\": \"SBIN0001234\",\n      \"accountHolderName\": \"Ahmad Parizaad\",\n      \"bankName\": \"State Bank of India\",\n      \"branchName\": \"Main Branch\",\n      \"accountType\": \"current\",\n      \"upiId\": \"ahmad@sbi\",\n      \"isPrimary\": true\n    }'"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Bank Account",
+          "id": "3fb7ec5c-3d03-4d13-93d0-e50cddbb2abf",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer <TOKEN>"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n      \"bankName\": \"HDFC Bank\",\n      \"branchName\": \"Updated Branch\"\n    }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/my-bank-accounts/<accountId>",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "my-bank-accounts",
+                "<accountId>"
+              ]
+            },
+            "description": "Generated from cURL: curl -X PATCH http://localhost:5000/api/v1/customers/my-bank-accounts/<accountId> \\\n    -H \"Authorization: Bearer <TOKEN>\" \\\n    -H \"Content-Type: application/json\" \\\n    -d '{\n      \"bankName\": \"HDFC Bank\",\n      \"branchName\": \"Updated Branch\"\n    }'"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Bank Account",
+          "id": "72df7338-f554-403d-943e-a4970b2fc067",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer <TOKEN>"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/my-bank-accounts/<accountId>",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "my-bank-accounts",
+                "<accountId>"
+              ]
+            },
+            "description": "Generated from cURL: curl -X DELETE http://localhost:5000/api/v1/customers/my-bank-accounts/<accountId> \\\n    -H \"Authorization: Bearer <TOKEN>\"\n\n  Set Primary Bank Account\n\n  curl -X PATCH http://localhost:5000/api/v1/customers/my-bank-accounts/<accountId>/primary \\\n    -H \"Authorization: Bearer <TOKEN>\""
+          },
+          "response": []
+        },
+        {
+          "name": "Set Primary Bank Account",
+          "id": "9ee5e4dd-84e7-4f85-81b6-0afdf41c02e2",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer <TOKEN>"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/my-bank-accounts/<accountId>/primary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "my-bank-accounts",
+                "<accountId>",
+                "primary"
+              ]
+            },
+            "description": "Generated from cURL: curl -X PATCH http://localhost:5000/api/v1/customers/my-bank-accounts/<accountId>/primary \\\n    -H \"Authorization: Bearer <TOKEN>\""
+          },
+          "response": []
+        }
+      ],
+      "id": "7dac668a-5db6-495d-a2ed-f3c8f89e0a55"
+    }
+  ]
+}

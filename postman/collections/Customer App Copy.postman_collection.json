@@ -14,6 +14,7 @@
             {
               "listen": "test",
               "script": {
+                "id": "62cc57a2-71c4-45de-b1f2-5f810cf3a8fd",
                 "exec": [
                   "if (pm.response.code >= 200 && pm.response.code < 300) {",
                   "  const json = pm.response.json();",
@@ -25,8 +26,19 @@
                 ],
                 "type": "text/javascript",
                 "packages": {},
-                "requests": {},
-                "id": "62cc57a2-71c4-45de-b1f2-5f810cf3a8fd"
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "09333429-83dc-404c-801f-f866370ca72b",
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
               }
             }
           ],
@@ -48,7 +60,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"phone\": \"+918459727003\"\n}"
+              "raw": "{\n  \"phone\": \"+919270083791\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/otp/send",
@@ -72,7 +84,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"phone\": \"918459727003\",\n    \"otp\": \"6998\",\n    \"role\": \"customer\",\n    \"deviceInfo\": {\n        \"fcmToken\": \"fcm_token_from_firebase\",\n        \"deviceModel\":\"iPhone 15 Pro\",\n        \"ipAddress\": \"192.168.1.1\",\n        \"appVersion\": \"1.0.0\",\n        \"os\": \"iOS\"\n    } //deviceInfo is optional but recommended\n}",
+              "raw": "{\n    \"phone\": \"919270083791\",\n    \"otp\": \"9843\",\n    \"role\": \"customer\",\n    \"deviceInfo\": {\n        \"fcmToken\": \"fcm_token_from_firebase\",\n        \"deviceModel\":\"iPhone 15 Pro\",\n        \"ipAddress\": \"192.168.1.1\",\n        \"appVersion\": \"1.0.0\",\n        \"os\": \"iOS\"\n    } //deviceInfo is optional but recommended\n}",
               "options": {
                 "raw": {
                   "language": "json"

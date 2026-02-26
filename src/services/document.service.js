@@ -133,13 +133,13 @@ class DocumentService {
   }
 
   /**
-   * Upload POD (Proof of Delivery) for booking
+   * Upload POD documents for booking (POD file, LR copy, weight slip, other documents)
    * @param {String} bookingId - Booking ID
-   * @param {Object} file - POD file
+   * @param {Object} files - Files keyed by field name (pod, lrCopy, weightSlip, otherDocuments)
    * @param {String} userId - User uploading POD
-   * @returns {Promise<Document>}
+   * @returns {Promise<Object>} - Uploaded documents grouped by type
    */
-  static async uploadPOD(bookingId, file, userId) {
+  static async uploadPOD(bookingId, files, userId) {
     const booking = await Booking.findById(bookingId);
     if (!booking) throw new ApiError(404, 'Booking not found');
 
@@ -147,24 +147,73 @@ class DocumentService {
       throw new ApiError(400, 'POD can only be uploaded for delivered bookings');
     }
 
-    // Upload POD
+    const uploaded = { pod: [], lrCopy: [], weightSlip: [], otherDocuments: [] };
+
+    const fieldMap = [
+      { field: 'pod', docType: 'pod', bookingArray: 'podDocuments' },
+      { field: 'lrCopy', docType: 'lr-copy', bookingArray: 'lrCopyDocuments' },
+      { field: 'weightSlip', docType: 'weight-slip', bookingArray: 'weightSlipDocuments' },
+      { field: 'otherDocuments', docType: 'other', bookingArray: 'otherDocuments' }
+    ];
+
+    for (const { field, docType, bookingArray } of fieldMap) {
+      const fileList = files[field] || [];
+      for (const file of fileList) {
+        const document = await this.createDocument(
+          {
+            entityType: 'booking',
+            entityId: bookingId,
+            documentType: docType,
+            file
+          },
+          userId
+        );
+        uploaded[field].push(document);
+        booking[bookingArray].push(document._id);
+      }
+    }
+
+    booking.podUploadedAt = new Date();
+    booking.podUploadedBy = userId;
+    await booking.save();
+
+    logger.info('POD documents uploaded:', { bookingId, counts: Object.fromEntries(Object.entries(uploaded).map(([k, v]) => [k, v.length])) });
+    return uploaded;
+  }
+
+  /**
+   * Upload LR (Lorry Receipt) for booking
+   * @param {String} bookingId - Booking ID
+   * @param {Object} file - LR file
+   * @param {Object} lrData - LR metadata (lrNumber, lrDate, remarks)
+   * @param {String} userId - User uploading LR
+   * @returns {Promise<Document>}
+   */
+  static async uploadLR(bookingId, file, lrData, userId) {
+    const booking = await Booking.findById(bookingId);
+    if (!booking) throw new ApiError(404, 'Booking not found');
+
     const document = await this.createDocument(
       {
         entityType: 'booking',
         entityId: bookingId,
-        documentType: 'pod',
+        documentType: 'lr',
         file
       },
       userId
     );
 
-    // Update booking
-    booking.podImages.push(document._id);
-    booking.podUploadedAt = new Date();
-    booking.podUploadedBy = userId;
+    booking.lrDetails = {
+      lrNumber: lrData.lrNumber,
+      lrDate: new Date(lrData.lrDate),
+      remarks: lrData.remarks,
+      document: document._id,
+      uploadedAt: new Date(),
+      uploadedBy: userId
+    };
     await booking.save();
 
-    logger.info('POD uploaded:', { bookingId, documentId: document._id });
+    logger.info('LR uploaded:', { bookingId, documentId: document._id });
     return document;
   }
 
@@ -214,8 +263,11 @@ class DocumentService {
     return {
       all: documents,
       pod: documents.filter((d) => d.documentType === 'pod'),
+      lrCopy: documents.filter((d) => d.documentType === 'lr-copy'),
+      weightSlip: documents.filter((d) => d.documentType === 'weight-slip'),
       loadingImages: documents.filter((d) => d.documentType === 'loading-image'),
-      other: documents.filter((d) => !['pod', 'loading-image'].includes(d.documentType))
+      lr: documents.filter((d) => d.documentType === 'lr'),
+      other: documents.filter((d) => !['pod', 'lr', 'lr-copy', 'weight-slip', 'loading-image'].includes(d.documentType))
     };
   }
 

@@ -52,15 +52,28 @@ export const deleteDocument = asyncHandler(async (req, res) => {
 });
 
 /**
- * Upload POD for booking
+ * Upload POD documents for booking (POD file, LR copy, weight slip, other documents)
  */
 export const uploadPOD = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
+  const files = req.files;
+
+  const documents = await DocumentService.uploadPOD(bookingId, files, req.user._id);
+
+  return res.status(201).json(new ApiResponse(201, documents, 'POD documents uploaded successfully'));
+});
+
+/**
+ * Upload LR for booking
+ */
+export const uploadLR = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
   const file = req.file;
+  const { lrNumber, lrDate, remarks } = req.body;
 
-  const document = await DocumentService.uploadPOD(bookingId, file, req.user._id);
+  const document = await DocumentService.uploadLR(bookingId, file, { lrNumber, lrDate, remarks }, req.user._id);
 
-  return res.status(201).json(new ApiResponse(201, document, 'POD uploaded successfully'));
+  return res.status(201).json(new ApiResponse(201, document, 'LR uploaded successfully'));
 });
 
 /**

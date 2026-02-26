@@ -8,6 +8,7 @@ import {
   getDocumentsByEntitySchema,
   documentIdParamSchema,
   bookingIdParamSchema,
+  uploadLRSchema,
   getSignedUrlSchema
 } from '../validators/document.validator.js';
 
@@ -44,13 +45,27 @@ router.delete(
   documentController.deleteDocument
 );
 
-// Upload POD for booking
+// Upload POD documents for booking (POD file, LR copy, weight slip, other documents)
 router.post(
   '/booking/:bookingId/pod',
   checkRole('driver', 'staff', 'internal', 'super-admin'),
-  upload.single('file'),
+  upload.fields([
+    { name: 'pod', maxCount: 5 },
+    { name: 'lrCopy', maxCount: 5 },
+    { name: 'weightSlip', maxCount: 5 },
+    { name: 'otherDocuments', maxCount: 5 }
+  ]),
   validate(bookingIdParamSchema),
   documentController.uploadPOD
+);
+
+// Upload LR for booking
+router.post(
+  '/booking/:bookingId/lr',
+  checkRole('driver', 'staff', 'internal', 'super-admin'),
+  upload.single('file'),
+  validate(uploadLRSchema),
+  documentController.uploadLR
 );
 
 // Upload loading images for booking

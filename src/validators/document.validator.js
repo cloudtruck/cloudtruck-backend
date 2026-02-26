@@ -6,7 +6,7 @@ export const uploadDocumentSchema = z.object({
   body: z.object({
     entityType: z.enum(['booking', 'driver', 'customer', 'vehicle']),
     entityId: z.string().regex(objectIdRegex, 'Invalid entity ID'),
-    documentType: z.enum(['pod', 'loading-image', 'rc', 'license', 'permit', 'gst', 'pan', 'other'])
+    documentType: z.enum(['pod', 'lr', 'lr-copy', 'weight-slip', 'loading-image', 'rc', 'license', 'permit', 'gst', 'pan', 'other'])
   })
 });
 
@@ -16,7 +16,7 @@ export const getDocumentsByEntitySchema = z.object({
     entityId: z.string().regex(objectIdRegex, 'Invalid entity ID')
   }),
   query: z.object({
-    documentType: z.enum(['pod', 'loading-image', 'rc', 'license', 'permit', 'gst', 'pan', 'other']).optional()
+    documentType: z.enum(['pod', 'lr', 'lr-copy', 'weight-slip', 'loading-image', 'rc', 'license', 'permit', 'gst', 'pan', 'other']).optional()
   })
 });
 
@@ -29,6 +29,17 @@ export const documentIdParamSchema = z.object({
 export const bookingIdParamSchema = z.object({
   params: z.object({
     bookingId: z.string().regex(objectIdRegex, 'Invalid booking ID')
+  })
+});
+
+export const uploadLRSchema = z.object({
+  params: z.object({
+    bookingId: z.string().regex(objectIdRegex, 'Invalid booking ID')
+  }),
+  body: z.object({
+    lrNumber: z.string().min(1, 'LR number is required'),
+    lrDate: z.string().refine(val => !isNaN(Date.parse(val)), 'Invalid date format'),
+    remarks: z.string().optional()
   })
 });
 

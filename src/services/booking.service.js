@@ -29,10 +29,12 @@ class BookingService {
   static async createBooking(data, userId, files = []) {
     const {
       pickupCity,
+      pickupState,
       pickupLat,
       pickupLng,
       pickupAddress,
       dropCity,
+      dropState,
       dropLat,
       dropLng,
       dropAddress,
@@ -140,6 +142,7 @@ class BookingService {
           customer: customer._id,
           pickup: {
             city: pickupCity,
+            state: pickupState,
             address: finalPickupAddress,
             location: {
               type: 'Point',
@@ -149,6 +152,7 @@ class BookingService {
           },
           drop: {
             city: dropCity,
+            state: dropState,
             address: finalDropAddress,
             location: {
               type: 'Point',
@@ -693,8 +697,8 @@ class BookingService {
 
     // Define allowed fields for update
     const allowedFields = [
-      'pickupCity', 'pickupLat', 'pickupLng', 'pickupAddress',
-      'dropCity', 'dropLat', 'dropLng', 'dropAddress',
+      'pickupCity', 'pickupState', 'pickupLat', 'pickupLng', 'pickupAddress',
+      'dropCity', 'dropState', 'dropLat', 'dropLng', 'dropAddress',
       'materialType', 'weight', 'truckType', 'bodyType',
       'additionalInstructions', 'isHazardous', 'isFragile', 'requiresTemperatureControl'
     ];

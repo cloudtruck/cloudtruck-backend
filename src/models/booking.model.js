@@ -41,6 +41,7 @@ const contactPersonSchema = new Schema(
 const addressBlockSchema = new Schema(
   {
     city: { type: String, trim: true, index: true },
+    state: { type: String, trim: true },
     address: { type: String, trim: true },
     pincode: { type: String, trim: true, match: [/^\d{6}$/, 'Invalid pincode'] },
     landmark: String,
@@ -195,7 +196,13 @@ const bookingSchema = new Schema(
     cargoDocuments: [{ type: Schema.Types.ObjectId, ref: 'Document' }],
     loadingDocuments: [{ type: Schema.Types.ObjectId, ref: 'Document' }],
     podDocuments: [{ type: Schema.Types.ObjectId, ref: 'Document' }],
+    lrCopyDocuments: [{ type: Schema.Types.ObjectId, ref: 'Document' }],
+    weightSlipDocuments: [{ type: Schema.Types.ObjectId, ref: 'Document' }],
+    otherDocuments: [{ type: Schema.Types.ObjectId, ref: 'Document' }],
     invoices: [{ type: Schema.Types.ObjectId, ref: 'Document' }],
+
+    podUploadedAt: { type: Date },
+    podUploadedBy: { type: Schema.Types.ObjectId, ref: 'User' },
 
     // POD
     podDetails: {
@@ -204,6 +211,16 @@ const bookingSchema = new Schema(
       receiverSignatureDocument: { type: Schema.Types.ObjectId, ref: 'Document' },
       deliveredAt: Date,
       remarks: String
+    },
+
+    // LR (Lorry Receipt)
+    lrDetails: {
+      lrNumber: { type: String, trim: true },
+      lrDate: { type: Date },
+      remarks: { type: String },
+      document: { type: Schema.Types.ObjectId, ref: 'Document' },
+      uploadedAt: { type: Date },
+      uploadedBy: { type: Schema.Types.ObjectId, ref: 'User' }
     },
 
     // Notes & issues

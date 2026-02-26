@@ -58,11 +58,13 @@ export const mapBooking = (b) => {
     } : null,
     pickup: {
       city: bk.pickup?.city,
+      state: bk.pickup?.state,
       address: bk.pickup?.address,
       latLng: bk.pickup?.location || bk.pickup?.latLng
     },
     drop: {
       city: bk.drop?.city,
+      state: bk.drop?.state,
       address: bk.drop?.address,
       latLng: bk.drop?.location || bk.drop?.latLng
     },
@@ -70,11 +72,15 @@ export const mapBooking = (b) => {
     weight: bk.weight,
     truckTypeNeeded: bk.truckTypeNeeded,
     bodyType: bk.bodyType,
+    estimatedDistance: bk.estimatedDistance?.value || null,
     loadDateTime: bk.loadDateTime || bk.loadDate || bk.loadDateTime,
     status: bk.status,
     paymentStatus: bk.paymentStatus,
     expectedAmount: bk.expectedAmount,
+    finalAmount: bk.finalAmount,
+    freight: bk.finalAmount || bk.expectedAmount || 0,
     advanceRequired: bk.advanceRequired,
+    balance: (bk.finalAmount || bk.expectedAmount || 0) - (bk.advanceRequired || 0),
     additionalInstructions: bk.additionalInstructions,
     isHazardous: bk.isHazardous,
     isFragile: bk.isFragile,

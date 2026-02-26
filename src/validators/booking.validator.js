@@ -14,10 +14,12 @@ export const MATERIAL_TYPES = [
 export const createBookingSchema = z.object({
   body: z.object({
     pickupCity: z.string().min(1, 'Pickup city is required'),
+    pickupState: z.string().min(1, 'Pickup state is required').optional(),
     pickupLat: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-90).max(90, 'Invalid pickup latitude')),
     pickupLng: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-180).max(180, 'Invalid pickup longitude')),
     pickupAddress: z.string().min(1, 'Pickup address is required'),
     dropCity: z.string().min(1, 'Drop city is required'),
+    dropState: z.string().min(1, 'Drop state is required').optional(),
     dropLat: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-90).max(90, 'Invalid drop latitude')),
     dropLng: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-180).max(180, 'Invalid drop longitude')),
     dropAddress: z.string().min(1, 'Drop address is required'),
@@ -112,10 +114,12 @@ export const updateBookingSchema = z.object({
   }),
   body: z.object({
     pickupCity: z.string().min(1, 'Pickup city is required').optional(),
+    pickupState: z.string().optional(),
     pickupLat: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-90).max(90, 'Invalid pickup latitude').optional()),
     pickupLng: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-180).max(180, 'Invalid pickup longitude').optional()),
     pickupAddress: z.string().min(1, 'Pickup address is required').optional(),
     dropCity: z.string().min(1, 'Drop city is required').optional(),
+    dropState: z.string().optional(),
     dropLat: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-90).max(90, 'Invalid drop latitude').optional()),
     dropLng: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-180).max(180, 'Invalid drop longitude').optional()),
     dropAddress: z.string().min(1, 'Drop address is required').optional(),

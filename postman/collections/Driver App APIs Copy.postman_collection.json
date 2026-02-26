@@ -215,44 +215,6 @@
       "response": []
     },
     {
-      "name": "Upload POD (booking)",
-      "id": "d547d70f-ceac-47bc-ac63-88ad7c059363",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "formdata",
-          "formdata": [
-            {
-              "key": "file",
-              "type": "file",
-              "src": [
-                ""
-              ]
-            }
-          ]
-        },
-        "url": {
-          "raw": "{{baseUrl}}/documents/booking/{{bookingId}}/pod",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "documents",
-            "booking",
-            "{{bookingId}}",
-            "pod"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
       "name": "Upload Loading Images (booking)",
       "id": "202dbeec-7535-4cde-8642-0d16aff8a639",
       "request": {
@@ -411,6 +373,380 @@
               "value": null,
               "type": "text",
               "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "KYC",
+      "id": "826879c9-f0e6-403d-a12c-dab9124226e2",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"fullName\": \"Ahmad Parizaad\",\n      \"panNumber\": \"ABCDE1234F\",\n      \"city\": \"Mumbai\",\n      \"referralCode\": \"REF123\",\n      \"truckType\": \"open-body\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/drivers/my-kyc",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "drivers",
+            "my-kyc"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Add Truck",
+      "id": "98c9460d-fa54-467d-89f6-d9248789ca95",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"truckNumber\": \"MH12AB1234\",       \n    \"currentCity\":\"Pune\",\n    \"driverPhoneNumber\": \"+919876543210\",\n    \"truckHeight\": 12,\n    \"truckType\": \"open-body\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/drivers/my-truck",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "drivers",
+            "my-truck"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Upload LR",
+      "id": "0141125a-e0e2-4ff0-8dba-ada2061076e7",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "lrNumber",
+              "value": "",
+              "type": "text",
+              "uuid": "158ae96a-2c91-46e6-afc0-f37bda9852d0"
+            },
+            {
+              "key": "lrDate",
+              "value": "",
+              "type": "text",
+              "uuid": "73705799-4327-4758-acf0-aa6092c7722e"
+            },
+            {
+              "key": "remarks",
+              "value": "",
+              "type": "text",
+              "uuid": "61af5dfd-da9e-405e-b7b0-9c1d0e1adc70"
+            },
+            {
+              "key": "document",
+              "type": "file",
+              "uuid": "da4b5d83-3585-4f17-b45c-3f598a0ca80b",
+              "src": []
+            },
+            {
+              "key": "uploadedAt",
+              "value": "",
+              "type": "text",
+              "uuid": "9ec95a99-89c4-4e7e-8cf9-ce5646585625"
+            },
+            {
+              "key": "uploadedBy",
+              "value": "",
+              "type": "text",
+              "uuid": "0380dae8-e418-4549-98db-d3dd6635e61f"
+            }
+          ],
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/booking/{{bookingId}}/lr",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "booking",
+            "{{bookingId}}",
+            "lr"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Upload POD",
+      "id": "e91bfe52-e3bb-464a-9ae8-ae789f93edfa",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "pod",
+              "type": "file",
+              "uuid": "09c0aac8-f859-4afd-8b7c-11ef6e1818c4",
+              "src": []
+            },
+            {
+              "key": "lrCopy",
+              "type": "file",
+              "uuid": "ca6034f5-f90d-4d72-ac40-5a958683a2b5",
+              "src": []
+            },
+            {
+              "key": "weightSlip",
+              "type": "file",
+              "uuid": "0a5ee8b9-315c-4a99-92c0-ea46812e830f",
+              "src": []
+            },
+            {
+              "key": "otherDocuments",
+              "type": "file",
+              "uuid": "08c3cefd-b38d-4803-b45c-bbf843d6975d",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/documents/booking/:bookingId/pod",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "documents",
+            "booking",
+            ":bookingId",
+            "pod"
+          ],
+          "variable": [
+            {
+              "key": "bookingId",
+              "value": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Add Account",
+      "id": "08000253-3a54-4652-828a-3bdd12b7c4b9",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "accountHolderName",
+              "value": "Test Name",
+              "type": "text",
+              "uuid": "f5d0dd12-c6e7-4602-ac55-b6a001a3f158"
+            },
+            {
+              "key": "accountNumber",
+              "value": "1234567890123",
+              "type": "text",
+              "uuid": "bbf75563-2032-4f8b-a325-8fc861007ace"
+            },
+            {
+              "key": "ifscCode",
+              "value": "SBIN0001234",
+              "type": "text",
+              "uuid": "63fb7c20-7d47-406b-87af-c251288d286e"
+            },
+            {
+              "key": "aadhaarNumber",
+              "value": "123456789012",
+              "type": "text",
+              "uuid": "eebdce89-578b-4ea1-8747-ec07694bb5bf"
+            },
+            {
+              "key": "panNumber",
+              "value": "ABCDE1234F",
+              "type": "text"
+            },
+            {
+              "key": "gstin",
+              "value": "27ABCDE1234F1Z5",
+              "type": "text"
+            },
+            {
+              "key": "chequeImage",
+              "type": "file",
+              "uuid": "a79bb608-8302-40ca-9666-13b10fdcfcb2",
+              "src": [
+                "/Users/ahmadparizaad/Downloads/WhatsApp Image 2026-02-25 at 5.13.34 PM.jpeg"
+              ]
+            },
+            {
+              "key": "tdsDocument",
+              "type": "file",
+              "uuid": "7d474788-b306-429b-92ed-71feac1668b6",
+              "src": [
+                "/Users/ahmadparizaad/Downloads/WhatsApp Image 2026-02-25 at 5.13.37 PM.jpeg"
+              ]
+            },
+            {
+              "key": "aadhaarDocument",
+              "type": "file",
+              "uuid": "62e5a461-8fe5-4619-bc4c-78d74f7be149",
+              "src": [
+                "/Users/ahmadparizaad/Downloads/WhatsApp Image 2026-02-25 at 5.13.54 PM.jpeg"
+              ]
+            },
+            {
+              "key": "panDocument",
+              "type": "file",
+              "uuid": "8f7e9daf-5b8c-4cb5-88dc-116d9eec2349",
+              "src": [
+                "/Users/ahmadparizaad/Downloads/Somewhere in the World, 2020-2.jpg"
+              ]
+            }
+          ],
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/drivers/my-account-info",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "drivers",
+            "my-account-info"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Active Trips",
+      "id": "91c4ec17-4c73-431d-af63-f34f9aaeda72",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/drivers/my-trip-history?status=active",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "",
+            "drivers",
+            "my-trip-history"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "active"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POD Trips",
+      "id": "79fd4577-d0b5-436d-9ec4-af699815daa0",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/drivers/my-trip-history?status=delivered",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "drivers",
+            "my-trip-history"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "delivered"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Invoiced Trips",
+      "id": "da532f26-c185-49e7-b548-2d29d9bbd340",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/drivers/my-trip-history?status=pod-received",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "drivers",
+            "my-trip-history"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "pod-received"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Balanced Trips",
+      "id": "02879b0c-31dd-45c4-b1e5-c29bf24f65e0",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/drivers/my-trip-history?status=closed",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "drivers",
+            "my-trip-history"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "closed"
             }
           ]
         }

@@ -52,10 +52,26 @@ const vehicleSchema = new mongoose.Schema(
       }
     },
 
+    height: {
+      value: {
+        type: Number
+      },
+      unit: {
+        type: String,
+        enum: ['ft', 'meter'],
+        default: 'ft'
+      }
+    },
+
     bodyType: {
       type: String,
       required: [true, 'Body type is required'],
       index: true
+    },
+
+    driverPhoneNumber: {
+      type: String,
+      trim: true
     },
 
     // Documents

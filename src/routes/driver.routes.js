@@ -4,6 +4,8 @@ import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validation.middleware.js';
 import {
   createDriverSchema,
+  submitDriverKycSchema,
+  submitAccountInfoSchema,
   getDriversQuerySchema,
   driverIdParamSchema,
   // userIdParamSchema used for /by-user/:userId
@@ -17,8 +19,10 @@ import {
   getPerformanceQuerySchema,
   getNearbyDriversQuerySchema,
   getTripHistoryQuerySchema,
-  getMyTripHistoryQuerySchema
+  getMyTripHistoryQuerySchema,
+  addMyTruckSchema
 } from '../validators/driver.validator.js';
+import { upload } from '../middlewares/upload.middleware.js';
 
 const router = express.Router();
 
@@ -29,6 +33,18 @@ router.get('/nearby', verifyJWT, checkRole('staff', 'internal', 'super-admin'), 
 // Allow drivers to create their own profile, and allow staff/internal/super-admin to create drivers on behalf of others
 router.post('/', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(createDriverSchema), driverController.createDriver);
 router.get('/my-profile', verifyJWT, checkRole('driver'), driverController.getMyProfile);
+router.post('/my-kyc', verifyJWT, checkRole('driver'), validate(submitDriverKycSchema), driverController.submitKyc);
+router.post('/my-truck', verifyJWT, checkRole('driver'), validate(addMyTruckSchema), driverController.addMyTruck);
+router.post('/my-account-info', verifyJWT, checkRole('driver'),
+  upload.fields([
+    { name: 'chequeImage', maxCount: 1 },
+    { name: 'tdsDocument', maxCount: 1 },
+    { name: 'aadhaarDocument', maxCount: 1 },
+    { name: 'panDocument', maxCount: 1 }
+  ]),
+  validate(submitAccountInfoSchema),
+  driverController.submitAccountInfo
+);
 router.get('/my-performance', verifyJWT, checkRole('driver'), validate(getPerformanceQuerySchema), driverController.getMyPerformance);
 router.get('/my-trip-history', verifyJWT, checkRole('driver'), validate(getMyTripHistoryQuerySchema), driverController.getMyTripHistory);
 router.post('/my-location', verifyJWT, checkRole('driver'), validate(updateLocationSchema), driverController.updateMyLocation);

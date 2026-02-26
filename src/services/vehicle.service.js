@@ -94,6 +94,59 @@ class VehicleService {
   }
 
   /**
+   * Add a truck via driver self-service
+   * @param {string} userId - Authenticated user ID
+   * @param {Object} data - Truck data from request body
+   * @returns {Promise<Object>} Created vehicle
+   */
+  static async addDriverTruck(userId, data) {
+    const driver = await Driver.findOne({ user: userId, isDeleted: false });
+    if (!driver) {
+      throw new ApiError(404, 'Driver profile not found');
+    }
+
+    const normalizedNumber = data.truckNumber.replace(/-/g, '').toUpperCase();
+    const existingVehicle = await Vehicle.findOne({
+      vehicleNumber: normalizedNumber,
+      isDeleted: false
+    });
+    if (existingVehicle) {
+      throw new ApiError(400, 'Vehicle with this number already exists');
+    }
+
+    const vehicle = await Vehicle.create({
+      vehicleNumber: normalizedNumber,
+      truckType: data.truckType,
+      height: { value: data.truckHeight, unit: 'ft' },
+      bodyType: 'open',
+      owner: driver._id,
+      driverPhoneNumber: data.driverPhoneNumber,
+      lastKnownLocation: {
+        city: data.currentCity
+      },
+      availability: 'available',
+      createdBy: userId
+    });
+
+    await Driver.findByIdAndUpdate(driver._id, {
+      $addToSet: { vehicles: vehicle._id }
+    });
+
+    await AuditLog.create({
+      user: userId,
+      action: 'DRIVER_ADD_TRUCK',
+      entityType: 'vehicle',
+      entityId: vehicle._id,
+      changes: {
+        before: null,
+        after: vehicle.toObject()
+      }
+    });
+
+    return vehicle;
+  }
+
+  /**
    * Get vehicle by ID
    * @param {string} vehicleId - Vehicle ID
    * @returns {Promise<Object>} Vehicle details

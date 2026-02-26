@@ -57,6 +57,26 @@ const driverSchema = new mongoose.Schema({
     totalEarnings: { type: Number, default: 0 }
   },
   
+  // GSTIN
+  gstin: { type: String },
+
+  // Documents (account info)
+  documents: {
+    chequeImage: { type: mongoose.Schema.Types.ObjectId, ref: 'Document' },
+    tdsDocument: { type: mongoose.Schema.Types.ObjectId, ref: 'Document' },
+    aadhaarDocument: { type: mongoose.Schema.Types.ObjectId, ref: 'Document' },
+    panDocument: { type: mongoose.Schema.Types.ObjectId, ref: 'Document' }
+  },
+
+  // Account Info Status
+  accountInfoStatus: { type: String, enum: ['pending', 'submitted', 'verified', 'rejected'], default: 'pending' },
+  accountInfoSubmittedAt: Date,
+
+  city: { type: String },
+  referralCode: { type: String },
+  kycStatus: { type: String, enum: ['pending', 'submitted', 'verified', 'rejected'], default: 'pending' },
+  kycSubmittedAt: Date,
+
   // KYC - Aadhaar
   aadhaar: {
     number: { type: String, select: false },

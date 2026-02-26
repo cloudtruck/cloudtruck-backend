@@ -38,6 +38,49 @@ export const createDriverSchema = z.object({
 });
 
 /**
+ * Submit Driver KYC Validator
+ * POST /api/v1/drivers/my-kyc
+ */
+export const submitDriverKycSchema = z.object({
+  body: z.object({
+    fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+    panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format'),
+    city: z.string().min(2, 'City must be at least 2 characters'),
+    referralCode: z.string().optional(),
+    truckType: z.string().min(1, 'Truck type is required')
+  })
+});
+
+/**
+ * Submit Account Info Validator
+ * POST /api/v1/drivers/my-account-info
+ */
+export const submitAccountInfoSchema = z.object({
+  body: z.object({
+    accountHolderName: z.string().min(2, 'Account holder name must be at least 2 characters'),
+    accountNumber: z.string().min(5, 'Account number must be at least 5 characters'),
+    ifscCode: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC code'),
+    aadhaarNumber: z.string().regex(/^\d{12}$/, 'Aadhaar number must be 12 digits'),
+    panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format'),
+    gstin: z.string().regex(/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}\d[Z]{1}[A-Z\d]{1}$/, 'Invalid GSTIN format').optional()
+  })
+});
+
+/**
+ * Add My Truck Validator
+ * POST /api/v1/drivers/my-truck
+ */
+export const addMyTruckSchema = z.object({
+  body: z.object({
+    truckNumber: z.string().min(5, 'Truck number must be at least 5 characters'),
+    currentCity: z.string().min(2, 'City must be at least 2 characters'),
+    driverPhoneNumber: z.string().regex(/^\+?[1-9]\d{9,14}$/, 'Invalid phone number'),
+    truckHeight: z.number().positive('Truck height must be a positive number'),
+    truckType: z.string().min(1, 'Truck type is required')
+  })
+});
+
+/**
  * Get Drivers Query Validator
  * GET /api/v1/drivers
  */

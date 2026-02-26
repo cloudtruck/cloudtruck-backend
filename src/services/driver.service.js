@@ -4,6 +4,9 @@ import User from '../models/user.model.js';
 import Vehicle from '../models/vehicle.model.js';
 import Booking from '../models/booking.model.js';
 import AuditLog from '../models/auditLog.model.js';
+import Document from '../models/document.model.js';
+import MasterData from '../models/masterData.model.js';
+import DocumentService from './document.service.js';
 import NotificationService from './notification.service.js';
 import ApiError from '../utils/ApiError.js';
 
@@ -752,8 +755,15 @@ class DriverService {
     };
 
     // Filter by booking status
+    // Special case: 'active' maps to multiple in-progress statuses
+    const ACTIVE_STATUSES = ['assigned', 'driver-en-route', 'reached-pickup', 'loaded', 'in-transit', 'reached-destination'];
+
     if (status) {
-      query.status = status;
+      if (status === 'active') {
+        query.status = { $in: ACTIVE_STATUSES };
+      } else {
+        query.status = status;
+      }
     }
 
     // Filter by date range (based on createdAt)
@@ -849,6 +859,146 @@ class DriverService {
       .limit(20);
 
     return drivers;
+  }
+
+  /**
+   * Submit KYC details (driver self-service)
+   * @param {string} userId - Authenticated user ID
+   * @param {Object} data - KYC data (fullName, panNumber, city, referralCode, truckType)
+   * @returns {Promise<Object>} Updated driver
+   */
+  static async submitKyc(userId, data) {
+    const driver = await Driver.findOne({ user: userId, isDeleted: false });
+    if (!driver) {
+      throw new ApiError(404, 'Driver profile not found');
+    }
+
+    if (driver.kycStatus === 'submitted' || driver.kycStatus === 'verified') {
+      throw new ApiError(400, `KYC already ${driver.kycStatus}`);
+    }
+
+    // Validate truck type exists in MasterData
+    const truckTypeEntry = await MasterData.findOne({
+      category: 'truck-type',
+      key: data.truckType.toLowerCase(),
+      isDeleted: false,
+      isActive: true
+    });
+    if (!truckTypeEntry) {
+      throw new ApiError(400, 'Invalid truck type');
+    }
+
+    const oldData = driver.toObject();
+
+    driver.name = data.fullName;
+    if (!driver.pan) driver.pan = {};
+    driver.pan.number = data.panNumber;
+    driver.city = data.city;
+    if (data.referralCode) driver.referralCode = data.referralCode;
+    driver.preferredTruckTypes = [data.truckType];
+    driver.kycStatus = 'submitted';
+    driver.kycSubmittedAt = new Date();
+    driver.updatedBy = userId;
+
+    await driver.save();
+
+    // Audit log
+    await AuditLog.create({
+      user: userId,
+      action: 'SUBMIT_DRIVER_KYC',
+      entityType: 'driver',
+      entityId: driver._id,
+      changes: {
+        before: oldData,
+        after: driver.toObject()
+      }
+    });
+
+    return driver;
+  }
+
+  /**
+   * Submit account/financial info (driver self-service)
+   * @param {string} userId - Authenticated user ID
+   * @param {Object} data - Account info fields
+   * @param {Object} files - Multer files (chequeImage, tdsDocument, aadhaarDocument)
+   * @returns {Promise<Object>} Updated driver
+   */
+  static async submitAccountInfo(userId, data, files) {
+    const driver = await Driver.findOne({ user: userId, isDeleted: false });
+    if (!driver) {
+      throw new ApiError(404, 'Driver profile not found');
+    }
+
+    const oldData = driver.toObject();
+
+    // Upload each file and create Document records
+    const fileFields = ['chequeImage', 'tdsDocument', 'aadhaarDocument', 'panDocument'];
+    const documentIds = {};
+
+    for (const field of fileFields) {
+      const file = files[field]?.[0];
+      if (!file) continue;
+
+      const uploadResult = await DocumentService.uploadDocument(file.path, 'driver-account', {
+        entityType: 'driver',
+        entityId: driver._id.toString()
+      });
+
+      const doc = await Document.create({
+        ownerRef: { kind: 'driver', item: driver._id },
+        type: field,
+        url: uploadResult.url,
+        providerId: uploadResult.cloudinaryId,
+        format: uploadResult.format,
+        bytes: uploadResult.size,
+        uploadedBy: userId,
+        status: 'uploaded'
+      });
+
+      documentIds[field] = doc._id;
+    }
+
+    // Update driver fields
+    driver.bankDetails = {
+      accountHolderName: data.accountHolderName,
+      accountNumber: data.accountNumber,
+      ifscCode: data.ifscCode
+    };
+
+    if (!driver.aadhaar) driver.aadhaar = {};
+    driver.aadhaar.number = data.aadhaarNumber;
+
+    if (!driver.pan) driver.pan = {};
+    driver.pan.number = data.panNumber;
+
+    if (data.gstin) driver.gstin = data.gstin;
+
+    if (!driver.documents) driver.documents = {};
+    if (documentIds.chequeImage) driver.documents.chequeImage = documentIds.chequeImage;
+    if (documentIds.tdsDocument) driver.documents.tdsDocument = documentIds.tdsDocument;
+    if (documentIds.aadhaarDocument) driver.documents.aadhaarDocument = documentIds.aadhaarDocument;
+    if (documentIds.panDocument) driver.documents.panDocument = documentIds.panDocument;
+
+    driver.accountInfoStatus = 'submitted';
+    driver.accountInfoSubmittedAt = new Date();
+    driver.updatedBy = userId;
+
+    await driver.save();
+
+    // Audit log
+    await AuditLog.create({
+      user: userId,
+      action: 'SUBMIT_DRIVER_ACCOUNT_INFO',
+      entityType: 'driver',
+      entityId: driver._id,
+      changes: {
+        before: oldData,
+        after: driver.toObject()
+      }
+    });
+
+    return driver;
   }
 
   /**

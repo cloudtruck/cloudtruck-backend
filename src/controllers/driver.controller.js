@@ -1,7 +1,9 @@
 import DriverService from '../services/driver.service.js';
+import VehicleService from '../services/vehicle.service.js';
 import { mapBooking } from './booking.controller.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
+import ApiError from '../utils/ApiError.js';
 
 // Helper: normalize driver document to frontend shape
 const mapDriver = (drv) => {
@@ -475,6 +477,18 @@ export const deleteDriver = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Submit KYC (Driver)
+ * POST /api/v1/drivers/my-kyc
+ */
+export const submitKyc = asyncHandler(async (req, res) => {
+  const driver = await DriverService.submitKyc(req.user._id, req.body);
+
+  return res.status(201).json(
+    new ApiResponse(201, driver, 'KYC submitted successfully')
+  );
+});
+
+/**
  * Get My Profile (Driver)
  * GET /api/v1/drivers/my-profile
  */
@@ -485,5 +499,40 @@ export const getMyProfile = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, driver, 'Profile fetched successfully')
+  );
+});
+
+/**
+ * Submit Account Info (Driver)
+ * POST /api/v1/drivers/my-account-info
+ */
+/**
+ * Add My Truck (Driver)
+ * POST /api/v1/drivers/my-truck
+ */
+export const addMyTruck = asyncHandler(async (req, res) => {
+  const vehicle = await VehicleService.addDriverTruck(req.user._id, req.body);
+
+  return res.status(201).json(
+    new ApiResponse(201, vehicle, 'Truck added successfully')
+  );
+});
+
+/**
+ * Submit Account Info (Driver)
+ * POST /api/v1/drivers/my-account-info
+ */
+export const submitAccountInfo = asyncHandler(async (req, res) => {
+  const requiredFiles = ['chequeImage', 'tdsDocument', 'aadhaarDocument', 'panDocument'];
+  for (const field of requiredFiles) {
+    if (!req.files?.[field]?.[0]) {
+      throw new ApiError(400, `${field} file is required`);
+    }
+  }
+
+  const driver = await DriverService.submitAccountInfo(req.user._id, req.body, req.files);
+
+  return res.status(201).json(
+    new ApiResponse(201, driver, 'Account information submitted successfully')
   );
 });

@@ -33,17 +33,22 @@ class BookingService {
       pickupLat,
       pickupLng,
       pickupAddress,
+      pickupContactName,
+      pickupContactPhone,
       dropCity,
       dropState,
       dropLat,
       dropLng,
       dropAddress,
+      dropContactName,
+      dropContactPhone,
       materialType,
       weight,
       weightUnit,
       truckType,
       bodyType,
       loadDate,
+      expectedDeliveryDate,
       advanceRequired,
       additionalInstructions,
       expectedAmount,
@@ -148,7 +153,11 @@ class BookingService {
               type: 'Point',
               coordinates: [finalPickupLng, finalPickupLat]
             },
-            placeId: pickupPlaceId
+            placeId: pickupPlaceId,
+            contactPerson: {
+              name: pickupContactName,
+              phone: pickupContactPhone
+            }
           },
           drop: {
             city: dropCity,
@@ -158,7 +167,11 @@ class BookingService {
               type: 'Point',
               coordinates: [finalDropLng, finalDropLat]
             },
-            placeId: dropPlaceId
+            placeId: dropPlaceId,
+            contactPerson: {
+              name: dropContactName,
+              phone: dropContactPhone
+            }
           },
           materialType,
           weight: {
@@ -171,6 +184,7 @@ class BookingService {
             loadDate: loadDateObj,
             loadTime: loadDateObj.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
           }),
+          ...(expectedDeliveryDate && { expectedDeliveryDate: new Date(expectedDeliveryDate) }),
           advanceRequired,
           additionalInstructions,
           expectedAmount,
@@ -189,10 +203,12 @@ class BookingService {
         }], { session });
 
         booking = created;
+        booking.calculateDistance();
 
         // Update customer metrics atomically
         customer.businessMetrics.totalBookings += 1;
         await customer.save({ session });
+        await booking.save({ session });
       });
     } finally {
       await session.endSession();
@@ -698,8 +714,10 @@ class BookingService {
     // Define allowed fields for update
     const allowedFields = [
       'pickupCity', 'pickupState', 'pickupLat', 'pickupLng', 'pickupAddress',
+      'pickupContactName', 'pickupContactPhone',
       'dropCity', 'dropState', 'dropLat', 'dropLng', 'dropAddress',
-      'materialType', 'weight', 'truckType', 'bodyType',
+      'dropContactName', 'dropContactPhone',
+      'materialType', 'weight', 'truckType', 'bodyType', 'expectedDeliveryDate',
       'additionalInstructions', 'isHazardous', 'isFragile', 'requiresTemperatureControl'
     ];
 
@@ -707,9 +725,26 @@ class BookingService {
     allowedFields.forEach(field => {
       if (updateData[field] !== undefined) {
         oldValues[field] = booking[field];
-        booking[field] = updateData[field];
+        
+        // Handle mapped fields for contactPerson
+        if (field === 'pickupContactName') {
+          booking.pickup.contactPerson.name = updateData[field];
+        } else if (field === 'pickupContactPhone') {
+          booking.pickup.contactPerson.phone = updateData[field];
+        } else if (field === 'dropContactName') {
+          booking.drop.contactPerson.name = updateData[field];
+        } else if (field === 'dropContactPhone') {
+          booking.drop.contactPerson.phone = updateData[field];
+        } else {
+          booking[field] = updateData[field];
+        }
       }
     });
+
+    // Recalculate distance if coordinates changed
+    if (updateData.pickupLat || updateData.pickupLng || updateData.dropLat || updateData.dropLng) {
+      booking.calculateDistance();
+    }
 
     booking.updatedBy = userId;
     await booking.save();

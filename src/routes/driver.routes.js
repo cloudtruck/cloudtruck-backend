@@ -33,6 +33,7 @@ router.get('/nearby', verifyJWT, checkRole('staff', 'internal', 'super-admin'), 
 // Allow drivers to create their own profile, and allow staff/internal/super-admin to create drivers on behalf of others
 router.post('/', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(createDriverSchema), driverController.createDriver);
 router.get('/my-profile', verifyJWT, checkRole('driver'), driverController.getMyProfile);
+router.get('/my-account-info', verifyJWT, checkRole('driver'), driverController.getMyAccountInfo);
 router.post('/my-kyc', verifyJWT, checkRole('driver'), validate(submitDriverKycSchema), driverController.submitKyc);
 router.post('/my-truck', verifyJWT, checkRole('driver'), validate(addMyTruckSchema), driverController.addMyTruck);
 router.post('/my-account-info', verifyJWT, checkRole('driver'),
@@ -56,14 +57,14 @@ router.get('/available', verifyJWT, checkRole('staff', 'internal', 'super-admin'
 // Explicit user-based lookup
 router.get('/by-user/:userId', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(userIdParamSchema), driverController.getDriverByUser);
 // Primary lookup by driver document id (document-first, then fallback to user)
-router.get('/:id', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(driverIdParamSchema), driverController.getDriverById);
-router.get('/:id/performance', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getPerformanceQuerySchema), driverController.getPerformanceReport);
-router.get('/:id/trip-history', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getTripHistoryQuerySchema), driverController.getTripHistory);
+router.get('/:id', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(driverIdParamSchema), driverController.getDriverById);
+router.get('/:id/performance', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(getPerformanceQuerySchema), driverController.getPerformanceReport);
+router.get('/:id/trip-history', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(getTripHistoryQuerySchema), driverController.getTripHistory);
 
 // Staff/Admin routes - update
-router.patch('/:id', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(updateDriverSchema), driverController.updateDriver);
-router.post('/:id/location', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(updateLocationSchema), driverController.updateLocation);
-router.patch('/:id/availability', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(updateAvailabilitySchema), driverController.updateAvailability);
+router.patch('/:id', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(updateDriverSchema), driverController.updateDriver);
+router.post('/:id/location', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(updateLocationSchema), driverController.updateLocation);
+router.patch('/:id/availability', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(updateAvailabilitySchema), driverController.updateAvailability);
 
 // Staff/Admin routes - verification and management
 router.post('/:id/verify', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(driverIdParamSchema), driverController.verifyDriver);

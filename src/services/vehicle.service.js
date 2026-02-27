@@ -486,6 +486,20 @@ class VehicleService {
   }
 
   /**
+   * Get vehicles for a driver by User ID
+   * @param {string} userId - Auth user ID
+   * @returns {Promise<Array>} Vehicles list
+   */
+  static async getVehiclesByUserId(userId) {
+    const driver = await Driver.findOne({ user: userId, isDeleted: false });
+    if (!driver) {
+      throw new ApiError(404, 'Driver profile not found');
+    }
+
+    return await this.getVehiclesByDriver(driver._id);
+  }
+
+  /**
    * Get vehicle statistics
    * @param {string} vehicleId - Vehicle ID (optional)
    * @returns {Promise<Object>} Statistics

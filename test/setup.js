@@ -6,14 +6,21 @@ import User from '../src/models/user.model.js';
 let mongoServer;
 
 export const startTestDB = async () => {
+  if (mongoose.connection.readyState !== 0) return;
+
   mongoServer = await MongoMemoryServer.create();
   const uri = mongoServer.getUri();
   await mongoose.connect(uri);
 };
 
 export const stopTestDB = async () => {
+  if (mongoose.connection.readyState === 0) return;
+
   await mongoose.disconnect();
-  await mongoServer.stop();
+  if (mongoServer) {
+    await mongoServer.stop();
+    mongoServer = null;
+  }
 };
 
 export const makeAuthHeaderForRole = async (role) => {

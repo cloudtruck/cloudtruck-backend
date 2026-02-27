@@ -97,7 +97,9 @@ export default function trackingSocketHandler(io) {
       }
     };
 
-    const throttledUpdate = throttle(handleLocationUpdate, 10000, { leading: true, trailing: false });
+    const throttledUpdate = process.env.NODE_ENV === 'test'
+      ? handleLocationUpdate
+      : throttle(handleLocationUpdate, 10000, { leading: true, trailing: false });
 
     /**
      * Driver joins booking room

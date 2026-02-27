@@ -113,6 +113,19 @@ export const getVehiclesByDriver = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get My Vehicles (Self-service for Driver)
+ * GET /api/v1/vehicles/my-trucks
+ */
+export const getMyTrucks = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const vehicles = await VehicleService.getVehiclesByUserId(userId);
+
+  return res.status(200).json(
+    new ApiResponse(200, vehicles, 'My vehicles fetched successfully')
+  );
+});
+
+/**
  * Update Vehicle
  * PATCH /api/v1/vehicles/:id
  */

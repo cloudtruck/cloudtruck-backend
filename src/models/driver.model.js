@@ -7,7 +7,7 @@ const driverSchema = new mongoose.Schema({
   licenseNumber: { type: String, required: true },
   licenseImage: String,
   licenseExpiry: Date,
-  
+
   // Bank Details
   bankDetails: {
     accountNumber: String,
@@ -15,39 +15,41 @@ const driverSchema = new mongoose.Schema({
     accountHolderName: String,
     bankName: String
   },
-  
+
   // Emergency Contact
   emergencyContact: {
     name: String,
     phone: String,
     relation: String
   },
-  
+
   preferredTruckTypes: [String],
-  availability: { type: String, enum: ['available','on-trip','offline'], default: 'available', index: true },
-  
+  availability: { type: String, enum: ['available', 'on-trip', 'offline'], default: 'available', index: true },
+
   // Current Assignment
   currentBooking: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking',
     index: true
   },
-  
+
   nextBooking: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking',
     index: true
   },
-  
+
   lastKnownLocation: {
     type: { type: String, enum: ['Point'] },
     coordinates: { type: [Number] } // [lng, lat]
   },
   lastLocationAt: Date,
-  realtimeSource: { type: String, enum: ['socket','gps','manual'], default: 'socket' },
-  
+  realtimeSource: { type: String, enum: ['socket', 'gps', 'manual'], default: 'socket' },
+  isOnline: { type: Boolean, default: false, index: true },
+  lastSeenAt: Date,
+
   vehicles: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' }],
-  
+
   // Performance Metrics
   performance: {
     onTimeDeliveryRate: { type: Number, default: 0, min: 0, max: 100 },
@@ -56,7 +58,7 @@ const driverSchema = new mongoose.Schema({
     averageRating: { type: Number, default: 0, min: 0, max: 5 },
     totalEarnings: { type: Number, default: 0 }
   },
-  
+
   // GSTIN
   gstin: { type: String },
 
@@ -83,18 +85,18 @@ const driverSchema = new mongoose.Schema({
     verified: { type: Boolean, default: false },
     document: { type: mongoose.Schema.Types.ObjectId, ref: 'Document' }
   },
-  
+
   // KYC - PAN
   pan: {
     number: { type: String, select: false },
     verified: { type: Boolean, default: false },
     document: { type: mongoose.Schema.Types.ObjectId, ref: 'Document' }
   },
-  
+
   // Verification
   isVerified: { type: Boolean, default: false },
   verifiedAt: Date,
-  
+
   // Blacklist Tracking
   isBlacklisted: { type: Boolean, default: false, index: true },
   blacklistReason: String,
@@ -105,16 +107,16 @@ const driverSchema = new mongoose.Schema({
   rejectionReason: String,
   rejectedAt: Date,
   rejectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  
+
   // Soft Delete
   isDeleted: { type: Boolean, default: false, index: true },
   deletedAt: Date,
   deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  
+
   // Audit Tracking
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-}, { 
+}, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
@@ -136,12 +138,12 @@ driverSchema.index({ user: 1 }, { unique: true, partialFilterExpression: { user:
 /* Virtual Fields */
 
 // Check if driver is active and available
-driverSchema.virtual('isAvailable').get(function() {
+driverSchema.virtual('isAvailable').get(function () {
   return !this.isDeleted && !this.isBlacklisted && this.availability === 'available' && !this.currentBooking;
 });
 
 // Calculate completion rate
-driverSchema.virtual('completionRate').get(function() {
+driverSchema.virtual('completionRate').get(function () {
   const total = this.performance.completedTrips + this.performance.cancelledTrips;
   if (total === 0) return 0;
   return (this.performance.completedTrips / total) * 100;
@@ -150,12 +152,12 @@ driverSchema.virtual('completionRate').get(function() {
 /* Static Methods */
 
 // Find active drivers
-driverSchema.statics.findActive = function() {
+driverSchema.statics.findActive = function () {
   return this.find({ isDeleted: false, isBlacklisted: false });
 };
 
 // Find available drivers
-driverSchema.statics.findAvailable = function() {
+driverSchema.statics.findAvailable = function () {
   return this.find({
     isDeleted: false,
     isBlacklisted: false,
@@ -169,7 +171,7 @@ driverSchema.statics.findAvailable = function() {
 };
 
 // Find drivers near location
-driverSchema.statics.findNearby = function(longitude, latitude, maxDistanceInKm = 50) {
+driverSchema.statics.findNearby = function (longitude, latitude, maxDistanceInKm = 50) {
   return this.find({
     isDeleted: false,
     isBlacklisted: false,
@@ -187,7 +189,7 @@ driverSchema.statics.findNearby = function(longitude, latitude, maxDistanceInKm 
 };
 
 // Search drivers
-driverSchema.statics.search = function(searchTerm) {
+driverSchema.statics.search = function (searchTerm) {
   return this.find({
     isDeleted: false,
     $or: [
@@ -201,7 +203,7 @@ driverSchema.statics.search = function(searchTerm) {
 /* Instance Methods */
 
 // Soft delete
-driverSchema.methods.softDelete = function(userId) {
+driverSchema.methods.softDelete = function (userId) {
   this.isDeleted = true;
   this.deletedAt = new Date();
   this.deletedBy = userId;
@@ -209,7 +211,7 @@ driverSchema.methods.softDelete = function(userId) {
 };
 
 // Blacklist driver
-driverSchema.methods.blacklist = function(reason, userId) {
+driverSchema.methods.blacklist = function (reason, userId) {
   this.isBlacklisted = true;
   this.blacklistReason = reason;
   this.blacklistedAt = new Date();
@@ -219,7 +221,7 @@ driverSchema.methods.blacklist = function(reason, userId) {
 };
 
 // Remove from blacklist
-driverSchema.methods.removeFromBlacklist = function() {
+driverSchema.methods.removeFromBlacklist = function () {
   this.isBlacklisted = false;
   this.blacklistReason = null;
   this.blacklistedAt = null;
@@ -228,7 +230,7 @@ driverSchema.methods.removeFromBlacklist = function() {
 };
 
 // Update availability
-driverSchema.methods.updateAvailability = function(status) {
+driverSchema.methods.updateAvailability = function (status) {
   if (['available', 'on-trip', 'offline'].includes(status)) {
     this.availability = status;
     return this.save();
@@ -237,7 +239,7 @@ driverSchema.methods.updateAvailability = function(status) {
 };
 
 // Assign booking
-driverSchema.methods.assignBooking = function(bookingId) {
+driverSchema.methods.assignBooking = function (bookingId) {
   if (this.licenseExpiry && new Date(this.licenseExpiry) < new Date()) {
     throw new Error('Cannot assign booking: driver license has expired');
   }
@@ -247,11 +249,11 @@ driverSchema.methods.assignBooking = function(bookingId) {
 };
 
 // Complete booking
-driverSchema.methods.completeBooking = async function(onTime = true) {
+driverSchema.methods.completeBooking = async function (onTime = true) {
   this.currentBooking = null;
   this.availability = 'available';
   this.performance.completedTrips += 1;
-  
+
   // Update on-time delivery rate
   if (onTime) {
     const total = this.performance.completedTrips;
@@ -262,12 +264,12 @@ driverSchema.methods.completeBooking = async function(onTime = true) {
     const previousOnTime = (this.performance.onTimeDeliveryRate / 100) * (total - 1);
     this.performance.onTimeDeliveryRate = (previousOnTime / total) * 100;
   }
-  
+
   return this.save();
 };
 
 // Cancel booking
-driverSchema.methods.cancelBooking = function() {
+driverSchema.methods.cancelBooking = function () {
   this.currentBooking = null;
   this.availability = 'available';
   this.performance.cancelledTrips += 1;
@@ -275,7 +277,7 @@ driverSchema.methods.cancelBooking = function() {
 };
 
 // Update rating
-driverSchema.methods.updateRating = function(newRating) {
+driverSchema.methods.updateRating = function (newRating) {
   const totalTrips = this.performance.completedTrips;
   if (totalTrips === 0) {
     this.performance.averageRating = newRating;
@@ -287,7 +289,7 @@ driverSchema.methods.updateRating = function(newRating) {
 };
 
 // Update location
-driverSchema.methods.updateLocation = function(longitude, latitude) {
+driverSchema.methods.updateLocation = function (longitude, latitude) {
   this.lastKnownLocation = {
     type: 'Point',
     coordinates: [longitude, latitude]

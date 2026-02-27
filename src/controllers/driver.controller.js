@@ -1,5 +1,6 @@
 import DriverService from '../services/driver.service.js';
 import VehicleService from '../services/vehicle.service.js';
+import Driver from '../models/driver.model.js';
 import { mapBooking } from './booking.controller.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
@@ -499,6 +500,26 @@ export const getMyProfile = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, driver, 'Profile fetched successfully')
+  );
+});
+
+/**
+ * Get My Account Information (Driver)
+ * GET /api/v1/drivers/my-account-info
+ */
+export const getMyAccountInfo = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  const driver = await Driver.findOne({ user: userId, isDeleted: false })
+    .populate('documents.chequeImage documents.tdsDocument documents.aadhaarDocument documents.panDocument')
+    .select('bankDetails gstin documents accountInfoStatus accountInfoSubmittedAt aadhaar pan');
+
+  if (!driver) {
+    throw new ApiError(404, 'Driver profile not found');
+  }
+
+  return res.status(200).json(
+    new ApiResponse(200, driver, 'Account information fetched successfully')
   );
 });
 

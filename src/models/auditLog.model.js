@@ -20,6 +20,7 @@ const auditLogSchema = new mongoose.Schema(
         // Booking actions
         'CREATE_BOOKING',
         'UPDATE_BOOKING',
+        'UPDATE_BOOKING_DETAILS',
         'DELETE_BOOKING',
         'ASSIGN_DRIVER',
         'UNASSIGN_DRIVER',
@@ -32,6 +33,8 @@ const auditLogSchema = new mongoose.Schema(
         'CREATE_DRIVER_PROFILE',
         'UPDATE_DRIVER',
         'UPDATE_DRIVER_PROFILE',
+        'SUBMIT_DRIVER_KYC',
+        'SUBMIT_DRIVER_ACCOUNT_INFO',
         'DELETE_DRIVER',
         'APPROVE_DRIVER',
         'VERIFY_DRIVER',
@@ -41,6 +44,7 @@ const auditLogSchema = new mongoose.Schema(
         
         // Vehicle actions
         'CREATE_VEHICLE',
+        'DRIVER_ADD_TRUCK',
         'UPDATE_VEHICLE',
         'DELETE_VEHICLE',
         'APPROVE_VEHICLE',
@@ -99,6 +103,11 @@ const auditLogSchema = new mongoose.Schema(
         'FAILED_LOGIN',
         'PASSWORD_RESET',
         
+        // Support actions
+        'CREATE_SUPPORT_TICKET',
+        'RESOLVE_SUPPORT_TICKET',
+        'REPLY_TO_TICKET',
+        
         // System actions
         'SYSTEM_CONFIG_CHANGE',
         'BULK_UPDATE',
@@ -129,7 +138,8 @@ const auditLogSchema = new mongoose.Schema(
         'permission',
         'role-template',
         'system',
-        'eway-bill'
+        'eway-bill',
+        'support-ticket'
       ],
       index: true
     },

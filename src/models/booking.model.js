@@ -288,6 +288,14 @@ const bookingSchema = new Schema(
       calculatedAt: Date
     },
 
+    // Geofence state — tracks which proximity alerts have been sent (one-shot per booking)
+    geofenceAlerts: {
+      pickup: { type: Boolean, default: false },
+      pickupAt: Date,
+      drop: { type: Boolean, default: false },
+      dropAt: Date
+    },
+
     bookingSource: { type: String, enum: ['web', 'mobile-app', 'phone', 'staff', 'api'], default: 'web' },
     priority: { type: String, enum: ['low', 'medium', 'high', 'urgent'], default: 'medium' },
 
@@ -318,14 +326,21 @@ bookingSchema.index({ status: 1, loadDate: 1 });
 bookingSchema.index({ paymentStatus: 1 });
 
 /* Virtuals */
-// totalPaid should be calculated by aggregating payments. It's left as a placeholder here.
+// totalPaid should be calculated by aggregating payments.
 bookingSchema.virtual('totalPaid').get(function () {
-  // controllers or services should compute this when needed
-  return 0;
+  if (!this.payments || !Array.isArray(this.payments)) return 0;
+  return this.payments.reduce((sum, p) => {
+    // Check if it's populated and has status success
+    if (p && p.status === 'success' && p.amount) {
+      return sum + p.amount;
+    }
+    return sum;
+  }, 0);
 });
+
 bookingSchema.virtual('balanceDue').get(function () {
-  if (!this.finalAmount) return 0;
-  return this.finalAmount - (this.totalPaid || 0);
+  const freight = this.finalAmount || this.expectedAmount || 0;
+  return Math.max(0, freight - (this.totalPaid || 0));
 });
 
 /* Helpers */
@@ -488,7 +503,7 @@ bookingSchema.methods.updateStatus = function (newStatus, userId, notes, locatio
 };
 
 // Soft delete
-bookingSchema.methods.softDelete = function(userId) {
+bookingSchema.methods.softDelete = function (userId) {
   this.isDeleted = true;
   this.deletedAt = new Date();
   this.deletedBy = userId;
@@ -497,7 +512,7 @@ bookingSchema.methods.softDelete = function(userId) {
 };
 
 /* Static Methods */
-bookingSchema.statics.findActive = function() {
+bookingSchema.statics.findActive = function () {
   return this.find({ isDeleted: false });
 };
 

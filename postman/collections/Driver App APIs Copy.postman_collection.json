@@ -69,7 +69,7 @@
         "header": [],
         "body": {
           "mode": "raw",
-          "raw": "{\n    \"phone\": \"9270083791\",\n    \"otp\": \"1067\",\n    \"role\": \"driver\",\n    \"deviceInfo\": {\n        \"fcmToken\": \"fcm_token_from_firebase\",\n        \"deviceModel\":\"iPhone 15 Pro\",\n        \"ipAddress\": \"192.168.1.1\",\n        \"appVersion\": \"1.0.0\",\n        \"os\": \"iOS\"\n    } //deviceInfo is optional but recommended\n}",
+          "raw": "{\n    \"phone\": \"9270083791\",\n    \"otp\": \"7301\",\n    \"role\": \"driver\",\n    \"deviceInfo\": {\n        \"fcmToken\": \"fcm_token_from_firebase\",\n        \"deviceModel\":\"iPhone 15 Pro\",\n        \"ipAddress\": \"192.168.1.1\",\n        \"appVersion\": \"1.0.0\",\n        \"os\": \"iOS\"\n    } //deviceInfo is optional but recommended\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -605,7 +605,7 @@
               "type": "file",
               "uuid": "a79bb608-8302-40ca-9666-13b10fdcfcb2",
               "src": [
-                "/Users/ahmadparizaad/Downloads/WhatsApp Image 2026-02-25 at 5.13.34 PM.jpeg"
+                "/Users/ahmadparizaad/Downloads/WhatsApp Image 2026-02-25 at 5.13.54 PM.jpeg"
               ]
             },
             {
@@ -621,7 +621,7 @@
               "type": "file",
               "uuid": "62e5a461-8fe5-4619-bc4c-78d74f7be149",
               "src": [
-                "/Users/ahmadparizaad/Downloads/WhatsApp Image 2026-02-25 at 5.13.54 PM.jpeg"
+                "/Users/ahmadparizaad/Downloads/WhatsApp Image 2026-02-25 at 5.13.34 PM.jpeg"
               ]
             },
             {
@@ -664,7 +664,6 @@
             "{{baseUrl}}"
           ],
           "path": [
-            "",
             "drivers",
             "my-trip-history"
           ],
@@ -748,6 +747,109 @@
               "key": "status",
               "value": "closed"
             }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Booking by ID",
+      "id": "bb495571-e167-452a-9594-1de79b85000d",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/bookings/{{bookingId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "bookings",
+            "{{bookingId}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "My Trucks",
+      "id": "9a7379d7-f863-4ac8-b87d-112b27f4a8c5",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/vehicles/my-trucks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "vehicles",
+            "my-trucks"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "My Account",
+      "id": "dc98888d-6d5b-4809-924a-f659ce9b7144",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/drivers/my-account-info",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "drivers",
+            "my-account-info"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Complaint",
+      "id": "5ebfb2eb-10c0-4754-93a3-159fccc1491b",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"category\": \"payment-issue\",\n    \"subject\": \"Brief description of the complaint\",\n    \"description\": \"Detailed description.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/support-tickets",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "support-tickets"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "My Complaints/Tickets",
+      "id": "0ca92208-9a2d-4e26-ba50-1c5d104c23c0",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/support-tickets/my-tickets",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "support-tickets",
+            "my-tickets"
           ]
         }
       },

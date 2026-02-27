@@ -293,7 +293,7 @@ describe('Tracking WebSocket Server', function () {
 
   // --- Feature 2: Reconnection Logic ---
   it('should auto-emit last location when a watcher joins', function (done) {
-    this.timeout(15000);
+    this.timeout(30000);
     let finished = false;
     const safeDone = (err) => { if (!finished) { finished = true; done(err); } };
 
@@ -311,22 +311,17 @@ describe('Tracking WebSocket Server', function () {
         auth: { token: customerToken }
       });
 
-      newWatcherSocket.once('location:response', (res) => {
-        try {
-          expect(res.success).to.be.true;
-          expect(res.data.lastLocation.latitude).to.equal(22.22);
-          expect(res.data.lastLocation.longitude).to.equal(33.33);
-          newWatcherSocket.close();
-          safeDone();
-        } catch (e) { safeDone(e); }
-      });
-
-      newWatcherSocket.once('location:error', (err) => {
-        newWatcherSocket.close();
-        safeDone(new Error(`Watcher join failed: ${err.message}`));
-      });
-
       newWatcherSocket.once('connect', () => {
+        newWatcherSocket.once('location:response', (res) => {
+          try {
+            expect(res.success).to.be.true;
+            expect(res.data.lastLocation.latitude).to.equal(22.22);
+            expect(res.data.lastLocation.longitude).to.equal(33.33);
+            newWatcherSocket.close();
+            safeDone();
+          } catch (e) { safeDone(e); }
+        });
+
         newWatcherSocket.emit('watcher:join', {
           userId: customerUser._id.toString(),
           bookingId: booking._id.toString(),

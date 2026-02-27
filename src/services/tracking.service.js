@@ -4,6 +4,8 @@ import Driver from '../models/driver.model.js';
 import LocationService from './location.service.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
+import NotificationService from './notification.service.js';
+import Customer from '../models/customer.model.js';
 
 class TrackingService {
   /**
@@ -15,6 +17,12 @@ class TrackingService {
    */
   static async recordLocation(bookingId, driverId, location) {
     const { latitude, longitude, accuracy, speed, heading } = location;
+
+    // Reject low-accuracy pings — prevents noisy/inaccurate points from polluting route history
+    const MAX_ACCURACY_METERS = 100;
+    if (accuracy !== undefined && accuracy > MAX_ACCURACY_METERS) {
+      throw new ApiError(422, `GPS accuracy too low (${accuracy}m). Minimum required: ${MAX_ACCURACY_METERS}m or better.`);
+    }
 
     // Validate booking
     const booking = await Booking.findById(bookingId);
@@ -57,6 +65,9 @@ class TrackingService {
     };
     booking.lastLocationUpdate = new Date();
     await booking.save();
+
+    // Feature 3: Check Geofence Alerts
+    await TrackingService._checkGeofence(booking, driverId, latitude, longitude);
 
     logger.debug('Location recorded:', { bookingId, driverId, latitude, longitude });
     return tracking;
@@ -125,13 +136,13 @@ class TrackingService {
       vehicle: booking.vehicle,
       lastLocation: lastTracking
         ? {
-            latitude: lastTracking.location.coordinates[1],
-            longitude: lastTracking.location.coordinates[0],
-            speed: lastTracking.speed,
-            heading: lastTracking.heading,
-            battery: lastTracking.battery,
-            timestamp: lastTracking.timestamp
-          }
+          latitude: lastTracking.location.coordinates[1],
+          longitude: lastTracking.location.coordinates[0],
+          speed: lastTracking.speed,
+          heading: lastTracking.heading,
+          battery: lastTracking.battery,
+          timestamp: lastTracking.timestamp
+        }
         : null,
       lastUpdate: booking.lastLocationUpdate
     };
@@ -200,9 +211,9 @@ class TrackingService {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(this.toRadians(lat1)) *
-        Math.cos(this.toRadians(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+      Math.cos(this.toRadians(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
@@ -428,6 +439,68 @@ class TrackingService {
     await booking.save();
 
     return booking.estimatedRoute;
+  }
+
+  /**
+   * Check if driver has entered pickup or drop geofence and fire one-time alert.
+   * Uses the Booking.geofenceAlerts map to avoid duplicate notifications.
+   */
+  static async _checkGeofence(booking, driverId, latitude, longitude) {
+    const RADIUS_KM = 0.5; // 500m
+
+    const checkPoint = async (label, coords, alertKey) => {
+      // One-time only: skip if already fired for this booking + point
+      if (booking.geofenceAlerts?.[alertKey]) return;
+
+      if (!coords || !Array.isArray(coords) || coords.length !== 2) return;
+
+      const [pLng, pLat] = coords;
+      const distKm = TrackingService.calculateHaversineDistance(latitude, longitude, pLat, pLng);
+
+      if (distKm <= RADIUS_KM) {
+        // Mark as fired to prevent duplicates
+        await Booking.findByIdAndUpdate(booking._id, {
+          [`geofenceAlerts.${alertKey}`]: true,
+          [`geofenceAlerts.${alertKey}At`]: new Date()
+        });
+
+        // FCM push to customer
+        const customer = await Customer.findById(booking.customer).populate('user', '_id').lean();
+        if (customer?.user) {
+          const messages = {
+            pickup: { title: 'Driver Arriving', body: `Your driver is ~500m from the pickup location.` },
+            drop: { title: 'Driver Arriving', body: `Your driver is ~500m from the delivery location.` }
+          };
+          await NotificationService.sendNotification({
+            recipient: customer.user._id,
+            type: `geofence_${alertKey}`,
+            title: messages[label].title,
+            message: messages[label].body,
+            entityType: 'booking',
+            entityId: booking._id,
+            data: { bookingId: booking._id.toString(), action: 'track_shipment' }
+          });
+        }
+
+        logger.info(`Geofence alert fired: driver entered ${label} zone`, {
+          bookingId: booking._id,
+          driverId,
+          distKm
+        });
+      }
+    };
+
+    const tasks = [];
+    if (booking.pickup?.location?.coordinates) {
+      tasks.push(checkPoint('pickup', booking.pickup.location.coordinates, 'pickup'));
+    }
+    if (booking.drop?.location?.coordinates) {
+      tasks.push(checkPoint('drop', booking.drop.location.coordinates, 'drop'));
+    }
+
+    if (tasks.length > 0) {
+      await Promise.all(tasks);
+    }
   }
 }
 

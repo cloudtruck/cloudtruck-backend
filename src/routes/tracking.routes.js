@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import * as trackingController from '../controllers/tracking.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validation.middleware.js';
@@ -9,6 +10,17 @@ import {
   getTrackingRouteSchema
 } from '../validators/tracking.validator.js';
 
+// Rate limiter for the HTTP location endpoint:
+// mirrors the WebSocket throttle (1 update per 10s), keyed per driver.
+const locationRateLimit = rateLimit({
+  windowMs: 10 * 1000,   // 10-second window
+  max: 1,                // 1 request per window per driver
+  keyGenerator: (req) => req.user?._id?.toString() || req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { status: 429, message: 'Location update rate limit exceeded. Max 1 update per 10 seconds.' }
+});
+
 const router = express.Router();
 
 // All routes require authentication
@@ -17,8 +29,8 @@ router.use(verifyJWT);
 // Get all live trips (staff only)
 router.get('/live-trips', checkRole('staff', 'internal', 'super-admin'), trackingController.getLiveTrips);
 
-// Record location (driver only)
-router.post('/:bookingId/location', checkRole('driver'), validate(recordLocationSchema), trackingController.recordLocation);
+// Record location (driver only) — rate limited to 1 update per 10s per driver
+router.post('/:bookingId/location', checkRole('driver'), locationRateLimit, validate(recordLocationSchema), trackingController.recordLocation);
 
 // Get tracking data (customer, driver, staff)
 router.get('/:bookingId/history', validate(getTrackingHistorySchema), trackingController.getTrackingHistory);

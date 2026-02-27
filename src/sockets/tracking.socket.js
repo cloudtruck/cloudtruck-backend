@@ -13,7 +13,7 @@ export default function trackingSocketHandler(io) {
   // Authentication middleware for Socket.io
   io.use((socket, next) => {
     const token = socket.handshake.auth.token || socket.handshake.headers['x-auth-token'];
-    
+
     if (!token) {
       return next(new Error('Authentication error: Token missing'));
     }
@@ -30,10 +30,10 @@ export default function trackingSocketHandler(io) {
   });
 
   io.on('connection', (socket) => {
-    logger.info('Client connected to tracking namespace:', { 
-      socketId: socket.id, 
+    logger.info('Client connected to tracking namespace:', {
+      socketId: socket.id,
       userId: socket.user.id,
-      role: socket.user.role 
+      role: socket.user.role
     });
 
     // Throttled update handler per socket to prevent spamming (max 1 per 10s)
@@ -105,35 +105,60 @@ export default function trackingSocketHandler(io) {
      * Payload: { driverId, bookingId }
      */
     socket.on('driver:join', async ({ driverId, bookingId }) => {
-      // Security check: Only the driver themselves or staff can join as driver
-      if (socket.user.role === 'driver') {
-        const driverRecord = await Driver.findById(driverId);
-        if (!driverRecord) {
-          return socket.emit('location:error', { message: 'Driver record not found' });
-        }
-        
-        const driverUserId = driverRecord.user.toString();
-        const socketUserId = socket.user.id || socket.user._id?.toString() || socket.user._id;
-        
-        if (driverUserId !== socketUserId) {
-          logger.warn('Driver authorization failed:', {
-            driverUserId,
-            socketUserId,
-            socketUser: socket.user
-          });
-          return socket.emit('location:error', { message: 'Unauthorized driver join' });
-        }
-      }
+      try {
+        // Security check: Only the driver themselves or staff can join as driver
+        if (socket.user.role === 'driver') {
+          const driverRecord = await Driver.findById(driverId);
+          if (!driverRecord) {
+            return socket.emit('location:error', { message: 'Driver record not found' });
+          }
 
-      socket.join(`booking:${bookingId}`);
-      socket.join(`driver:${driverId}`);
-      
-      logger.info('Driver joined booking room:', { driverId, bookingId, socketId: socket.id });
-      
-      socket.emit('driver:joined', {
-        bookingId,
-        message: 'Successfully joined booking tracking'
-      });
+          const driverUserId = driverRecord.user.toString();
+          const socketUserId = socket.user.id || socket.user._id?.toString() || socket.user._id;
+
+          if (driverUserId !== socketUserId) {
+            logger.warn('Driver authorization failed:', {
+              driverUserId,
+              socketUserId,
+              socketUser: socket.user
+            });
+            return socket.emit('location:error', { message: 'Unauthorized driver join' });
+          }
+        }
+
+        socket.join(`booking:${bookingId}`);
+        socket.join(`driver:${driverId}`);
+
+        // Mark driver online
+        await Driver.findByIdAndUpdate(driverId, {
+          isOnline: true,
+          lastSeenAt: new Date()
+        });
+
+        // Broadcast status to all watchers in the booking room
+        io.to(`booking:${bookingId}`).emit('driver:status', {
+          driverId,
+          bookingId,
+          isOnline: true,
+          timestamp: new Date()
+        });
+
+        logger.info('Driver joined booking room:', { driverId, bookingId, socketId: socket.id });
+
+        socket.emit('driver:joined', {
+          bookingId,
+          message: 'Successfully joined booking tracking'
+        });
+
+        // Send last known location to the reconnecting driver (Reconnection Logic)
+        const lastLocation = await TrackingService.getLastKnownLocation(bookingId);
+        if (lastLocation?.lastLocation) {
+          socket.emit('location:response', { success: true, data: lastLocation });
+        }
+      } catch (error) {
+        logger.error('driver:join error:', error);
+        socket.emit('location:error', { message: 'Failed to join booking tracking' });
+      }
     });
 
     /**
@@ -141,16 +166,55 @@ export default function trackingSocketHandler(io) {
      * Event: watcher:join
      * Payload: { userId, bookingId, role }
      */
-    socket.on('watcher:join', ({ userId, bookingId, role }) => {
-      // Security check: Verify watcher has access to this booking (simplified for now)
-      socket.join(`booking:${bookingId}`);
-      
-      logger.info('Watcher joined booking room:', { userId, bookingId, role, socketId: socket.id });
-      
-      socket.emit('watcher:joined', {
-        bookingId,
-        message: 'Successfully joined booking tracking'
-      });
+    socket.on('watcher:join', async ({ userId, bookingId, role }) => {
+      try {
+        // Bug 2 fix: verify the requesting user has access to this booking
+        const booking = await Booking.findById(bookingId).select('customer driver').lean();
+        if (!booking) {
+          return socket.emit('location:error', { message: 'Booking not found' });
+        }
+
+        const requesterId = socket.user.id;
+        const userRole = socket.user.role;
+
+        const isStaff = ['staff', 'internal', 'super-admin'].includes(userRole);
+        const isCustomer = booking.customer?.toString() === requesterId;
+
+        // booking.driver is a Driver ObjectId, not a User ObjectId — look up via Driver.user
+        let isDriver = false;
+        if (userRole === 'driver' && booking.driver) {
+          const driverRecord = await Driver.findOne({ _id: booking.driver, user: requesterId }).lean();
+          isDriver = !!driverRecord;
+        }
+
+        if (!isStaff && !isCustomer && !isDriver) {
+          logger.warn('Unauthorized watcher:join attempt:', {
+            requesterId,
+            bookingId,
+            role: userRole,
+            socketId: socket.id
+          });
+          return socket.emit('location:error', {
+            message: 'Unauthorized: You do not have access to this booking'
+          });
+        }
+
+        socket.join(`booking:${bookingId}`);
+        logger.info('Watcher joined booking room:', { userId, bookingId, role, socketId: socket.id });
+        socket.emit('watcher:joined', {
+          bookingId,
+          message: 'Successfully joined booking tracking'
+        });
+
+        // Automatically push last known location to newly joined watcher (Reconnection Logic)
+        const lastLocation = await TrackingService.getLastKnownLocation(bookingId);
+        if (lastLocation?.lastLocation) {
+          socket.emit('location:response', { success: true, data: lastLocation });
+        }
+      } catch (error) {
+        logger.error('watcher:join error:', error);
+        socket.emit('location:error', { message: 'Failed to join booking tracking' });
+      }
     });
 
     /**
@@ -159,6 +223,17 @@ export default function trackingSocketHandler(io) {
      * Payload: { bookingId, driverId, latitude, longitude, accuracy, speed, heading, battery, networkType }
      */
     socket.on('location:update', (data) => {
+      // Bug 3 fix: accuracy check runs on EVERY ping, before the throttle gate.
+      // This ensures low-accuracy pings are always acknowledged (not silently dropped by throttle).
+      const MAX_ACCURACY_METERS = 100;
+      if (data.accuracy !== undefined && data.accuracy > MAX_ACCURACY_METERS) {
+        return socket.emit('location:acknowledged', {
+          success: true,
+          filtered: true,
+          reason: `GPS accuracy too low (${data.accuracy}m > ${MAX_ACCURACY_METERS}m). Update discarded.`
+        });
+      }
+
       throttledUpdate(data);
     });
 
@@ -167,11 +242,25 @@ export default function trackingSocketHandler(io) {
      * Event: driver:leave
      * Payload: { driverId, bookingId }
      */
-    socket.on('driver:leave', ({ driverId, bookingId }) => {
+    socket.on('driver:leave', async ({ driverId, bookingId }) => {
       socket.leave(`booking:${bookingId}`);
       socket.leave(`driver:${driverId}`);
-      
-      logger.info('Driver left booking room:', { driverId, bookingId, socketId: socket.id });
+
+      try {
+        await Driver.findByIdAndUpdate(driverId, {
+          isOnline: false,
+          lastSeenAt: new Date()
+        });
+
+        io.to(`booking:${bookingId}`).emit('driver:status', {
+          driverId,
+          bookingId,
+          isOnline: false,
+          timestamp: new Date()
+        });
+      } catch (error) {
+        logger.error('Error updating driver status on leave:', error);
+      }
     });
 
     /**
@@ -181,7 +270,7 @@ export default function trackingSocketHandler(io) {
      */
     socket.on('watcher:leave', ({ userId, bookingId }) => {
       socket.leave(`booking:${bookingId}`);
-      
+
       logger.info('Watcher left booking room:', { userId, bookingId, socketId: socket.id });
     });
 
@@ -193,7 +282,7 @@ export default function trackingSocketHandler(io) {
     socket.on('location:request', async ({ bookingId }) => {
       try {
         const locationData = await TrackingService.getLastKnownLocation(bookingId);
-        
+
         socket.emit('location:response', {
           success: true,
           data: locationData

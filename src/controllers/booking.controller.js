@@ -32,7 +32,9 @@ export const getTruckTypes = asyncHandler(async (req, res) => {
   const data = truckTypes.map(t => ({
     key: t.key,
     displayName: t.displayName,
-    displayOrder: t.displayOrder
+    displayOrder: t.displayOrder,
+    imageUrl: t.imageUrl,
+    description: t.description
   }));
 
   return res.status(200).json(

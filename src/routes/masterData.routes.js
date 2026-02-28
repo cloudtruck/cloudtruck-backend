@@ -2,6 +2,7 @@ import express from 'express';
 import * as masterDataController from '../controllers/masterData.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
+import { upload } from '../middlewares/upload.middleware.js';
 
 const router = express.Router();
 
@@ -28,6 +29,7 @@ router.get(
 router.post(
   '/',
   requirePermission('staff', 'manage'),
+  upload.single('image'),
   masterDataController.createMasterData
 );
 
@@ -40,6 +42,7 @@ router.patch(
 router.patch(
   '/:id',
   requirePermission('staff', 'manage'),
+  upload.single('image'),
   masterDataController.updateMasterData
 );
 

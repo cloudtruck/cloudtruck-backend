@@ -19,6 +19,7 @@ const masterDataSchema = new mongoose.Schema({
     trim: true
   },
   description: String,
+  imageUrl: String,
   metadata: { 
     type: Object,
     default: {}

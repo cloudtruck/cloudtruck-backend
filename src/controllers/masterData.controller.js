@@ -2,6 +2,7 @@ import asyncHandler from '../utils/asyncHandler.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import MasterData from '../models/masterData.model.js';
+import DocumentService from '../services/document.service.js';
 
 // @desc    Get all master data by category
 // @route   GET /api/v1/master-data
@@ -39,8 +40,17 @@ export const getMasterDataByCategory = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/master-data
 // @access  Super-admin
 export const createMasterData = asyncHandler(async (req, res) => {
-  const { category, key, displayName, description, metadata, displayOrder, isActive } = req.body;
+  let { category, key, displayName, description, metadata, displayOrder, isActive } = req.body;
   
+  // Parse metadata if it's a string (happens with multipart/form-data)
+  if (typeof metadata === 'string') {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch (e) {
+      metadata = {};
+    }
+  }
+
   // Check if key already exists in category
   const existing = await MasterData.findOne({
     category,
@@ -52,11 +62,22 @@ export const createMasterData = asyncHandler(async (req, res) => {
     throw new ApiError(400, `${key} already exists in ${category}`);
   }
   
+  let imageUrl = undefined;
+  if (req.file) {
+    const uploadResult = await DocumentService.uploadDocument(
+      req.file.path,
+      'master-data',
+      { entityType: 'master-data', entityId: key }
+    );
+    imageUrl = uploadResult.url;
+  }
+
   const data = await MasterData.create({
     category,
     key,
     displayName,
     description,
+    imageUrl,
     metadata,
     displayOrder,
     isActive,
@@ -72,8 +93,17 @@ export const createMasterData = asyncHandler(async (req, res) => {
 // @route   PATCH /api/v1/master-data/:id
 // @access  Super-admin
 export const updateMasterData = asyncHandler(async (req, res) => {
-  const { key, displayName, description, metadata, displayOrder, isActive } = req.body;
+  let { key, displayName, description, metadata, displayOrder, isActive } = req.body;
   
+  // Parse metadata if it's a string (happens with multipart/form-data)
+  if (typeof metadata === 'string') {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch (e) {
+      metadata = {};
+    }
+  }
+
   const data = await MasterData.findOne({
     _id: req.params.id,
     isDeleted: false
@@ -103,6 +133,16 @@ export const updateMasterData = asyncHandler(async (req, res) => {
   if (metadata) data.metadata = metadata;
   if (displayOrder !== undefined) data.displayOrder = displayOrder;
   if (isActive !== undefined) data.isActive = isActive;
+
+  if (req.file) {
+    const uploadResult = await DocumentService.uploadDocument(
+      req.file.path,
+      'master-data',
+      { entityType: 'master-data', entityId: data.key }
+    );
+    data.imageUrl = uploadResult.url;
+  }
+
   data.updatedBy = req.user._id;
   
   await data.save();

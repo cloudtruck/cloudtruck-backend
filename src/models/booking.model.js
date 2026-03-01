@@ -218,7 +218,7 @@ const bookingSchema = new Schema(
       lrNumber: { type: String, trim: true },
       lrDate: { type: Date },
       remarks: { type: String },
-      document: { type: Schema.Types.ObjectId, ref: 'Document' },
+      documents: [{ type: Schema.Types.ObjectId, ref: 'Document' }], // array (Fix 5)
       uploadedAt: { type: Date },
       uploadedBy: { type: Schema.Types.ObjectId, ref: 'User' }
     },
@@ -298,6 +298,9 @@ const bookingSchema = new Schema(
 
     bookingSource: { type: String, enum: ['web', 'mobile-app', 'phone', 'staff', 'api'], default: 'web' },
     priority: { type: String, enum: ['low', 'medium', 'high', 'urgent'], default: 'medium' },
+
+    // Interested drivers (Fix 7)
+    interestedDrivers: [{ type: Schema.Types.ObjectId, ref: 'Driver' }],
 
     // Soft delete
     isDeleted: { type: Boolean, default: false, index: true },

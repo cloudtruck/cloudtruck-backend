@@ -52,6 +52,10 @@ class AuthService {
       // Find or create user
       let user = await User.findOne({ phone, isDeleted: false });
 
+      if (user && role && user.role !== role) {
+        throw new ApiError(403, `Mobile number is already registered with a different role (${user.role}). Please log in with the correct role.`);
+      }
+
       if (!user) {
         // Create new user
         user = await User.create({
@@ -230,9 +234,19 @@ class AuthService {
     } = data;
 
     // Check if email already exists
-    const existingUser = await User.findOne({ email, isDeleted: false });
-    if (existingUser) {
-      throw new ApiError(400, 'Email already registered');
+    if (email) {
+      const existingUser = await User.findOne({ email, isDeleted: false });
+      if (existingUser) {
+        throw new ApiError(400, 'Email already registered');
+      }
+    }
+
+    // Check if phone number already exists (Global unique check)
+    if (phone) {
+      const existingPhoneUser = await User.findOne({ phone, isDeleted: false });
+      if (existingPhoneUser) {
+        throw new ApiError(400, `Phone number already registered with role (${existingPhoneUser.role})`);
+      }
     }
 
     // Validate role

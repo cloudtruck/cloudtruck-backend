@@ -155,6 +155,51 @@ export const getAllBookings = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get Available Loads (unassigned bookings for drivers to browse)
+ * GET /api/v1/bookings/available-loads
+ * Fix 6
+ */
+export const getAvailableLoads = asyncHandler(async (req, res) => {
+  const { city, truckType, page, limit } = req.query;
+
+  const result = await BookingService.getAvailableLoads({ city, truckType, page, limit });
+
+  const loads = result.docs.map(b => mapBooking(b));
+
+  return res.status(200).json(
+    new ApiResponse(200, {
+      loads,
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.totalDocs,
+        pages: result.totalPages
+      }
+    }, 'Available loads fetched')
+  );
+});
+
+/**
+ * Express Driver Interest in a Load
+ * POST /api/v1/bookings/:id/express-interest
+ * Fix 7
+ */
+export const expressInterest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user._id;
+
+  // Resolve driver profile ID from user
+  const driver = await Driver.findOne({ user: userId, isDeleted: false }).select('_id');
+  if (!driver) throw new ApiError(404, 'Driver profile not found');
+
+  await BookingService.expressInterest(id, driver._id);
+
+  return res.status(200).json(
+    new ApiResponse(200, null, 'Interest submitted successfully')
+  );
+});
+
+/**
  * Get Booking by ID
  * GET /api/v1/bookings/:id
  */

@@ -46,8 +46,17 @@ const userSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Unique phone but only when present. Use partialFilterExpression to avoid sparse+unique pitfalls.
-userSchema.index({ phone: 1 }, { unique: true, partialFilterExpression: { phone: { $exists: true, $ne: null } } });
+// Unique phone but only when present and NOT deleted. Use partialFilterExpression to avoid sparse+unique pitfalls.
+userSchema.index(
+  { phone: 1 }, 
+  { 
+    unique: true, 
+    partialFilterExpression: { 
+      phone: { $exists: true, $ne: null },
+      isDeleted: false 
+    } 
+  }
+);
 userSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { email: { $exists: true, $ne: null } } });
 
 /* Virtual Fields */

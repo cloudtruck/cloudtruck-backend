@@ -9,6 +9,231 @@
       "name": "Customer App",
       "item": [
         {
+          "name": "Trips & Documents",
+          "item": [
+            {
+              "name": "Get My Trips (Bookings)",
+              "id": "64d58b40-5dd7-4441-b866-bba4f3484c9b",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/bookings?status=assigned,in-transit,delivered",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "bookings"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "assigned,in-transit,delivered"
+                    }
+                  ]
+                },
+                "description": "Fetch all trips/bookings for the logged-in customer."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Trip Details",
+              "id": "bdacf2b5-4565-4e9a-8bf0-52131eb76b3f",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/bookings/{{bookingId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "bookings",
+                    "{{bookingId}}"
+                  ]
+                },
+                "description": "Get detailed information about a specific trip, including driver and vehicle details."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Trip Documents (Invoice/POD/LR)",
+              "id": "951029dd-e097-4eb3-8e8c-269b73bf3c21",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/documents/booking/{{bookingId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "documents",
+                    "booking",
+                    "{{bookingId}}"
+                  ]
+                },
+                "description": "Fetch all documents related to a trip (Invoices, PODs, LR copies)."
+              },
+              "response": []
+            }
+          ],
+          "id": "trips-docs-folder"
+        },
+        {
+          "name": "Complaints & Support",
+          "item": [
+            {
+              "name": "Raise a Complaint",
+              "id": "ae20d730-f390-47ff-b4ad-af5b59d314b5",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"subject\": \"Delay in delivery\",\n  \"description\": \"The truck is stuck in traffic and delayed by 4 hours.\",\n  \"priority\": \"medium\",\n  \"category\": \"delivery-delay\",\n  \"bookingId\": \"{{bookingId}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/support-tickets",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "support-tickets"
+                  ]
+                },
+                "description": "Submit a new support ticket or complaint."
+              },
+              "response": []
+            },
+            {
+              "name": "Get My Complaints",
+              "id": "54157c3c-da61-403e-bca3-11d04cabed4b",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/support-tickets/my-tickets",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "support-tickets",
+                    "my-tickets"
+                  ]
+                },
+                "description": "List all complaints raised by the customer."
+              },
+              "response": []
+            }
+          ],
+          "id": "support-folder"
+        },
+        {
+          "name": "Market Rates",
+          "item": [
+            {
+              "name": "Get Market Rates",
+              "id": "eb2d3641-54f6-440a-8da6-14a68685c858",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/market-rates?fromCity=Delhi&toCity=Mumbai",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "market-rates"
+                  ],
+                  "query": [
+                    {
+                      "key": "fromCity",
+                      "value": "Delhi"
+                    },
+                    {
+                      "key": "toCity",
+                      "value": "Mumbai"
+                    }
+                  ]
+                },
+                "description": "Check current market rates for specific routes."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Price Trends",
+              "id": "fe313da8-11c9-4efe-99da-e67b53cbd12a",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/market-rates/trends?fromCity=Delhi&toCity=Mumbai",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "market-rates",
+                    "trends"
+                  ],
+                  "query": [
+                    {
+                      "key": "fromCity",
+                      "value": "Delhi"
+                    },
+                    {
+                      "key": "toCity",
+                      "value": "Mumbai"
+                    }
+                  ]
+                },
+                "description": "View historical price trends for a route."
+              },
+              "response": []
+            }
+          ],
+          "id": "market-rates-folder"
+        },
+        {
           "name": "Send OTP",
           "event": [
             {

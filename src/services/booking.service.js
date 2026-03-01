@@ -295,6 +295,7 @@ class BookingService {
     const {
       customerId,
       driverId,
+      driverUnassigned,
       status,
       paymentStatus,
       startDate,
@@ -311,6 +312,7 @@ class BookingService {
 
     if (customerId) query.customer = customerId;
     if (driverId) query.driver = driverId;
+    if (driverUnassigned === true) query.driver = null;
     if (status) {
       if (Array.isArray(status)) {
         query.status = { $in: status };
@@ -1364,6 +1366,45 @@ class BookingService {
     };
 
     return result;
+  }
+
+  /**
+   * Get available (unassigned) loads for drivers (Fix 6)
+   * @param {Object} filters - city, truckType, page, limit
+   * @returns {Promise<Object>} Paginated result
+   */
+  static async getAvailableLoads({ city, truckType, page = 1, limit = 20 }) {
+    return this.getBookings(
+      { status: ['created', 'under-review'], driverUnassigned: true, city, truckType },
+      { page: parseInt(page) || 1, limit: parseInt(limit) || 20, sort: { createdAt: -1 } },
+      { maskCustomer: true }
+    );
+  }
+
+  /**
+   * Express driver interest in an available load (Fix 7)
+   * @param {string} bookingId - Booking ID
+   * @param {string} driverId - Driver profile ID
+   * @returns {Promise<Object>} Updated booking
+   */
+  static async expressInterest(bookingId, driverId) {
+    const booking = await Booking.findById(bookingId);
+    if (!booking) throw new ApiError(404, 'Booking not found');
+
+    if (!['created', 'under-review'].includes(booking.status)) {
+      throw new ApiError(400, 'This load is no longer available');
+    }
+
+    // Use .equals() for Mongoose ObjectId comparison
+    if (booking.interestedDrivers.some(id => id.equals(driverId))) {
+      throw new ApiError(409, 'You have already expressed interest in this load');
+    }
+
+    booking.interestedDrivers.push(driverId);
+    await booking.save();
+
+    logger.info('Driver expressed interest:', { bookingId, driverId });
+    return booking;
   }
 }
 

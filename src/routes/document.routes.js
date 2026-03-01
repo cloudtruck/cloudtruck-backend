@@ -59,11 +59,11 @@ router.post(
   documentController.uploadPOD
 );
 
-// Upload LR for booking
+// Upload LR for booking (supports multiple images, Fix 5)
 router.post(
   '/booking/:bookingId/lr',
   checkRole('driver', 'staff', 'internal', 'super-admin'),
-  upload.single('file'),
+  upload.array('files', 5),
   validate(uploadLRSchema),
   documentController.uploadLR
 );

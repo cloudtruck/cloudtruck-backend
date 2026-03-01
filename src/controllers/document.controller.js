@@ -1,6 +1,7 @@
 import DocumentService from '../services/document.service.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
+import ApiError from '../utils/ApiError.js';
 
 /**
  * Upload document
@@ -58,7 +59,7 @@ export const uploadPOD = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
   const files = req.files;
 
-  const documents = await DocumentService.uploadPOD(bookingId, files, req.user._id);
+  const documents = await DocumentService.uploadPOD(bookingId, files, req.body, req.user._id);
 
   return res.status(201).json(new ApiResponse(201, documents, 'POD documents uploaded successfully'));
 });
@@ -68,10 +69,14 @@ export const uploadPOD = asyncHandler(async (req, res) => {
  */
 export const uploadLR = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
-  const file = req.file;
+  const files = req.files;
   const { lrNumber, lrDate, remarks } = req.body;
 
-  const document = await DocumentService.uploadLR(bookingId, file, { lrNumber, lrDate, remarks }, req.user._id);
+  if (!files || files.length === 0) {
+    throw new ApiError(400, 'At least one LR image is required');
+  }
+
+  const document = await DocumentService.uploadLR(bookingId, files, { lrNumber, lrDate, remarks }, req.user._id);
 
   return res.status(201).json(new ApiResponse(201, document, 'LR uploaded successfully'));
 });

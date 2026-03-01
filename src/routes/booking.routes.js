@@ -35,6 +35,10 @@ router.get('/dashboard/status', verifyJWT, checkRole('staff', 'internal', 'super
 
 // Common protected routes
 router.get('/', verifyJWT, validate(getBookingsQuerySchema), bookingController.getAllBookings);
+
+// Available loads for drivers (Fix 6) — must be BEFORE /:id to avoid path collision
+router.get('/available-loads', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), bookingController.getAvailableLoads);
+
 router.get('/:id', verifyJWT, bookingController.getBookingById);
 
 // Staff only - booking updates
@@ -80,6 +84,14 @@ router.post(
   checkRole('driver', 'staff', 'internal', 'super-admin'),
   validate(addDelaySchema),
   bookingController.addDelay
+);
+
+// Driver - express interest in available load (Fix 7)
+router.post(
+  '/:id/express-interest',
+  verifyJWT,
+  checkRole('driver', 'staff', 'internal', 'super-admin'),
+  bookingController.expressInterest
 );
 
 export default router;

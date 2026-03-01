@@ -126,7 +126,17 @@ const driverSchema = new mongoose.Schema({
 driverSchema.plugin(paginationPlugin);
 
 // Indexes
-driverSchema.index({ licenseNumber: 1 }, { unique: true, partialFilterExpression: { licenseNumber: { $exists: true } } });
+// Unique license number but only when it is not "PENDING" and user is not deleted
+driverSchema.index(
+  { licenseNumber: 1 }, 
+  { 
+    unique: true, 
+    partialFilterExpression: { 
+      licenseNumber: { $exists: true, $ne: "PENDING" },
+      isDeleted: false 
+    } 
+  }
+);
 driverSchema.index({ availability: 1, isDeleted: 1 });
 driverSchema.index({ isBlacklisted: 1, isDeleted: 1 });
 driverSchema.index({ 'performance.averageRating': -1 });

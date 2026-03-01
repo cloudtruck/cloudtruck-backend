@@ -139,12 +139,17 @@ class DocumentService {
    * @param {String} userId - User uploading POD
    * @returns {Promise<Object>} - Uploaded documents grouped by type
    */
-  static async uploadPOD(bookingId, files, userId) {
+  static async uploadPOD(bookingId, files, body = {}, userId) {
     const booking = await Booking.findById(bookingId);
     if (!booking) throw new ApiError(404, 'Booking not found');
 
     if (booking.status !== 'delivered') {
       throw new ApiError(400, 'POD can only be uploaded for delivered bookings');
+    }
+
+    // Fix 4: Duplicate submission guard
+    if (booking.podUploadedAt) {
+      throw new ApiError(409, 'POD already submitted for this booking');
     }
 
     const uploaded = { pod: [], lrCopy: [], weightSlip: [], otherDocuments: [] };
@@ -175,6 +180,15 @@ class DocumentService {
 
     booking.podUploadedAt = new Date();
     booking.podUploadedBy = userId;
+
+    // Fix 3: Save receiver details
+    booking.podDetails = {
+      receiverName: body.receiverName || '',
+      receiverPhone: body.receiverPhone || '',
+      deliveredAt: body.deliveredAt ? new Date(body.deliveredAt) : new Date(),
+      remarks: body.remarks || '',
+    };
+
     await booking.save();
 
     logger.info('POD documents uploaded:', { bookingId, counts: Object.fromEntries(Object.entries(uploaded).map(([k, v]) => [k, v.length])) });
@@ -189,32 +203,32 @@ class DocumentService {
    * @param {String} userId - User uploading LR
    * @returns {Promise<Document>}
    */
-  static async uploadLR(bookingId, file, lrData, userId) {
+  static async uploadLR(bookingId, files, lrData, userId) {
     const booking = await Booking.findById(bookingId);
     if (!booking) throw new ApiError(404, 'Booking not found');
 
-    const document = await this.createDocument(
-      {
-        entityType: 'booking',
-        entityId: bookingId,
-        documentType: 'lr',
-        file
-      },
-      userId
+    // Upload all files and collect document IDs (Fix 5)
+    const docIds = await Promise.all(
+      files.map(file =>
+        this.createDocument(
+          { entityType: 'booking', entityId: bookingId, documentType: 'lr', file },
+          userId
+        ).then(d => d._id)
+      )
     );
 
     booking.lrDetails = {
       lrNumber: lrData.lrNumber,
       lrDate: new Date(lrData.lrDate),
       remarks: lrData.remarks,
-      document: document._id,
+      documents: docIds,
       uploadedAt: new Date(),
       uploadedBy: userId
     };
     await booking.save();
 
-    logger.info('LR uploaded:', { bookingId, documentId: document._id });
-    return document;
+    logger.info('LR uploaded:', { bookingId, documentCount: docIds.length });
+    return { documents: docIds };
   }
 
   /**

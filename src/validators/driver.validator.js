@@ -76,6 +76,9 @@ export const addMyTruckSchema = z.object({
     currentCity: z.string().min(2, 'City must be at least 2 characters'),
     driverPhoneNumber: z.string().regex(/^\+?[1-9]\d{9,14}$/, 'Invalid phone number'),
     truckHeight: z.number().positive('Truck height must be a positive number'),
+    truckLength: z.number().min(6, 'Minimum length is 6 ft').max(60, 'Maximum length is 60 ft'),
+    truckCapacity: z.number().min(0.5, 'Minimum capacity is 0.5 tons').max(40, 'Maximum capacity is 40 tons'),
+    insuranceExpiryDate: z.string().refine(val => !isNaN(Date.parse(val)), 'Invalid insurance expiry date'),
     truckType: z.string().min(1, 'Truck type is required')
   })
 });

@@ -118,8 +118,8 @@ class TrackingService {
     if (!booking) throw new ApiError(404, 'Booking not found');
 
     const lastTracking = await Tracking.findOne({ booking: bookingId })
-      .sort({ timestamp: -1 })
-      .select('location speed heading battery timestamp')
+      .sort({ ts: -1 })
+      .select('location speed heading battery ts')
       .lean();
 
     return {
@@ -141,7 +141,7 @@ class TrackingService {
           speed: lastTracking.speed,
           heading: lastTracking.heading,
           battery: lastTracking.battery,
-          timestamp: lastTracking.timestamp
+          timestamp: lastTracking.ts
         }
         : null,
       lastUpdate: booking.lastLocationUpdate

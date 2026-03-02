@@ -304,39 +304,50 @@ describe('Tracking WebSocket Server', function () {
       accuracy: 10
     };
 
-    clientSocket.emit('location:update', locationData);
-
-    clientSocket.once('location:acknowledged', () => {
-      const newWatcherSocket = new Client(`http://localhost:${port}/tracking`, {
-        auth: { token: customerToken }
-      });
-
-      newWatcherSocket.once('connect', () => {
-        newWatcherSocket.once('location:response', (res) => {
-          try {
-            expect(res.success).to.be.true;
-            expect(res.data.lastLocation.latitude).to.equal(22.22);
-            expect(res.data.lastLocation.longitude).to.equal(33.33);
-            newWatcherSocket.close();
-            safeDone();
-          } catch (e) { safeDone(e); }
-        });
-
-        newWatcherSocket.emit('watcher:join', {
-          userId: customerUser._id.toString(),
-          bookingId: booking._id.toString(),
-          role: 'customer'
-        });
-      });
-
-      newWatcherSocket.once('connect_error', (err) => {
-        newWatcherSocket.close();
-        safeDone(err);
+    // Re-join the driver to ensure the socket is in a known good state before
+    // emitting the location update (makes the test self-contained).
+    Driver.findOne({ user: driverUser._id }).then(driver => {
+      clientSocket.emit('driver:join', {
+        driverId: driver._id.toString(),
+        bookingId: booking._id.toString()
       });
     });
 
-    clientSocket.once('location:error', (err) => {
-      safeDone(new Error(`Location update failed: ${err.message}`));
+    clientSocket.once('driver:joined', () => {
+      clientSocket.emit('location:update', locationData);
+
+      clientSocket.once('location:acknowledged', () => {
+        const newWatcherSocket = new Client(`http://localhost:${port}/tracking`, {
+          auth: { token: customerToken }
+        });
+
+        newWatcherSocket.once('connect', () => {
+          newWatcherSocket.once('location:response', (res) => {
+            try {
+              expect(res.success).to.be.true;
+              expect(res.data.lastLocation.latitude).to.equal(22.22);
+              expect(res.data.lastLocation.longitude).to.equal(33.33);
+              newWatcherSocket.close();
+              safeDone();
+            } catch (e) { safeDone(e); }
+          });
+
+          newWatcherSocket.emit('watcher:join', {
+            userId: customerUser._id.toString(),
+            bookingId: booking._id.toString(),
+            role: 'customer'
+          });
+        });
+
+        newWatcherSocket.once('connect_error', (err) => {
+          newWatcherSocket.close();
+          safeDone(err);
+        });
+      });
+
+      clientSocket.once('location:error', (err) => {
+        safeDone(new Error(`Location update failed: ${err.message}`));
+      });
     });
   });
 });

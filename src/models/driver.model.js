@@ -128,13 +128,13 @@ driverSchema.plugin(paginationPlugin);
 // Indexes
 // Unique license number but only when it is not "PENDING" and user is not deleted
 driverSchema.index(
-  { licenseNumber: 1 }, 
-  { 
-    unique: true, 
-    partialFilterExpression: { 
-      licenseNumber: { $exists: true, $ne: "PENDING" },
-      isDeleted: false 
-    } 
+  { licenseNumber: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      licenseNumber: { $exists: true },
+      isDeleted: false
+    }
   }
 );
 driverSchema.index({ availability: 1, isDeleted: 1 });

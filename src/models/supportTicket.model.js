@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { paginationPlugin } from '../utils/plugins/pagination.plugin.js';
+import { generateSequentialId } from '../utils/generateSequentialId.js';
 
 const { Schema } = mongoose;
 
@@ -82,19 +83,8 @@ const supportTicketSchema = new Schema(
 supportTicketSchema.plugin(paginationPlugin);
 
 // Helper for human-readable ticket ID (TIC2402000001)
-async function generateTicketId() {
-  const coll = mongoose.connection.collection('counters');
-  const result = await coll.findOneAndUpdate(
-    { _id: 'support_ticket' },
-    { $inc: { seq: 1 } },
-    { upsert: true, returnDocument: 'after' }
-  );
-  const seq = result.value ? result.value.seq : 1;
-  const date = new Date();
-  const year = String(date.getFullYear()).substr(-2);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const seqStr = String(seq).padStart(6, '0');
-  return `TIC${year}${month}${seqStr}`;
+function generateTicketId() {
+  return generateSequentialId({ counterKey: 'support_ticket', collection: 'supporttickets', idField: 'ticketId', prefix: 'TIC' });
 }
 
 supportTicketSchema.pre('save', async function (next) {

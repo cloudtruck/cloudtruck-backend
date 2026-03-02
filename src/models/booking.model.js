@@ -1,6 +1,7 @@
 // models/booking.model.js
 import mongoose from 'mongoose';
 import { paginationPlugin } from '../utils/plugins/pagination.plugin.js';
+import { generateSequentialId } from '../utils/generateSequentialId.js';
 
 const { Schema } = mongoose;
 
@@ -349,20 +350,8 @@ bookingSchema.virtual('balanceDue').get(function () {
 /* Helpers */
 
 // Atomic booking id generator using a counters collection to avoid race conditions
-async function generateBookingId() {
-  // using native collection to avoid dependency on Counter model
-  const coll = mongoose.connection.collection('counters');
-  const result = await coll.findOneAndUpdate(
-    { _id: 'booking' },
-    { $inc: { seq: 1 } },
-    { upsert: true, returnDocument: 'after' } // returnDocument works with modern drivers
-  );
-  const seq = result.value ? result.value.seq : 1;
-  const date = new Date();
-  const year = String(date.getFullYear()).substr(-2);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const seqStr = String(seq).padStart(6, '0');
-  return `BK${year}${month}${seqStr}`;
+function generateBookingId() {
+  return generateSequentialId({ counterKey: 'booking', collection: 'bookings', idField: 'bookingId', prefix: 'BK' });
 }
 
 /* Pre-save hooks */

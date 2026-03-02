@@ -1,6 +1,7 @@
 import BookingService from '../services/booking.service.js';
 import Driver from '../models/driver.model.js';
 import MasterData from '../models/masterData.model.js';
+import TrackingService from '../services/tracking.service.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
@@ -386,7 +387,15 @@ export const getDriverBookings = asyncHandler(async (req, res) => {
   else if (Array.isArray(result.data)) docs = result.data, p = result.pagination || {};
   else if (Array.isArray(result.docs)) docs = result.docs, p = { page: result.page, limit: result.limit, total: result.totalDocs };
 
-  const bookings = docs.map(mapBooking);
+  const distanceMap = {};
+  await Promise.all(docs.map(async (b) => {
+    distanceMap[b._id] = await TrackingService.calculateDistanceTraveled(b._id);
+  }));
+
+  const bookings = docs.map(b => ({
+    ...mapBooking(b),
+    distanceTraveled: distanceMap[b._id] ?? 0
+  }));
 
   const paginationRes = {
     currentPage: p.page || result.page || 1,

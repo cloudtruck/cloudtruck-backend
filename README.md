@@ -1,124 +1,136 @@
-# Cloudtruck Backend API
+# CloudTruck Backend API
 
-Complete backend implementation for the Cloudtruck managed trucking system.
+Complete backend for the CloudTruck managed trucking platform — booking management, real-time GPS tracking, payments, documents, and notifications.
 
-## Architecture
+## Stack
 
-- **Framework**: Express.js
-- **Database**: MongoDB with Mongoose ODM
-
-- 
-- **Cache**: Redis
-- **Authentication**: Firebase Admin SDK + JWT
-- **File Storage**: Cloudinary
-- **Payment Gateway**: PhonePe
-- **Real-time**: Socket.io
-- **Validation**: Zod
+| Layer | Technology |
+|-------|-----------|
+| Framework | Express.js |
+| Database | MongoDB + Mongoose ODM |
+| Cache | Redis |
+| Auth | Firebase Admin SDK (OTP) + JWT |
+| File Storage | Cloudinary |
+| Payment | PhonePe |
+| Real-time | Socket.io |
+| Validation | Zod |
+| Testing | Mocha + Chai + Sinon + MongoDB Memory Server |
 
 ## Project Structure
 
 ```
-backend/
-├── server.js                    # HTTP server with Socket.io
+cloudtruck-backend/
+├── server.js                        # HTTP server + Socket.io initialization
 ├── src/
-│   ├── app.js                   # Express app configuration
-│   ├── config/                  # Configuration files
-│   │   ├── database.js          # MongoDB connection
-│   │   ├── redis.js             # Redis connection
-│   │   ├── firebase.js          # Firebase Admin SDK
-│   │   ├── cloudinary.js        # Cloudinary config
-│   │   ├── phonepe.js           # PhonePe config
-│   │   └── constants.js         # App constants
-│   ├── models/                  # Mongoose models
-│   │   ├── user.model.js        # Base user model
-│   │   ├── customer.model.js    # Customer profile
-│   │   ├── driver.model.js      # Driver profile
-│   │   ├── staff.model.js       # Staff profile
-│   │   ├── vehicle.model.js     # Vehicle/truck master
-│   │   ├── booking.model.js     # Shipment bookings
-│   │   ├── payment.model.js     # Payment transactions
-│   │   ├── tracking.model.js    # GPS tracking data
-│   │   ├── document.model.js    # File uploads
-│   │   ├── auditLog.model.js    # Audit trail
+│   ├── app.js                       # Express app, middleware registration
+│   ├── config/
+│   │   ├── database.js
+│   │   ├── redis.js
+│   │   ├── firebase.js
+│   │   ├── cloudinary.js
+│   │   ├── phonepe.js
+│   │   └── constants.js
+│   ├── models/
+│   │   ├── user.model.js            # Base user (auth identity)
+│   │   ├── customer.model.js
+│   │   ├── driver.model.js
+│   │   ├── staff.model.js
+│   │   ├── vehicle.model.js
+│   │   ├── booking.model.js         # Core shipment booking
+│   │   ├── payment.model.js
+│   │   ├── tracking.model.js        # GPS points (TTL: 90 days)
+│   │   ├── document.model.js        # Cloudinary file refs
+│   │   ├── notification.model.js
+│   │   ├── supportTicket.model.js
+│   │   ├── ewayBill.model.js
+│   │   ├── marketRate.model.js
+│   │   ├── auditLog.model.js
 │   │   └── ...
-│   ├── controllers/             # HTTP request handlers (thin)
-│   │   ├── auth.controller.js
-│   │   ├── booking.controller.js
-│   │   ├── driver.controller.js
-│   │   ├── customer.controller.js
-│   │   ├── payment.controller.js
-│   │   ├── tracking.controller.js
-│   │   └── ...
-│   ├── services/                # Business logic (fat)
-│   │   ├── auth.service.js
-│   │   ├── booking.service.js
-│   │   ├── payment.service.js
-│   │   ├── notification.service.js
-│   │   └── ...
-│   ├── routes/                  # Express routes
-│   │   ├── index.js             # Routes aggregator
-│   │   ├── auth.routes.js
-│   │   ├── booking.routes.js
-│   │   └── ...
-│   ├── middlewares/             # Express middlewares
-│   │   ├── auth.middleware.js   # JWT verification
-│   │   ├── validation.middleware.js  # Zod validation
-│   │   ├── errorHandler.middleware.js
+│   ├── controllers/                 # Thin HTTP handlers
+│   ├── services/                    # Fat business logic layer
+│   ├── routes/
+│   │   ├── index.js                 # Aggregates all 22 route groups
+│   │   └── *.routes.js
+│   ├── middlewares/
+│   │   ├── auth.middleware.js       # JWT verification
+│   │   ├── rbac.middleware.js       # Role + field-level RBAC
+│   │   ├── validation.middleware.js # Zod schema validation
 │   │   ├── rateLimiter.middleware.js
-│   │   └── upload.middleware.js
-│   ├── validators/              # Zod schemas
-│   │   ├── auth.validator.js
-│   │   ├── booking.validator.js
-│   │   └── ...
-│   ├── sockets/                 # WebSocket handlers
-│   │   ├── tracking.socket.js   # GPS location streaming
+│   │   └── upload.middleware.js     # Multer (temp disk storage)
+│   ├── validators/                  # Zod schemas
+│   ├── sockets/
+│   │   ├── tracking.socket.js       # GPS streaming namespace
 │   │   └── notification.socket.js
-│   └── utils/                   # Utilities
-│       ├── ApiError.js          # Error class
-│       ├── ApiResponse.js       # Response wrapper
-│       ├── asyncHandler.js      # Async wrapper
-│       ├── logger.js            # Winston logger
-│       └── helpers.js
-└── uploads/                     # Temporary file storage
+│   ├── jobs/
+│   │   └── ewayBillExpiry.job.js    # node-cron background job
+│   ├── scripts/                     # Seed scripts
+│   └── utils/
+│       ├── ApiError.js
+│       ├── ApiResponse.js
+│       ├── asyncHandler.js
+│       ├── generateSequentialId.js  # Atomic counter-based IDs (BK…, TIC…)
+│       ├── logger.js                # Winston
+│       └── plugins/
+│           └── pagination.plugin.js
+├── docs/
+│   └── customer-api.md              # Customer app API reference
+└── test/                            # 52 Mocha specs
 ```
 
-## Setup Instructions
+## Commands
+
+```bash
+# Development
+npm run dev          # nodemon with auto-reload
+
+# Production
+npm start
+
+# Tests (52 specs, all passing)
+npm test             # Runs NODE_ENV=test mocha --recursive test/
+
+# Seeding
+npm run seed:org     # Organization + master data (75+ items)
+npm run seed:rbac    # Permissions, roles, templates
+npm run create-admin # Create admin user
+npm run seed:all     # All seeds
+```
+
+## Setup
 
 ### 1. Prerequisites
 
 - Node.js >= 18.x
 - MongoDB >= 6.x
 - Redis >= 7.x
-- Firebase project with Admin SDK
+- Firebase project with Admin SDK service account
 - Cloudinary account
-- PhonePe merchant account (optional for testing)
+- PhonePe merchant account (sandbox for development)
 
-### 2. Installation
+### 2. Install
 
 ```bash
-# Install dependencies
 npm install
-
-# Copy environment file
 cp .env.example .env
 ```
 
-### 3. Environment Configuration
-
-Edit `.env` file with your credentials:
+### 3. Environment Variables
 
 ```env
-# Required
+# Core
 NODE_ENV=development
 PORT=5000
 MONGODB_URI=mongodb://localhost:27017/cloudtruck
 REDIS_URL=redis://localhost:6379
-ACCESS_TOKEN_SECRET=<generate-strong-secret>
-REFRESH_TOKEN_SECRET=<generate-strong-secret>
+ACCESS_TOKEN_SECRET=<strong-random-secret>
+REFRESH_TOKEN_SECRET=<strong-random-secret>
+ACCESS_TOKEN_EXPIRY=1h
+REFRESH_TOKEN_EXPIRY=30d
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 
 # Firebase Admin SDK
 FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_CLIENT_EMAIL=your-service-account-email
+FIREBASE_CLIENT_EMAIL=your-service-account@project.iam.gserviceaccount.com
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 
 # Cloudinary
@@ -126,365 +138,357 @@ CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
 
-# PhonePe (Use sandbox for development)
+# PhonePe (sandbox)
 PHONEPE_MERCHANT_ID=your-merchant-id
 PHONEPE_SALT_KEY=your-salt-key
 PHONEPE_SALT_INDEX=1
 PHONEPE_API_URL=https://api-preprod.phonepe.com/apis/pg-sandbox
 
-# Rate Limiting (Optional - defaults provided)
-RATE_LIMIT_WINDOW_MS=900000          # 15 minutes in ms
-GLOBAL_RATE_LIMIT=200                # Regular users: 200 requests per window
-ADMIN_RATE_LIMIT=1000                # Admin/Staff: 1000 requests per window
-ADMIN_API_RATE_LIMIT=300             # Admin/Staff: 300 requests per minute
+# Google Maps (optional — geocoding & routing)
+GOOGLE_MAPS_API_KEY=your-key
 
-# Google Maps API (Optional - for geocoding and routing)
-GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+# Rate limiting (optional — defaults shown)
+RATE_LIMIT_WINDOW_MS=900000
+GLOBAL_RATE_LIMIT=200
+ADMIN_RATE_LIMIT=1000
 ```
 
-### 4. Database Setup
+### 4. Seed & Run
 
 ```bash
-# Start MongoDB
 mongod
-
-# Start Redis
 redis-server
-
-# Seed RBAC permissions (optional)
-npm run seed
-```
-
-### 5. Run Server
-
-```bash
-# Development mode with auto-reload
+npm run seed:all
 npm run dev
-
-# Production mode
-npm start
 ```
 
-Server will start on `http://localhost:5000`
+---
 
-## API Endpoints
+## API Reference
 
-### Base URL
+**Base URL:** `http://localhost:5000/api/v1`
+
+**Standard response:**
+```json
+{ "success": true, "statusCode": 200, "data": { ... }, "message": "..." }
 ```
-http://localhost:5000/api/v1
-```
 
-### Authentication Routes (`/auth`)
+**Paginated response** includes `data.items` and `data.pagination` (`page`, `limit`, `total`, `pages`).
+
+**Auth:** JWT as `Authorization: Bearer <token>` header or `accessToken` HttpOnly cookie.
+
+---
+
+### Auth (`/auth`)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/otp/send` | No | Send OTP to phone |
+| POST | `/otp/resend` | No | Resend OTP |
+| POST | `/otp/verify` | No | Verify OTP → returns JWT tokens |
+| POST | `/login/staff` | No | Staff email + password login |
+| POST | `/refresh-token` | No | Rotate access + refresh tokens |
+| GET | `/me` | Yes | Current user profile |
+| POST | `/logout` | Yes | Logout current device |
+| POST | `/logout-all` | Yes | Logout all devices |
+| POST | `/change-password` | Yes | Change password |
+| POST | `/register/staff` | Staff+ | Register new staff member |
+| POST | `/verify/:userId` | Staff+ | Verify user KYC |
+| POST | `/block/:userId` | Staff+ | Block user |
+| POST | `/unblock/:userId` | Staff+ | Unblock user |
+
+---
+
+### Bookings (`/bookings`)
 
 | Method | Endpoint | Auth | Role | Description |
 |--------|----------|------|------|-------------|
-| POST | `/login/mobile` | No | - | Mobile OTP login (Firebase) |
-| POST | `/login/staff` | No | - | Staff email/password login |
-| POST | `/refresh-token` | No | - | Refresh access token |
-| POST | `/logout` | Yes | All | Logout user |
-| POST | `/logout-all` | Yes | All | Logout from all devices |
-| POST | `/change-password` | Yes | All | Change password |
-| POST | `/reset-password` | No | - | Reset password |
-| GET | `/me` | Yes | All | Get current user |
-| POST | `/register/staff` | Yes | Staff+ | Register new staff |
-| POST | `/verify/:userId` | Yes | Staff+ | Verify user KYC |
-| POST | `/block/:userId` | Yes | Staff+ | Block user |
-| POST | `/unblock/:userId` | Yes | Staff+ | Unblock user |
-
-### Booking Routes (`/bookings`)
-
-| Method | Endpoint | Auth | Role | Description |
-|--------|----------|------|------|-------------|
-| POST | `/` | Yes | Customer | Create booking |
-| GET | `/` | Yes | All | Get all bookings (filtered) |
-| GET | `/my-bookings` | Yes | Customer | Get my bookings |
-| GET | `/driver-bookings` | Yes | Driver | Get assigned bookings |
-| GET | `/stats` | Yes | Staff+ | Get booking statistics |
-| GET | `/:id` | Yes | All | Get booking by ID |
+| POST | `/` | Yes | Customer | Create booking (`multipart/form-data`) |
+| GET | `/` | Yes | All | List bookings (filtered by role) |
+| GET | `/truck-types` | Yes | All | Available truck types |
+| GET | `/stats` | Yes | Staff+ | Booking statistics |
+| GET | `/available-loads` | Yes | Driver | Open loads for bidding |
+| GET | `/driver-bookings` | Yes | Driver | My assigned bookings |
+| GET | `/:id` | Yes | All | Get booking by ObjectId or `BK…` ID |
 | PATCH | `/:id/status` | Yes | Staff/Driver | Update booking status |
-| POST | `/:id/assign-driver` | Yes | Staff+ | Assign driver to booking |
+| POST | `/:id/assign-driver` | Yes | Staff+ | Assign driver + vehicle |
 | POST | `/:id/cancel` | Yes | Customer/Staff | Cancel booking |
-| POST | `/:id/delay` | Yes | Driver/Staff | Add delay notification |
+| POST | `/:id/delay` | Yes | Driver/Staff | Report delay |
+| POST | `/:id/express-interest` | Yes | Driver | Driver expresses interest in a load |
 
-### Driver Routes (`/drivers`)
+**Booking status lifecycle:**
+`created` → `under-review` → `assigned` → `driver-en-route` → `reached-pickup` → `loaded` → `in-transit` → `reached-destination` → `delivered` → `pod-received` → `closed` / `cancelled`
 
-| Method | Endpoint | Auth | Role | Description |
-|--------|----------|------|------|-------------|
-| POST | `/` | Yes | Driver | Create driver profile |
-| GET | `/` | Yes | Staff+ | List all drivers |
-| GET | `/my-profile` | Yes | Driver | Get my profile |
-| GET | `/nearby` | Yes | Staff+ | Get nearby drivers |
-| GET | `/:id` | Yes | Staff+ | Get driver by ID |
-| PATCH | `/:id` | Yes | Staff+ | Update driver |
-| POST | `/:id/verify` | Yes | Staff+ | Verify driver |
-| POST | `/:id/blacklist` | Yes | Internal+ | Blacklist driver |
+---
 
-### Customer Routes (`/customers`)
+### Documents (`/documents`)
 
 | Method | Endpoint | Auth | Role | Description |
 |--------|----------|------|------|-------------|
-| POST | `/` | Yes | Customer | Create customer profile |
-| GET | `/` | Yes | Staff+ | List all customers |
-| GET | `/my-profile` | Yes | Customer | Get my profile |
-| GET | `/my-dashboard` | Yes | Customer | Get dashboard stats |
-| GET | `/:id` | Yes | Staff+ | Get customer by ID |
-| PATCH | `/:id` | Yes | Staff+ | Update customer |
-| POST | `/:id/verify` | Yes | Staff+ | Verify customer KYC |
+| POST | `/` | Yes | All | Upload a document |
+| GET | `/booking/:bookingId` | Yes | All | All documents for a booking (grouped) |
+| GET | `/booking/:bookingId/pod` | Yes | All | POD details + documents (customer-safe) |
+| GET | `/booking/:bookingId/lr` | Yes | All | LR details + documents (customer-safe) |
+| POST | `/booking/:bookingId/pod` | Yes | Driver/Staff | Upload POD (receiver details + files) |
+| POST | `/booking/:bookingId/lr` | Yes | Staff+ | Upload LR (up to 5 files) |
+| POST | `/booking/:bookingId/loading-images` | Yes | Driver/Staff | Upload loading images |
+| GET | `/signed-url/:cloudinaryId` | Yes | All | Temporary signed download URL |
+| DELETE | `/:id` | Yes | Staff+ | Delete document |
 
-### Vehicle Routes (`/vehicles`)
+---
 
-| Method | Endpoint | Auth | Role | Description |
-|--------|----------|------|------|-------------|
-| POST | `/` | Yes | Staff+ | Add new vehicle |
-| GET | `/` | Yes | Staff+ | List all vehicles |
-| GET | `/available` | Yes | Staff+ | Get available vehicles |
-| GET | `/:id` | Yes | Staff+ | Get vehicle by ID |
-| PATCH | `/:id` | Yes | Staff+ | Update vehicle |
-| POST | `/:id/maintenance` | Yes | Staff+ | Add maintenance record |
+### Tracking (`/tracking`)
 
-### Payment Routes (`/payments`)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/:bookingId/location` | Yes | Record GPS location |
+| GET | `/:bookingId/history` | Yes | Full tracking history |
+| GET | `/:bookingId/last-location` | Yes | Last known location |
+| GET | `/:bookingId/url` | Yes | Shareable tracking URL |
+| GET | `/:bookingId/distance` | Yes | Distance traveled (km) |
+| GET | `/:bookingId/route` | Yes | Full GPS path |
+| GET | `/:bookingId/statistics` | Yes | Speed/distance stats |
+
+---
+
+### Payments (`/payments`)
 
 | Method | Endpoint | Auth | Role | Description |
 |--------|----------|------|------|-------------|
 | POST | `/` | Yes | Customer | Create payment order |
-| POST | `/initiate` | Yes | Customer | Initiate PhonePe payment |
-| POST | `/phonepe/callback` | No | - | PhonePe webhook |
-| GET | `/verify/:txnId` | Yes | All | Verify payment status |
+| POST | `/initiate` | Yes | Customer | Initiate PhonePe redirect |
+| POST | `/phonepe/callback` | No | — | PhonePe webhook |
+| GET | `/verify/:merchantTxnId` | Yes | All | Verify payment status |
+| GET | `/my-payments` | Yes | Customer | My payment history |
+| GET | `/:id` | Yes | All | Get payment by ID |
+| GET | `/:id/invoice` | No | — | Download invoice PDF |
 | POST | `/manual` | Yes | Staff+ | Record manual payment |
 | POST | `/:id/refund` | Yes | Internal+ | Initiate refund |
 | GET | `/` | Yes | Staff+ | List all payments |
 
-### Document Routes (`/documents`)
+---
+
+### Support Tickets (`/support-tickets`)
 
 | Method | Endpoint | Auth | Role | Description |
 |--------|----------|------|------|-------------|
-| POST | `/` | Yes | All | Upload document |
-| GET | `/:entityType/:entityId` | Yes | All | Get entity documents |
-| POST | `/booking/:id/pod` | Yes | Driver/Staff | Upload POD |
-| POST | `/booking/:id/loading-images` | Yes | Driver/Staff | Upload loading images |
-| GET | `/booking/:id` | Yes | All | Get booking documents |
-| DELETE | `/:id` | Yes | Staff+ | Delete document |
+| POST | `/` | Yes | All | Create ticket (`TIC…` ID generated) |
+| GET | `/` | Yes | Staff+ | List all tickets |
+| GET | `/my-tickets` | Yes | All | My tickets |
+| GET | `/:id` | Yes | All | Get ticket |
+| PATCH | `/:id` | Yes | Staff+ | Update ticket status/assignment |
+| POST | `/:id/reply` | Yes | All | Add reply to thread |
 
-### Tracking Routes (`/tracking`)
+**Categories:** `booking-issue`, `payment-issue`, `delivery-delay`, `damaged-goods`, `driver-behavior`, `app-issue`, `pod-issue`, `other`
 
-| Method | Endpoint | Auth | Role | Description |
-|--------|----------|------|------|-------------|
-| POST | `/:bookingId/location` | Yes | Driver | Record GPS location |
-| GET | `/:bookingId/history` | Yes | All | Get tracking history |
-| GET | `/:bookingId/last-location` | Yes | All | Get last known location |
-| GET | `/:bookingId/url` | Yes | Customer/Staff | Get tracking URL |
-| GET | `/:bookingId/distance` | Yes | All | Calculate distance traveled |
-| GET | `/:bookingId/statistics` | Yes | Staff+ | Get tracking stats |
-
-### Audit Routes (`/audit`)
-
-| Method | Endpoint | Auth | Role | Description |
-|--------|----------|------|------|-------------|
-| GET | `/` | Yes | Staff+ | Get audit logs |
-| GET | `/my-activity` | Yes | All | Get my activity |
-| GET | `/entity/:type/:id` | Yes | Staff+ | Get entity history |
-| GET | `/user/:userId` | Yes | Staff+ | Get user activity |
-| GET | `/suspicious` | Yes | Internal+ | Get suspicious activities |
-| GET | `/export` | Yes | Internal+ | Export audit logs |
-
-## WebSocket Namespaces
-
-### Tracking (`/tracking`)
-
-```javascript
-// Driver joins booking room
-socket.emit('driver:join', { driverId, bookingId });
-
-// Send location update
-socket.emit('location:update', {
-  bookingId,
-  driverId,
-  latitude,
-  longitude,
-  accuracy,
-  speed,
-  heading,
-  battery
-});
-
-// Listen for location updates
-socket.on('location:updated', (data) => {
-  console.log('New location:', data);
-});
-```
+---
 
 ### Notifications (`/notifications`)
 
-```javascript
-// Join notification channel
-socket.emit('user:join', { userId, role });
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/` | Yes | List notifications |
+| GET | `/unread-count` | Yes | Unread count |
+| PATCH | `/:id/read` | Yes | Mark as read |
+| PATCH | `/read-all` | Yes | Mark all as read |
+| DELETE | `/:id` | Yes | Delete notification |
 
-// Listen for notifications
-socket.on('notification:new', (notification) => {
-  console.log('New notification:', notification);
+---
+
+### Drivers (`/drivers`)
+
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| POST | `/` | Yes | Driver | Create driver profile |
+| GET | `/` | Yes | Staff+ | List drivers |
+| GET | `/my-profile` | Yes | Driver | My profile |
+| GET | `/nearby` | Yes | Staff+ | Nearby drivers (geo) |
+| GET | `/:id` | Yes | Staff+ | Driver by ID |
+| PATCH | `/:id` | Yes | Staff+ | Update driver |
+| POST | `/:id/verify` | Yes | Staff+ | Verify KYC |
+| POST | `/:id/blacklist` | Yes | Internal+ | Blacklist driver |
+
+---
+
+### Customers (`/customers`)
+
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| POST | `/` | Yes | Customer | Create customer profile |
+| GET | `/` | Yes | Staff+ | List customers |
+| GET | `/my-profile` | Yes | Customer | My profile |
+| GET | `/my-dashboard` | Yes | Customer | Stats summary |
+| GET | `/my-bookings` | Yes | Customer | Booking history |
+| PATCH | `/my-gst` | Yes | Customer | Update GST number |
+| GET/POST/PATCH/DELETE | `/my-bank-accounts` | Yes | Customer | Bank account management |
+| GET | `/:id` | Yes | Staff+ | Customer by ID |
+| PATCH | `/:id` | Yes | Staff+ | Update customer |
+
+---
+
+### Vehicles (`/vehicles`)
+
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| POST | `/` | Yes | Staff+ | Add vehicle |
+| GET | `/` | Yes | Staff+ | List vehicles |
+| GET | `/available` | Yes | Staff+ | Available vehicles |
+| GET | `/driver/:driverId` | Yes | All | Vehicles for a driver |
+| GET | `/:id` | Yes | Staff+ | Vehicle by ID |
+| PATCH | `/:id` | Yes | Staff+ | Update vehicle |
+| POST | `/:id/maintenance` | Yes | Staff+ | Add maintenance record |
+
+---
+
+### Market Rates (`/market-rates`) — Public
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Market freight rates (filterable) |
+| GET | `/trends` | 6-month price trends per route |
+| GET | `/cities` | Available cities |
+
+---
+
+### Other Routes
+
+| Prefix | Description |
+|--------|-------------|
+| `/staff` | Staff CRUD + role management |
+| `/audit` | Audit logs (Staff+) |
+| `/branches` | Branch offices |
+| `/organization` | Org settings |
+| `/master-data` | Truck types, material types, etc. |
+| `/eway-bills` | E-way bill management |
+| `/accounts` | Financial accounts |
+| `/exports` | CSV/Excel exports |
+| `/role-templates` | RBAC role templates |
+| `/permissions` | Field-level permissions |
+| `/cities` | City master data |
+| `/routes` | Planned route management |
+
+---
+
+## WebSocket
+
+### Tracking Namespace (`/tracking`)
+
+```js
+const socket = io('http://localhost:5000/tracking', {
+  auth: { token: '<accessToken>' }
 });
+
+// Driver: join booking room
+socket.emit('driver:join', { driverId, bookingId });
+
+// Driver: send location (throttled to 1/10s in production)
+socket.emit('location:update', {
+  bookingId, latitude, longitude, accuracy, speed, heading, battery
+});
+
+// Customer/Staff: watch a booking
+socket.emit('watcher:join', { userId, bookingId, role: 'customer' });
+
+// Receive updates
+socket.on('location:updated', ({ latitude, longitude, speed, timestamp }) => { ... });
+socket.on('location:response', ({ data }) => { ... }); // auto-sent on join (last known)
+socket.on('driver:status', ({ isOnline }) => { ... });
 ```
+
+### Notifications Namespace (`/notifications`)
+
+```js
+const socket = io('http://localhost:5000/notifications', {
+  auth: { token: '<accessToken>' }
+});
+socket.emit('user:join', { userId, role });
+socket.on('notification:new', (notification) => { ... });
+```
+
+---
 
 ## Authentication Flow
 
-### Mobile Login (Customer/Driver)
+**Mobile OTP (Customer / Driver):**
+1. `POST /auth/otp/send` → `{ sessionId }`
+2. `POST /auth/otp/verify` → `{ accessToken, refreshToken, user }`
+3. Tokens set as HttpOnly cookies automatically
 
-1. Client sends Firebase ID token to `/auth/login/mobile`
-2. Server verifies token with Firebase Admin SDK
-3. Server creates/finds user in database
-4. Server generates JWT access + refresh tokens
-5. Tokens set in HTTP-only cookies
+**Staff Login:**
+1. `POST /auth/login/staff` with `{ email, password }`
+2. Up to 5 failed attempts → account locked
 
-### Staff Login
+**Token Refresh:**
+1. `POST /auth/refresh-token` with refresh token
+2. Returns new access + refresh token pair (rotation)
 
-1. Client sends email + password to `/auth/login/staff`
-2. Server verifies credentials with bcrypt
-3. Server generates JWT tokens
-4. Login attempts tracked (rate limited after 5 failures)
+---
 
-### Token Refresh
+## Response Codes
 
-1. Client sends refresh token to `/auth/refresh-token`
-2. Server validates refresh token
-3. Server generates new access token
-4. Old refresh token invalidated
+| Code | Meaning |
+|------|---------|
+| 200 | Success |
+| 201 | Created |
+| 400 | Validation / bad request |
+| 401 | Missing or expired token |
+| 403 | Access denied |
+| 404 | Not found |
+| 409 | Conflict (e.g. duplicate POD submission) |
+| 429 | Rate limit exceeded |
+| 500 | Server error |
 
-## Error Handling
-
-All errors follow standardized format:
-
-```json
-{
-  "success": false,
-  "message": "Error description",
-  "errors": [],
-  "stack": "..." // Only in development
-}
-```
-
-Status codes:
-- `400` - Bad Request (validation errors)
-- `401` - Unauthorized (invalid/missing token)
-- `403` - Forbidden (insufficient permissions)
-- `404` - Not Found
-- `500` - Internal Server Error
-
-## Response Format
-
-All success responses:
-
-```json
-{
-  "success": true,
-  "statusCode": 200,
-  "data": { ... },
-  "message": "Operation successful"
-}
-```
-
-Paginated responses:
-
-```json
-{
-  "success": true,
-  "statusCode": 200,
-  "data": {
-    "items": [...],
-    "pagination": {
-      "page": 1,
-      "limit": 20,
-      "total": 100,
-      "pages": 5
-    }
-  }
-}
-```
-
-## Security Features
-
-- ✅ JWT authentication with refresh tokens
-- ✅ Role-based access control (RBAC)
-- ✅ Input validation with Zod
-- ✅ SQL/NoSQL injection prevention
-- ✅ XSS protection
-- ✅ Rate limiting
-- ✅ Helmet security headers
-- ✅ CORS configuration
-- ✅ Password hashing (bcrypt)
-- ✅ Soft delete pattern
-- ✅ Audit logging
-- ✅ Firebase token verification
-
-## Performance Optimizations
-
-- Database connection pooling
-- Redis caching
-- Mongoose query optimization with indexes
-- Lean queries for read operations
-- Pagination on all list endpoints
-- WebSocket for real-time updates
-- Cloudinary CDN for file delivery
-
-## Monitoring & Logging
-
-- Winston logger with multiple transports
-- Request logging with Morgan
-- Error tracking with stack traces
-- Audit trail for all critical operations
-- Performance metrics logging
+---
 
 ## Testing
 
-```bash
-# Unit tests (when implemented)
-npm test
+52 specs across 17 test files using Mocha + Chai + MongoDB Memory Server.
 
-# API testing with Postman
-# Import backend/postman_collection.json
+```bash
+npm test
+# NODE_ENV=test mocha --exit --recursive test/ --timeout 10000
 ```
+
+Key test files:
+- `test/booking.spec.js` — booking lifecycle
+- `test/tracking.socket.spec.js` — WebSocket GPS streaming
+- `test/payment.spec.js` — PhonePe integration
+- `test/document.spec.js` — file upload flows
+
+---
+
+## ID Format
+
+Sequential human-readable IDs generated via an atomic `counters` collection:
+
+| Entity | Format | Example |
+|--------|--------|---------|
+| Booking | `BK{YY}{MM}{seq6}` | `BK2603000042` |
+| Support Ticket | `TIC{YY}{MM}{seq6}` | `TIC2603000007` |
+
+---
 
 ## Deployment
 
-### Environment Setup
-
-1. Set `NODE_ENV=production`
-2. Use strong secrets for JWT
-3. Configure production MongoDB cluster
-4. Set up Redis cluster
-5. Use production Firebase project
-6. Enable Cloudinary optimizations
-7. Configure production PhonePe credentials
-
-### Process Management
-
 ```bash
-# Using PM2
+# PM2
 pm2 start server.js --name cloudtruck-api
-pm2 save
-pm2 startup
+pm2 save && pm2 startup
 ```
 
-### Health Checks
+**Checklist:**
+- `NODE_ENV=production`
+- Strong `ACCESS_TOKEN_SECRET` and `REFRESH_TOKEN_SECRET`
+- Production MongoDB Atlas cluster (`MONGODB_URI`)
+- Redis cluster (`REDIS_URL`)
+- Production PhonePe credentials
+- Cloudinary production config
+- Set `ALLOWED_ORIGINS` to production domain(s)
 
-- `GET /api/v1/health` - API health check
-- Monitor MongoDB connection
-- Monitor Redis connection
-- Check WebSocket connections
+**Health check:** `GET /api/v1/health`
 
-## Contributing
-
-1. Follow existing code patterns
-2. Use `asyncHandler` for all async routes
-3. Throw `ApiError` for errors
-4. Return `ApiResponse` for success
-5. Add Zod validators for new endpoints
-6. Update audit logs for critical actions
-7. Write JSDoc for complex functions
+---
 
 ## License
 
 ISC
-
-## Support
-
-For issues and questions, contact the development team.

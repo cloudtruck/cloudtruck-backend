@@ -259,7 +259,7 @@ class DocumentService {
         userId
       );
       documents.push(document);
-      booking.loadingImages.push(document._id);
+      booking.loadingDocuments.push(document._id);
     }
 
     await booking.save();

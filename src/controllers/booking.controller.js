@@ -141,7 +141,15 @@ export const getAllBookings = asyncHandler(async (req, res) => {
   else if (Array.isArray(result.docs)) docs = result.docs, p = { page: result.page, limit: result.limit, total: result.totalDocs };
   else if (Array.isArray(result.results)) docs = result.results, p = { page: result.page, limit: result.limit, total: result.totalDocs };
 
-  const bookings = docs.map(mapBooking);
+  const distanceMap = {};
+  await Promise.all(docs.map(async (b) => {
+    distanceMap[b._id] = await TrackingService.calculateDistanceTraveled(b._id);
+  }));
+
+  const bookings = docs.map(b => ({
+    ...mapBooking(b),
+    distanceTraveled: distanceMap[b._id] ?? 0
+  }));
 
   const paginationRes = {
     currentPage: p.page || result.page || 1,
@@ -215,9 +223,10 @@ export const getBookingById = asyncHandler(async (req, res) => {
   const userRole = req.user.role;
 
   const booking = await BookingService.getBookingById(id, userId, userRole);
+  const distanceTraveled = await TrackingService.calculateDistanceTraveled(booking._id);
 
   return res.status(200).json(
-    new ApiResponse(200, booking, 'Booking fetched successfully')
+    new ApiResponse(200, { ...booking.toObject(), distanceTraveled }, 'Booking fetched successfully')
   );
 });
 

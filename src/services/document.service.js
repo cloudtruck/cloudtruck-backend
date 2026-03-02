@@ -1,6 +1,7 @@
 import cloudinary from '../config/cloudinary.js';
 import Document from '../models/document.model.js';
 import Booking from '../models/booking.model.js';
+import Customer from '../models/customer.model.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
 import fs from 'fs/promises';
@@ -282,6 +283,77 @@ class DocumentService {
       loadingImages: documents.filter((d) => d.documentType === 'loading-image'),
       lr: documents.filter((d) => d.documentType === 'lr'),
       other: documents.filter((d) => !['pod', 'lr', 'lr-copy', 'weight-slip', 'loading-image'].includes(d.documentType))
+    };
+  }
+
+  // Fields to select when populating document refs for customer-facing responses
+  static #DOC_FIELDS = 'url format bytes uploadedAt';
+
+  // Bypass roles that skip ownership check
+  static #PRIVILEGED_ROLES = new Set(['staff', 'internal', 'super-admin', 'driver']);
+
+  /**
+   * Verify booking ownership for a customer user.
+   * Staff/admin/driver bypass this check.
+   */
+  static async #assertBookingAccess(booking, userId, userRole) {
+    if (DocumentService.#PRIVILEGED_ROLES.has(userRole)) return;
+    const customerDoc = await Customer.findOne({ user: userId, isDeleted: false }).select('_id');
+    if (!customerDoc || booking.customer.toString() !== customerDoc._id.toString()) {
+      throw new ApiError(403, 'Access denied');
+    }
+  }
+
+  /**
+   * Fetch a booking by ObjectId or readable bookingId, throws 404 if not found.
+   */
+  static async #findBooking(bookingId, populatePaths = []) {
+    let q = Booking.findOne({ $or: [{ _id: bookingId }, { bookingId }], isDeleted: false });
+    for (const [path, fields] of populatePaths) q = q.populate(path, fields);
+    const booking = await q.lean();
+    if (!booking) throw new ApiError(404, 'Booking not found');
+    return booking;
+  }
+
+  /**
+   * Get POD details + documents for a booking (customer-safe)
+   */
+  static async getBookingPOD(bookingId, userId, userRole) {
+    const f = DocumentService.#DOC_FIELDS;
+    const booking = await DocumentService.#findBooking(bookingId, [
+      ['podDocuments', f],
+      ['lrCopyDocuments', f],
+      ['weightSlipDocuments', f]
+    ]);
+    await this.#assertBookingAccess(booking, userId, userRole);
+
+    return {
+      podDetails: booking.podDetails || null,
+      podUploadedAt: booking.podUploadedAt || null,
+      documents: {
+        pod: booking.podDocuments || [],
+        lrCopy: booking.lrCopyDocuments || [],
+        weightSlip: booking.weightSlipDocuments || []
+      }
+    };
+  }
+
+  /**
+   * Get LR details + documents for a booking (customer-safe)
+   */
+  static async getBookingLR(bookingId, userId, userRole) {
+    const booking = await DocumentService.#findBooking(bookingId, [
+      ['lrDetails.documents', DocumentService.#DOC_FIELDS]
+    ]);
+    await this.#assertBookingAccess(booking, userId, userRole);
+
+    if (!booking.lrDetails?.uploadedAt) {
+      return { available: false, lrDetails: null };
+    }
+
+    return {
+      available: true,
+      lrDetails: booking.lrDetails
     };
   }
 

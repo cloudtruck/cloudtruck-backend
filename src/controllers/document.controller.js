@@ -105,6 +105,24 @@ export const getBookingDocuments = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get POD for a booking (customer read)
+ */
+export const getBookingPOD = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const data = await DocumentService.getBookingPOD(bookingId, req.user._id, req.user.role);
+  return res.status(200).json(new ApiResponse(200, data, 'POD retrieved successfully'));
+});
+
+/**
+ * Get LR for a booking (customer read)
+ */
+export const getBookingLR = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const data = await DocumentService.getBookingLR(bookingId, req.user._id, req.user.role);
+  return res.status(200).json(new ApiResponse(200, data, 'LR retrieved successfully'));
+});
+
+/**
  * Get signed download URL
  */
 export const getSignedUrl = asyncHandler(async (req, res) => {

@@ -80,6 +80,22 @@ router.post(
 // Get all documents for booking
 router.get('/booking/:bookingId', validate(bookingIdParamSchema), documentController.getBookingDocuments);
 
+// Get POD for booking (customer, driver, staff)
+router.get(
+  '/booking/:bookingId/pod',
+  checkRole('customer', 'driver', 'staff', 'internal', 'super-admin'),
+  validate(bookingIdParamSchema),
+  documentController.getBookingPOD
+);
+
+// Get LR for booking (customer, driver, staff)
+router.get(
+  '/booking/:bookingId/lr',
+  checkRole('customer', 'driver', 'staff', 'internal', 'super-admin'),
+  validate(bookingIdParamSchema),
+  documentController.getBookingLR
+);
+
 // Get signed download URL
 router.get('/signed-url/:cloudinaryId', validate(getSignedUrlSchema), documentController.getSignedUrl);
 

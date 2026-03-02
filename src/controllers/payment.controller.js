@@ -3,6 +3,7 @@ import PDFService from '../services/pdf.service.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import AuditLog from '../models/auditLog.model.js';
+import logger from '../utils/logger.js';
 
 const getRequestAuditMetadata = (req) => ({
   ipAddress: req.ip,

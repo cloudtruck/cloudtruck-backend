@@ -15,7 +15,8 @@ class MarketRateService {
     const result = await MarketRate.paginate(query, {
       page: page || 1,
       limit: limit || 20,
-      sort: { bookingCount: -1, createdAt: -1 }
+      sort: { bookingCount: -1, createdAt: -1 },
+      select: '-priceTrends'
     });
 
     return result;

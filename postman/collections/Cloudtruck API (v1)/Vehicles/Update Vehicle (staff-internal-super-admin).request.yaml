@@ -1,0 +1,14 @@
+$kind: http-request
+name: Update Vehicle (staff/internal/super-admin)
+url: "{{baseUrl}}/vehicles/{{vehicleId}}"
+method: PATCH
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "capacity": 12
+    }
+order: 7000

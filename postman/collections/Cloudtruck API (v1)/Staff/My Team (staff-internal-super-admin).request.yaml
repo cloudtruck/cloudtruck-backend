@@ -1,0 +1,7 @@
+$kind: http-request
+name: My Team (staff/internal/super-admin)
+url: "{{baseUrl}}/staff/my-team"
+method: GET
+headers:
+  Accept: application/json
+order: 4000

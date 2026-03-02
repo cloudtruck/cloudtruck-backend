@@ -1,0 +1,16 @@
+$kind: http-request
+url: "{{baseUrl}}/payments/phonepe/callback"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "response": "<BASE64_RESPONSE>",
+      "checksum": "<CHECKSUM>"
+    }
+auth:
+  type: noauth
+order: 1000

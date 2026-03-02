@@ -1,0 +1,17 @@
+$kind: http-request
+name: Add Maintenance (staff/internal/super-admin)
+url: "{{baseUrl}}/vehicles/{{vehicleId}}/maintenance"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "type": "service",
+      "description": "Regular service",
+      "cost": 2500,
+      "serviceDate": "2025-12-13T00:00:00.000Z"
+    }
+order: 10000

@@ -1,0 +1,49 @@
+$kind: http-request
+name: http://localhost:5000/api/v1/drivers/my-account-info
+description: |-
+  Generated from cURL: curl -X POST http://localhost:5000/api/v1/drivers/my-account-info \                                                                                          
+      -H "Authorization: Bearer <DRIVER_JWT_TOKEN>" \
+      -F "accountHolderName=Ahmad Parizaad" \                                                                                                                    
+      -F "accountNumber=1234567890123" \
+      -F "ifscCode=SBIN0001234" \
+      -F "aadhaarNumber=123456789012" \
+      -F "panNumber=ABCDE1234F" \
+      -F "gstin=27ABCDE1234F1Z5" \
+      -F "chequeImage=@/path/to/cheque.jpg" \
+      -F "tdsDocument=@/path/to/tds.pdf" \
+      -F "aadhaarDocument=@/path/to/aadhaar.jpg"
+url: http://localhost:5000/api/v1/drivers/my-account-info
+method: POST
+headers:
+  Authorization: Bearer <DRIVER_JWT_TOKEN>
+body:
+  type: formdata
+  content:
+    - type: text
+      key: accountHolderName
+      value: Ahmad Parizaad
+    - type: text
+      key: accountNumber
+      value: "1234567890123"
+    - type: text
+      key: ifscCode
+      value: SBIN0001234
+    - type: text
+      key: aadhaarNumber
+      value: "123456789012"
+    - type: text
+      key: panNumber
+      value: ABCDE1234F
+    - type: text
+      key: gstin
+      value: 27ABCDE1234F1Z5
+    - type: file
+      key: chequeImage
+      src: /path/to/cheque.jpg
+    - type: file
+      key: tdsDocument
+      src: /path/to/tds.pdf
+    - type: file
+      key: aadhaarDocument
+      src: /path/to/aadhaar.jpg
+order: 14000

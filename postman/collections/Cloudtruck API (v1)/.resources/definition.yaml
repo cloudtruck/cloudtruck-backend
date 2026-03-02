@@ -1,0 +1,49 @@
+$kind: collection
+description: >-
+  Postman collection generated from backend route + validator definitions. Base
+  path: /api/v1.
+
+
+  Notes:
+
+  - Collection auth uses Bearer {{accessToken}}. Login requests save
+  access/refresh tokens into collection variables.
+
+  - Some payment endpoints have code/validator param-name mismatches; those
+  requests are included but may return 400 until the backend is aligned.
+variables:
+  baseUrl: http://localhost:5000/api/v1
+  accessToken: ""
+  refreshToken: ""
+  userId: ""
+  customerId: ""
+  driverId: ""
+  vehicleId: ""
+  staffId: ""
+  bookingId: ""
+  routeId: ""
+  documentId: ""
+  cloudinaryId: ""
+  paymentId: ""
+  merchantTransactionId: ""
+  lastCreatedId: ""
+scripts:
+  - type: http:afterResponse
+    code: |-
+      // Generic helper: capture common IDs when present
+      try {
+        const json = pm.response.json();
+        const data = json && json.data ? json.data : null;
+        if (!data) return;
+        if (data._id) {
+          // Heuristic: store lastCreatedId for manual use
+          pm.collectionVariables.set('lastCreatedId', data._id);
+        }
+      } catch (e) {}
+    language: text/javascript
+auth:
+  - id: ""
+    type: bearer
+    name: bearer auth
+    credentials:
+      token: "{{accessToken}}"

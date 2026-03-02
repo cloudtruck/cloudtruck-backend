@@ -1,0 +1,34 @@
+$kind: http-request
+url: "{{baseUrl}}/bookings"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "pickupCity": "Mumbai",
+      "pickupLat": 19.076,
+      "pickupLng": 72.8777,
+      "pickupAddress": "Mumbai, Maharashtra",
+      "dropCity": "Pune",
+      "dropLat": 18.5204,
+      "dropLng": 73.8567,
+      "dropAddress": "Pune, Maharashtra",
+      "materialType": "FMCG",
+      "weight": 10,
+      "truckType": "tata-407",
+      "loadDate": "2026-02-26T10:00:00.000Z",
+      "advanceRequired": 0,
+      "additionalInstructions": "Handle with care"
+    }
+scripts:
+  - type: afterResponse
+    code: >-
+      if (pm.response.code === 201) {
+        const json = pm.response.json();
+        if (json.data && json.data._id) pm.collectionVariables.set('bookingId', json.data._id);
+      }
+    language: text/javascript
+order: 4000

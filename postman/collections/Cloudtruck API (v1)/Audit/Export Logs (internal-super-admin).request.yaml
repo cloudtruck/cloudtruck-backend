@@ -1,0 +1,9 @@
+$kind: http-request
+name: Export Logs (internal/super-admin)
+url: "{{baseUrl}}/audit/export?format=json"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  format: json
+order: 8000

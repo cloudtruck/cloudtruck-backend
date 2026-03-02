@@ -1,0 +1,80 @@
+$kind: http-request
+url: "{{baseUrl}}/bookings"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: formdata
+  content:
+    - type: text
+      key: pickupCity
+      value: Mumbai
+    - type: text
+      key: pickupLat
+      value: "19.076"
+    - type: text
+      key: pickupLng
+      value: "72.8777"
+    - type: text
+      key: pickupAddress
+      value: Mumbai, Maharashtra
+    - type: text
+      key: dropCity
+      value: Pune
+    - type: text
+      key: dropLat
+      value: "18.5204"
+    - type: text
+      key: dropLng
+      value: "73.8567"
+    - type: text
+      key: dropAddress
+      value: Pune, Maharashtra
+    - type: text
+      key: materialType
+      value: FMCG
+    - type: text
+      key: weight
+      value: "10"
+    - type: text
+      key: truckType
+      value: 17ft
+    - type: text
+      key: loadDate
+      value: 2025-12-13T10:00:00.000Z
+    - type: text
+      key: advanceRequired
+      value: "0"
+    - type: text
+      key: expectedAmount
+      value: "20000"
+    - type: text
+      key: additionalInstructions
+      value: Handle with care
+    - type: file
+      key: cargoImages
+      src:
+        - /C:/Users/Ahmad/Desktop/Desktop/Dummy/cargo.jpg
+        - /C:/Users/Ahmad/Desktop/Desktop/Dummy/cargo.jpg
+    - type: text
+      key: isHazardous
+      value: "true"
+    - type: text
+      key: isFragile
+      value: "false"
+    - type: text
+      key: requiresTemperatureControl
+      value: "true"
+    - type: text
+      key: priority
+      value: high
+scripts:
+  - type: afterResponse
+    code: >-
+      if (pm.response.code === 201) {
+        const json = pm.response.json();
+        if (json.data && json.data._id) pm.collectionVariables.set('bookingId', json.data._id);
+      }
+    language: text/javascript
+order: 1000

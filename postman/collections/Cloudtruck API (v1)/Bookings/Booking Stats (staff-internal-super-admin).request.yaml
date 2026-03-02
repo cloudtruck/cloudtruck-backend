@@ -1,0 +1,11 @@
+$kind: http-request
+name: Booking Stats (staff/internal/super-admin)
+url: "{{baseUrl}}/bookings/stats?startDate=2025-12-01T00:00:00.000Z&endDate=202\
+  5-12-31T23:59:59.000Z"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  startDate: 2025-12-01T00:00:00.000Z
+  endDate: 2025-12-31T23:59:59.000Z
+order: 6000

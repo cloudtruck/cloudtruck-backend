@@ -1,0 +1,7 @@
+$kind: http-request
+name: Get Staff By ID (staff/internal/super-admin)
+url: "{{baseUrl}}/staff/{{staffId}}"
+method: GET
+headers:
+  Accept: application/json
+order: 6000

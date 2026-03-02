@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{baseUrl}}/documents/booking/{{bookingId}}"
+method: GET
+headers:
+  Accept: application/json
+order: 7000

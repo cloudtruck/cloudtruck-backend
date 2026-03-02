@@ -1,0 +1,9 @@
+$kind: http-request
+name: User Activity (staff/internal/super-admin)
+url: "{{baseUrl}}/audit/user/{{userId}}?limit=50"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  limit: "50"
+order: 4000

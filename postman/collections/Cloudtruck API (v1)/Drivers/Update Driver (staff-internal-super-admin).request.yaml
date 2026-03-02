@@ -1,0 +1,14 @@
+$kind: http-request
+name: Update Driver (staff/internal/super-admin)
+url: "{{baseUrl}}/drivers/{{driverId}}"
+method: PATCH
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "name": "Driver One Updated"
+    }
+order: 9000

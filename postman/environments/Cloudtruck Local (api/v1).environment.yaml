@@ -1,0 +1,45 @@
+name: Cloudtruck Local (api/v1)
+values:
+  - key: baseUrl
+    value: https://cloudtruck-backend.onrender.com/api/v1
+    enabled: true
+  - key: accessToken
+    value: ""
+    enabled: true
+  - key: refreshToken
+    value: ""
+    enabled: true
+  - key: userId
+    value: ""
+    enabled: true
+  - key: bookingId
+    value: 699c25b77f4bd8389688f35c
+    enabled: true
+  - key: customerId
+    value: ""
+    enabled: true
+  - key: driverId
+    value: 699c1987cb9b7e95c1d2899c
+    enabled: true
+  - key: vehicleId
+    value: 699c23ef7f4bd8389688f1e1
+    enabled: false
+  - key: staffId
+    value: ""
+    enabled: true
+  - key: routeId
+    value: ""
+    enabled: true
+  - key: paymentId
+    value: ""
+    enabled: true
+  - key: merchantTransactionId
+    value: ""
+    enabled: true
+  - key: documentId
+    value: ""
+    enabled: true
+  - key: cloudinaryId
+    value: ""
+    enabled: true
+color: null

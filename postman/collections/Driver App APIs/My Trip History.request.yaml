@@ -1,0 +1,27 @@
+$kind: http-request
+url: "{{baseUrl}}/drivers/my-trip-history?page=1&limit=20"
+method: GET
+queryParams:
+  - key: page
+    value: "1"
+  - key: limit
+    value: "20"
+  - key: sort
+    value: null
+    disabled: true
+  - key: startDate
+    value: 2026-02-01
+    disabled: true
+  - key: endDate
+    value: 2026-02-23
+    disabled: true
+  - key: status
+    value: created, assigned, in-transit, delivered, closed, cancelled
+    disabled: true
+  - key: search
+    value: booking ID, pickup city, or drop city
+    disabled: true
+  - key: customerName
+    value: null
+    disabled: true
+order: 11000

@@ -1,0 +1,15 @@
+$kind: http-request
+name: Refund Payment (internal/super-admin)
+url: "{{baseUrl}}/payments/{{paymentId}}/refund"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "refundAmount": 1000,
+      "reason": "Refund requested due to double payment"
+    }
+order: 9000

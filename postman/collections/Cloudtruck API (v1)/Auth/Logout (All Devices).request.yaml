@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{baseUrl}}/auth/logout-all"
+method: POST
+headers:
+  Accept: application/json
+order: 8000

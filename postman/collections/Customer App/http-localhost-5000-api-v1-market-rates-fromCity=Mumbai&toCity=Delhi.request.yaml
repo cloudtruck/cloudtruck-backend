@@ -1,0 +1,10 @@
+$kind: http-request
+name: http://localhost:5000/api/v1/market-rates?fromCity=Mumbai&toCity=Delhi
+description: 'Generated from cURL: curl
+  "http://localhost:5000/api/v1/market-rates?fromCity=Mumbai&toCity=Delhi"'
+url: http://localhost:5000/api/v1/market-rates?fromCity=Mumbai&toCity=Delhi
+method: GET
+queryParams:
+  fromCity: Mumbai
+  toCity: Delhi
+order: 3000

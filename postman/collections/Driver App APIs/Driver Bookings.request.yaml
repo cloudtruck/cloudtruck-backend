@@ -1,0 +1,9 @@
+$kind: http-request
+url: "{{baseUrl}}/bookings/driver-bookings?page=1&limit=20"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  page: "1"
+  limit: "20"
+order: 3000

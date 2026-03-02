@@ -1,0 +1,10 @@
+$kind: http-request
+name: List Vehicles (staff/internal/super-admin)
+url: "{{baseUrl}}/vehicles?page=1&limit=20"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  page: "1"
+  limit: "20"
+order: 3000

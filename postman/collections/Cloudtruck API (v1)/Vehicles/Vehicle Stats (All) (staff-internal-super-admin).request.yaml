@@ -1,0 +1,7 @@
+$kind: http-request
+name: Vehicle Stats (All) (staff/internal/super-admin)
+url: "{{baseUrl}}/vehicles/stats/all"
+method: GET
+headers:
+  Accept: application/json
+order: 2000

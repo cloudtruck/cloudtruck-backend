@@ -1,0 +1,14 @@
+$kind: http-request
+name: Set Active Status (internal/super-admin)
+url: "{{baseUrl}}/staff/{{staffId}}/active-status"
+method: PATCH
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "isActive": true
+    }
+order: 11000

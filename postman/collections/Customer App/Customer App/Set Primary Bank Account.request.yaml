@@ -1,0 +1,10 @@
+$kind: http-request
+description: >-
+  Generated from cURL: curl -X PATCH
+  http://localhost:5000/api/v1/customers/my-bank-accounts/<accountId>/primary \
+      -H "Authorization: Bearer <TOKEN>"
+url: "{{baseUrl}}/customers/my-bank-accounts/<accountId>/primary"
+method: PATCH
+headers:
+  Authorization: Bearer <TOKEN>
+order: 16000

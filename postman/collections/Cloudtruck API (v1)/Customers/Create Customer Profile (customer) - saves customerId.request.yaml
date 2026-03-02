@@ -1,0 +1,28 @@
+$kind: http-request
+url: "{{baseUrl}}/customers"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "companyName": "Acme Logistics",
+      "address": "Street 1, Andheri",
+      "phone": "9029929012",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "pincode": "400001",
+      "contactPerson": "John Doe",
+      "paymentTerms": "advance"
+    }
+scripts:
+  - type: afterResponse
+    code: >-
+      if (pm.response.code >= 200 && pm.response.code < 300) {
+        const json = pm.response.json();
+        if (json.data && json.data._id) pm.collectionVariables.set('customerId', json.data._id);
+      }
+    language: text/javascript
+order: 1000

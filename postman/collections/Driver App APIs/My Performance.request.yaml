@@ -1,0 +1,13 @@
+$kind: http-request
+url: "{{baseUrl}}/drivers/my-performance"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: startDate
+    value: 2025-12-01T00:00:00.000Z
+    disabled: true
+  - key: endDate
+    value: 2025-12-31T23:59:59.000Z
+    disabled: true
+order: 5000

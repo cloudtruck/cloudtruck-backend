@@ -1,0 +1,14 @@
+$kind: http-request
+name: Assign Permissions (internal/super-admin)
+url: "{{baseUrl}}/staff/{{staffId}}/permissions"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "permissionIds": ["000000000000000000000000"]
+    }
+order: 10000

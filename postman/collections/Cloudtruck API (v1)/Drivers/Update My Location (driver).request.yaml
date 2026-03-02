@@ -1,0 +1,14 @@
+$kind: http-request
+url: "{{baseUrl}}/drivers/my-location"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "latitude": 19.076,
+      "longitude": 72.8777
+    }
+order: 5000

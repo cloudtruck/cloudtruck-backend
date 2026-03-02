@@ -1,0 +1,11 @@
+$kind: http-request
+name: Get Nearby Drivers (staff/internal/super-admin)
+url: "{{baseUrl}}/drivers/nearby?latitude=19.076&longitude=72.8777&radius=10"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  latitude: "19.076"
+  longitude: "72.8777"
+  radius: "10"
+order: 1000

@@ -1,0 +1,7 @@
+$kind: http-request
+name: Get Driver By ID (staff/internal/super-admin)
+url: "{{baseUrl}}/drivers/{{driverId}}"
+method: GET
+headers:
+  Accept: application/json
+order: 8000

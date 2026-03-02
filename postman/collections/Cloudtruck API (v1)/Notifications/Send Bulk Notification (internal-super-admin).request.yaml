@@ -1,0 +1,16 @@
+$kind: http-request
+name: Send Bulk Notification (internal/super-admin)
+url: "{{baseUrl}}/notifications/send-bulk"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "userIds": ["{{userId}}"],
+      "title": "Bulk",
+      "message": "Bulk message"
+    }
+order: 3000

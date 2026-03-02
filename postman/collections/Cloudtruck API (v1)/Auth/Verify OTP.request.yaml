@@ -1,0 +1,19 @@
+$kind: http-request
+url: "{{baseUrl}}/auth/otp/verify"
+method: POST
+body:
+  type: json
+  content: |-
+    {
+        "phone": "9270083791",
+        "otp": "1067",
+        "role": "driver",
+        "deviceInfo": {
+            "fcmToken": "fcm_token_from_firebase",
+            "deviceModel":"iPhone 15 Pro",
+            "ipAddress": "192.168.1.1",
+            "appVersion": "1.0.0",
+            "os": "iOS"
+        } //deviceInfo is optional but recommended
+    }
+order: 15000

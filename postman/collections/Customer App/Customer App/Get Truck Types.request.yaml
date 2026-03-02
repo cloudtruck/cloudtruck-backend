@@ -1,0 +1,4 @@
+$kind: http-request
+url: "{{baseUrl}}/bookings/truck-types"
+method: GET
+order: 11000

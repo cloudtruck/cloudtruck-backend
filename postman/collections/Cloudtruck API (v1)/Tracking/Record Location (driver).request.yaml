@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{baseUrl}}/tracking/{{bookingId}}/location"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "latitude": 19.076,
+      "longitude": 72.8777,
+      "accuracy": 12
+    }
+order: 1000

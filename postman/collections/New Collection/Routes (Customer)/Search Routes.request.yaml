@@ -1,0 +1,9 @@
+$kind: http-request
+url: "{{baseUrl}}/routes/search?pickupCity=Mumbai&dropCity=Pune"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  pickupCity: Mumbai
+  dropCity: Pune
+order: 1000

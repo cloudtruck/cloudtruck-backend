@@ -1,0 +1,7 @@
+$kind: http-request
+name: Tracking URL (customer/staff/internal/super-admin)
+url: "{{baseUrl}}/tracking/{{bookingId}}/url"
+method: GET
+headers:
+  Accept: application/json
+order: 4000

@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{baseUrl}}/routes/{{routeId}}"
+method: GET
+headers:
+  Accept: application/json
+order: 7000

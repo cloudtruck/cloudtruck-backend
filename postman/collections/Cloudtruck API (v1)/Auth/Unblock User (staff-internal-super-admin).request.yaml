@@ -1,0 +1,7 @@
+$kind: http-request
+name: Unblock User (staff/internal/super-admin)
+url: "{{baseUrl}}/auth/unblock/{{userId}}"
+method: POST
+headers:
+  Accept: application/json
+order: 14000

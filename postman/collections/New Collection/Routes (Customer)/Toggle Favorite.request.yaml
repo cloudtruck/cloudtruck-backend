@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{baseUrl}}/routes/{{routeId}}/toggle-favorite"
+method: POST
+headers:
+  Accept: application/json
+order: 11000

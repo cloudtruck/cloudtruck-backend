@@ -1,0 +1,13 @@
+$kind: http-request
+url: "{{baseUrl}}/routes/{{routeId}}/clone"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "newName": "Mumbai to Pune (Copy)"
+    }
+order: 13000

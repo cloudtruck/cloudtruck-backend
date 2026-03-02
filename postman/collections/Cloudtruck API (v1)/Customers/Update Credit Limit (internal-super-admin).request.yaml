@@ -1,0 +1,14 @@
+$kind: http-request
+name: Update Credit Limit (internal/super-admin)
+url: "{{baseUrl}}/customers/{{customerId}}/credit-limit"
+method: PATCH
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "creditLimit": 50000
+    }
+order: 10000

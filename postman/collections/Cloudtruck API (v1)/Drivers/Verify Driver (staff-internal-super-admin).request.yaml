@@ -1,0 +1,7 @@
+$kind: http-request
+name: Verify Driver (staff/internal/super-admin)
+url: "{{baseUrl}}/drivers/{{driverId}}/verify"
+method: POST
+headers:
+  Accept: application/json
+order: 10000

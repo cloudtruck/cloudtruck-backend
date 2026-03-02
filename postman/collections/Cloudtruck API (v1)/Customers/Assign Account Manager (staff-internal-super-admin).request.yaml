@@ -1,0 +1,14 @@
+$kind: http-request
+name: Assign Account Manager (staff/internal/super-admin)
+url: "{{baseUrl}}/customers/{{customerId}}/assign-manager"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "staffId": "{{staffId}}"
+    }
+order: 12000

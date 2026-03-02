@@ -1,0 +1,12 @@
+$kind: http-request
+url: "{{baseUrl}}/documents/booking/{{bookingId}}/loading-images"
+method: POST
+headers:
+  Accept: application/json
+body:
+  type: formdata
+  content:
+    - type: file
+      key: files
+      src: /Users/ahmadparizaad/Downloads/Gemini_Generated_Image_4ur9pb4ur9pb4ur9.png
+order: 8000

@@ -1,0 +1,17 @@
+$kind: http-request
+name: Record Manual Payment (staff/internal/super-admin)
+url: "{{baseUrl}}/payments/manual"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "booking": "{{bookingId}}",
+      "amount": 1000,
+      "paymentMethod": "neft",
+      "referenceNumber": "NEFT12345"
+    }
+order: 6000

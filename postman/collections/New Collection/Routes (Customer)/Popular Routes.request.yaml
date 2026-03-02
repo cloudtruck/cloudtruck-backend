@@ -1,0 +1,8 @@
+$kind: http-request
+url: "{{baseUrl}}/routes/popular?limit=10"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  limit: "10"
+order: 2000

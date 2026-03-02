@@ -1,0 +1,10 @@
+$kind: http-request
+name: http://localhost:5000/api/v1/market-rates
+description: "Generated from
+  cURL:                                                                                                                                    \
+  curl
+  http://localhost:5000/api/v1/market-rates                                                                                                                    \
+  "
+url: http://localhost:5000/api/v1/market-rates
+method: GET
+order: 2000

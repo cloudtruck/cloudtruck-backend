@@ -1,0 +1,22 @@
+$kind: http-request
+name: Upload Document (multipart/form-data)
+url: "{{baseUrl}}/documents"
+method: POST
+headers:
+  Accept: application/json
+body:
+  type: formdata
+  content:
+    - type: text
+      key: entityType
+      value: booking
+    - type: text
+      key: entityId
+      value: "{{bookingId}}"
+    - type: text
+      key: documentType
+      value: other
+    - type: file
+      key: file
+      src: ""
+order: 1000

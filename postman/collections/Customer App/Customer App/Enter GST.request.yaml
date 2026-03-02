@@ -1,0 +1,7 @@
+$kind: http-request
+url: "{{baseUrl}}/customers/my-gst"
+method: PATCH
+body:
+  type: json
+  content: ' { "gstNumber": "27AAPFU0939F1ZV" }'
+order: 10000

@@ -1,0 +1,7 @@
+$kind: http-request
+name: Customer Dashboard (staff/internal/super-admin)
+url: "{{baseUrl}}/customers/{{customerId}}/dashboard"
+method: GET
+headers:
+  Accept: application/json
+order: 7000

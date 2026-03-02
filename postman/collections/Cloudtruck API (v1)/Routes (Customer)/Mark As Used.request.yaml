@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{baseUrl}}/routes/{{routeId}}/use"
+method: POST
+headers:
+  Accept: application/json
+order: 10000

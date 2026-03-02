@@ -1,0 +1,23 @@
+$kind: http-request
+url: "{{baseUrl}}/payments"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "bookingId": "{{bookingId}}",
+      "amount": 1000
+    }
+scripts:
+  - type: afterResponse
+    code: >-
+      if (pm.response.code >= 200 && pm.response.code < 300) {
+        const json = pm.response.json();
+        if (json.data && json.data._id) pm.collectionVariables.set('paymentId', json.data._id);
+        if (json.data && json.data.merchantTransactionId) pm.collectionVariables.set('merchantTransactionId', json.data.merchantTransactionId);
+      }
+    language: text/javascript
+order: 2000

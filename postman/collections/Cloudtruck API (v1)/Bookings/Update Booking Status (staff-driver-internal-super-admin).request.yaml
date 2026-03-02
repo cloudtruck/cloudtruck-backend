@@ -1,0 +1,15 @@
+$kind: http-request
+name: Update Booking Status (staff/driver/internal/super-admin)
+url: "{{baseUrl}}/bookings/{{bookingId}}/status"
+method: PATCH
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "status": "under-review",
+      "note": "Reviewed by ops"
+    }
+order: 7000

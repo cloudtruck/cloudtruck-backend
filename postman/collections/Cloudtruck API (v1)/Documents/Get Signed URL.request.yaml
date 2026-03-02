@@ -1,0 +1,8 @@
+$kind: http-request
+url: "{{baseUrl}}/documents/signed-url/{{cloudinaryId}}?expiresIn=300"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  expiresIn: "300"
+order: 8000

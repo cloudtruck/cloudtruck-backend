@@ -1,0 +1,14 @@
+$kind: http-request
+url: "{{baseUrl}}/bookings/{{bookingId}}/delay"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "reason": "Traffic jam near highway",
+      "estimatedDelay": 45
+    }
+order: 9000

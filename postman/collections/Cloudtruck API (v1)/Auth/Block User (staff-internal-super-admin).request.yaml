@@ -1,0 +1,7 @@
+$kind: http-request
+name: Block User (staff/internal/super-admin)
+url: "{{baseUrl}}/auth/block/{{userId}}"
+method: POST
+headers:
+  Accept: application/json
+order: 13000

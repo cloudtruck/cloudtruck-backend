@@ -1,0 +1,7 @@
+$kind: http-request
+name: Has Permission (staff/internal/super-admin)
+url: "{{baseUrl}}/staff/{{staffId}}/has-permission/BOOKING_VIEW"
+method: GET
+headers:
+  Accept: application/json
+order: 7000

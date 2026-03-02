@@ -1,0 +1,7 @@
+$kind: http-request
+name: Change Timeline (staff/internal/super-admin)
+url: "{{baseUrl}}/audit/timeline/booking/{{bookingId}}"
+method: GET
+headers:
+  Accept: application/json
+order: 6000

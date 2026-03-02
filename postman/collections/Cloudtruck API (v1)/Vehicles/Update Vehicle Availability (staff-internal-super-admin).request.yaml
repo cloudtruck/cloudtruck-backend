@@ -1,0 +1,14 @@
+$kind: http-request
+name: Update Vehicle Availability (staff/internal/super-admin)
+url: "{{baseUrl}}/vehicles/{{vehicleId}}/availability"
+method: PATCH
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "isAvailable": true
+    }
+order: 9000

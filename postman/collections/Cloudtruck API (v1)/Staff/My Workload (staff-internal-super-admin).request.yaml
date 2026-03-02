@@ -1,0 +1,7 @@
+$kind: http-request
+name: My Workload (staff/internal/super-admin)
+url: "{{baseUrl}}/staff/my-workload"
+method: GET
+headers:
+  Accept: application/json
+order: 2000

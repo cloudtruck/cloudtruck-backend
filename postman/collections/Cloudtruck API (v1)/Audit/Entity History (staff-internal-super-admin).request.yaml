@@ -1,0 +1,7 @@
+$kind: http-request
+name: Entity History (staff/internal/super-admin)
+url: "{{baseUrl}}/audit/entity/booking/{{bookingId}}"
+method: GET
+headers:
+  Accept: application/json
+order: 3000

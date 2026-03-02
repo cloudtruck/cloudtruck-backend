@@ -1,0 +1,35 @@
+$kind: http-request
+description: >-
+  Generated from cURL: curl -X POST
+  http://localhost:5000/api/v1/customers/my-bank-accounts \
+      -H "Authorization: Bearer <TOKEN>" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "accountNumber": "1234567890",
+        "ifscCode": "SBIN0001234",
+        "accountHolderName": "Ahmad Parizaad",
+        "bankName": "State Bank of India",
+        "branchName": "Main Branch",
+        "accountType": "current",
+        "upiId": "ahmad@sbi",
+        "isPrimary": true
+      }'
+url: "{{baseUrl}}/customers/my-bank-accounts"
+method: POST
+headers:
+  Authorization: Bearer <TOKEN>
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+          "accountNumber": "1234567890",
+          "ifscCode": "SBIN0001234",
+          "accountHolderName": "Ahmad Parizaad",
+          "bankName": "State Bank of India",
+          "branchName": "Main Branch",
+          "accountType": "current",
+          "upiId": "ahmad@sbi",
+          "isPrimary": true
+        }
+order: 13000

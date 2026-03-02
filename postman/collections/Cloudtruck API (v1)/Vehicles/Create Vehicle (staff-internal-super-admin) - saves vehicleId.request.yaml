@@ -1,0 +1,28 @@
+$kind: http-request
+name: Create Vehicle (staff/internal/super-admin) - saves vehicleId
+url: "{{baseUrl}}/vehicles"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "vehicleNumber": "MH12AB1234",
+      "truckType": "17ft",
+      "length": 17,
+      "capacity": 10,
+      "bodyType": "open",
+      "hasGPS": true,
+      "hasFASTag": true
+    }
+scripts:
+  - type: afterResponse
+    code: >-
+      if (pm.response.code >= 200 && pm.response.code < 300) {
+        const json = pm.response.json();
+        if (json.data && json.data._id) pm.collectionVariables.set('vehicleId', json.data._id);
+      }
+    language: text/javascript
+order: 4000

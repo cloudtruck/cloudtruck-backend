@@ -1,0 +1,15 @@
+$kind: http-request
+name: Assign Driver (staff/internal/super-admin)
+url: "{{baseUrl}}/bookings/{{bookingId}}/assign-driver"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "driverId": "{{driverId}}",
+      "vehicleId": "{{vehicleId}}"
+    }
+order: 8000

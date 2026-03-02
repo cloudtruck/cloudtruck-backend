@@ -1,0 +1,7 @@
+$kind: http-request
+name: Verify Customer (staff/internal/super-admin)
+url: "{{baseUrl}}/customers/{{customerId}}/verify"
+method: POST
+headers:
+  Accept: application/json
+order: 11000

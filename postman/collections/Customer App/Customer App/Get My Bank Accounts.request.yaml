@@ -1,0 +1,4 @@
+$kind: http-request
+url: "{{baseUrl}}/customers/my-bank-accounts"
+method: GET
+order: 12000

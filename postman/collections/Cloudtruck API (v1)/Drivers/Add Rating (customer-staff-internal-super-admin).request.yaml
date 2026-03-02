@@ -1,0 +1,16 @@
+$kind: http-request
+name: Add Rating (customer/staff/internal/super-admin)
+url: "{{baseUrl}}/drivers/{{driverId}}/rating"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "rating": 5,
+      "feedback": "Great service",
+      "bookingId": "{{bookingId}}"
+    }
+order: 13000

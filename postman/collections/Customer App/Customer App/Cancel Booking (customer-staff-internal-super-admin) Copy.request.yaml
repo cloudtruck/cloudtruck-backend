@@ -1,0 +1,14 @@
+$kind: http-request
+name: Cancel Booking (customer/staff/internal/super-admin) Copy
+url: "{{baseUrl}}/bookings/{{bookingId}}/cancel"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "reason": "Customer cancelled - change of plan"
+    }
+order: 6000

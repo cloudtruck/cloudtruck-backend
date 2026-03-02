@@ -4021,9 +4021,236 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Get Cities",
+          "id": "e7c2e9b0-4d5e-4b7f-8c9d-1a2b3c4d5e6f",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/market-rates/cities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "market-rates",
+                "cities"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Market Rate by ID",
+          "id": "f8d3f0a1-5e6f-4c8a-9b0c-d1e2f3a4b5c6",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/market-rates/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "market-rates",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "<RATE_ID>"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Market Rate",
+          "id": "a1s2d3f4-5g6h-4j7k-8l9m-0n1p2q3r4s5t",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromCity\": \"Mumbai\",\n  \"toCity\": \"Delhi\",\n  \"truckType\": \"32ft-mxl\",\n  \"basePrice\": 45000,\n  \"effectiveDate\": \"2024-01-01\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/market-rates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "market-rates"
+              ]
+            }
+          },
+          "response": []
         }
       ],
       "id": "e6db96ee-d9cb-439b-8f54-0c4b1d0f5706"
+    },
+    {
+      "name": "Support & Complaints",
+      "item": [
+        {
+          "name": "Submit Complaint",
+          "id": "c1m2p3l4-a5n6-t7i8-c9k1-e0t1s2u3p4p5",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"payment-issue\",\n  \"subject\": \"Payment not reflected for Booking #12345\",\n  \"description\": \"I have made the payment via UPI but the status is still showing as pending. Please verify.\",\n  \"priority\": \"medium\",\n  \"bookingId\": \"<OPTIONAL_BOOKING_ID>\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/support-tickets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "support-tickets"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Tickets",
+          "id": "m1y2t3i4-c5k6-e7t8-s9i0-n1o2w3a4b5c6",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/support-tickets/my-tickets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "support-tickets",
+                "my-tickets"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List All Tickets (Admin/Staff)",
+          "id": "a1l2l3t4-i5c6-k7e8-t9s0-p1o2w3a4b5c6",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/support-tickets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "support-tickets"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "open",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "payment-issue",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Ticket by ID",
+          "id": "t1i2c3k4-e5t6-i7d8-b9y0-u1s2e3r4a5b6",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/support-tickets/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "support-tickets",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "<TICKET_ID>"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "auth": {

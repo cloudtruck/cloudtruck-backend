@@ -1,0 +1,11 @@
+$kind: http-request
+name: My Performance (staff/internal/super-admin)
+url: "{{baseUrl}}/staff/my-performance?startDate=2025-12-01T00:00:00.000Z&endDa\
+  te=2025-12-31T23:59:59.000Z"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  startDate: 2025-12-01T00:00:00.000Z
+  endDate: 2025-12-31T23:59:59.000Z
+order: 3000

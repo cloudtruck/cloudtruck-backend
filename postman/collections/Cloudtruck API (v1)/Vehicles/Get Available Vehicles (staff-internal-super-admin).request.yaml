@@ -1,0 +1,17 @@
+$kind: http-request
+name: Get Available Vehicles (staff/internal/super-admin)
+url: "{{baseUrl}}/vehicles/available?truckType=container-20ft"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: truckType
+    value: container-20ft
+  - key: minCapacity
+    value: "5"
+    disabled: true
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OTc0OWJlZTRiM2ZhNDY0Njg2ODU1NDAiLCJyb2xlIjoic3VwZXItYWRtaW4iLCJwaG9uZSI6Iis5MTAwMDAwMDAwMDAiLCJlbWFpbCI6ImFkbWluQGNsb3VkdHJ1Y2suY29tIiwiaWF0IjoxNzcxODQwNTk4LCJleHAiOjE3NzE4NDQxOTh9.439lXKT887OrLKFqr9ci1FDRsahWggQD5g9SJqYKBBo
+order: 1000

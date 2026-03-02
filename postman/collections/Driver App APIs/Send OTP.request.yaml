@@ -1,0 +1,26 @@
+$kind: http-request
+url: "{{baseUrl}}/auth/otp/send"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "phone": "919270083791"
+    }
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: >-
+      if (pm.response.code >= 200 && pm.response.code < 300) {
+        const json = pm.response.json();
+        const data = json.data || {};
+        if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);
+        if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);
+        if (data.user && data.user._id) pm.collectionVariables.set('userId', data.user._id);
+      }
+    language: text/javascript
+order: 1000

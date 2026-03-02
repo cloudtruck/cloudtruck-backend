@@ -1,0 +1,13 @@
+$kind: http-request
+url: "{{baseUrl}}/routes/{{routeId}}"
+method: PATCH
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "isFavorite": false
+    }
+order: 8000

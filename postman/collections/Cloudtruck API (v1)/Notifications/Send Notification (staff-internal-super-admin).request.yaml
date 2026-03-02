@@ -1,0 +1,16 @@
+$kind: http-request
+name: Send Notification (staff/internal/super-admin)
+url: "{{baseUrl}}/notifications/send"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "userId": "{{userId}}",
+      "title": "Update",
+      "message": "Your booking status changed"
+    }
+order: 2000

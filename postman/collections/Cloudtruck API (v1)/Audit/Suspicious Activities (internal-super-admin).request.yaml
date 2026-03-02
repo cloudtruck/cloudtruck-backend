@@ -1,0 +1,10 @@
+$kind: http-request
+name: Suspicious Activities (internal/super-admin)
+url: "{{baseUrl}}/audit/suspicious?minCount=5&timeWindow=60"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  minCount: "5"
+  timeWindow: "60"
+order: 7000

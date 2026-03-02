@@ -1,0 +1,20 @@
+$kind: http-request
+url: "{{baseUrl}}/customers/my-bookings?page=1&limit=20"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: page
+    value: "1"
+  - key: limit
+    value: "20"
+  - key: status
+    value: in-transit,delivered
+    disabled: true
+  - key: truckType
+    value: tata-ace,eicher-17ft
+    disabled: true
+  - key: podPending
+    value: "true"
+    disabled: true
+order: 8000

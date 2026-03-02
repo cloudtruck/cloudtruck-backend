@@ -1,0 +1,7 @@
+$kind: http-request
+name: Remove From Blacklist (internal/super-admin)
+url: "{{baseUrl}}/drivers/{{driverId}}/remove-blacklist"
+method: POST
+headers:
+  Accept: application/json
+order: 12000

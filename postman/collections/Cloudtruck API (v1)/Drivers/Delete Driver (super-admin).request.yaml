@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{baseUrl}}/drivers/{{driverId}}"
+method: DELETE
+headers:
+  Accept: application/json
+order: 14000

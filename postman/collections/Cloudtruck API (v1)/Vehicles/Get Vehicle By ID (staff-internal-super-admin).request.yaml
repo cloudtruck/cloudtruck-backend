@@ -1,0 +1,7 @@
+$kind: http-request
+name: Get Vehicle By ID (staff/internal/super-admin)
+url: "{{baseUrl}}/vehicles/{{vehicleId}}"
+method: GET
+headers:
+  Accept: application/json
+order: 5000

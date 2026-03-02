@@ -1,0 +1,14 @@
+$kind: http-request
+name: Blacklist Driver (internal/super-admin)
+url: "{{baseUrl}}/drivers/{{driverId}}/blacklist"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "reason": "Repeated no-shows and policy violations"
+    }
+order: 11000

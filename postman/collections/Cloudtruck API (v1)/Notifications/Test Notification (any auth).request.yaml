@@ -1,0 +1,14 @@
+$kind: http-request
+url: "{{baseUrl}}/notifications/test"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "title": "Test",
+      "message": "Hello from Postman"
+    }
+order: 1000

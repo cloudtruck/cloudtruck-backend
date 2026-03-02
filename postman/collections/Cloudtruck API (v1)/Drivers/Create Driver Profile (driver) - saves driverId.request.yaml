@@ -1,0 +1,24 @@
+$kind: http-request
+url: "{{baseUrl}}/drivers"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: >-
+    {
+      "newUser": { "phone": "+919889988998", "email": "driver@example.com", "password": "secret123" },
+      "name": "Ram Kumar",
+      "licenseNumber": "DL-01-AB-1234",
+      "licenseExpiry": "2027-01-01T00:00:00.000Z"
+    }
+scripts:
+  - type: afterResponse
+    code: >-
+      if (pm.response.code >= 200 && pm.response.code < 300) {
+        const json = pm.response.json();
+        if (json.data && json.data._id) pm.collectionVariables.set('driverId', json.data._id);
+      }
+    language: text/javascript
+order: 2000

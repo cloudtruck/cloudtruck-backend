@@ -1,0 +1,29 @@
+$kind: http-request
+name: http://localhost:5000/api/v1/drivers/my-kyc
+description: |-
+  Generated from cURL: curl -X POST http://localhost:5000/api/v1/drivers/my-kyc \                                                                                                               
+      -H "Content-Type: application/json" \                                                                                                                                
+      -H "Authorization: Bearer <YOUR_JWT_TOKEN>" \                                                                                                                          
+      -d '{                                                                                                                                                                  
+        "fullName": "Ahmad Parizaad",
+        "panNumber": "ABCDE1234F",
+        "city": "Mumbai",
+        "referralCode": "REF123",
+        "truckType": "open-body"
+      }'
+url: http://localhost:5000/api/v1/drivers/my-kyc
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer <YOUR_JWT_TOKEN>
+body:
+  type: json
+  content: |-
+    {                                                                                                                                                                  
+          "fullName": "Ahmad Parizaad",
+          "panNumber": "ABCDE1234F",
+          "city": "Mumbai",
+          "referralCode": "REF123",
+          "truckType": "open-body"
+        }
+order: 12000

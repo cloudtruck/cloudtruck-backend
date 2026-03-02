@@ -1,0 +1,7 @@
+$kind: http-request
+name: My Profile (staff/internal/super-admin)
+url: "{{baseUrl}}/staff/my-profile"
+method: GET
+headers:
+  Accept: application/json
+order: 1000

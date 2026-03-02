@@ -1,0 +1,7 @@
+$kind: http-request
+name: Delete Document (staff/internal/super-admin)
+url: "{{baseUrl}}/documents/{{documentId}}"
+method: DELETE
+headers:
+  Accept: application/json
+order: 4000

@@ -1,0 +1,13 @@
+$kind: http-request
+name: Upload POD (booking) (driver/staff/internal/super-admin)
+url: "{{baseUrl}}/documents/booking/{{bookingId}}/pod"
+method: POST
+headers:
+  Accept: application/json
+body:
+  type: formdata
+  content:
+    - type: file
+      key: file
+      src: ""
+order: 5000

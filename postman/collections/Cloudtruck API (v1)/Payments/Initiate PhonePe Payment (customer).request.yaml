@@ -1,0 +1,14 @@
+$kind: http-request
+url: "{{baseUrl}}/payments/initiate"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "paymentId": "{{paymentId}}",
+      "returnUrl": "http://localhost:3000/payment/callback"
+    }
+order: 3000

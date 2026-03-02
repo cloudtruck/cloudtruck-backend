@@ -1,0 +1,39 @@
+$kind: http-request
+url: "{{baseUrl}}/routes"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "name": "Mumbai to Pune",
+      "description": "Regular express route",
+      "pickupCity": "Mumbai",
+      "pickupLat": 19.076,
+      "pickupLng": 72.8777,
+      "pickupAddress": "Andheri West",
+      "pickupPincode": "400053",
+      "pickupLandmark": "Near Metro Station",
+      "dropCity": "Pune",
+      "dropLat": 18.5204,
+      "dropLng": 73.8567,
+      "dropAddress": "Hinjewadi",
+      "dropPincode": "411057",
+      "preferredTruckType": "17ft",
+      "preferredBodyType": "closed",
+      "distance": 150,
+      "estimatedDuration": 180,
+      "category": "express",
+      "isFavorite": true
+    }
+scripts:
+  - type: afterResponse
+    code: >-
+      if (pm.response.code >= 200 && pm.response.code < 300) {
+        const json = pm.response.json();
+        if (json.data && json.data._id) pm.collectionVariables.set('routeId', json.data._id);
+      }
+    language: text/javascript
+order: 6000

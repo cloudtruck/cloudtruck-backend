@@ -1,0 +1,38 @@
+$kind: http-request
+name: Register Staff (staff/internal/super-admin)
+url: "{{baseUrl}}/auth/register/staff"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "staff1@example.com",
+      "password": "Staff1234",
+      "role": "staff",
+      "name": "Ops Staff",
+      "department": "operations",
+      "title": "Operator"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 201", function () {
+          pm.response.to.have.status(201);
+      });
+
+      pm.test("Response has a valid staff id", function () {
+          const jsonData = pm.response.json();
+          pm.expect(jsonData.data).to.have.property('id');
+          pm.expect(jsonData.data.id).to.be.a('string').and.not.empty;
+      });
+
+      // Store the created staff id in a collection variable
+      const jsonData = pm.response.json();
+      if (jsonData.data && jsonData.data.id) {
+          pm.collectionVariables.set("staffId", jsonData.data.id);
+      }
+    language: text/javascript
+order: 11000

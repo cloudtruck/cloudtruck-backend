@@ -1,0 +1,180 @@
+$kind: http-request
+url: "{{baseUrl}}/bookings/my-bookings?page=1&limit=20"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  page: "1"
+  limit: "20"
+scripts:
+  - type: afterResponse
+    code: |-
+      // Visualization for Bookings by Priority and Hazardous Status
+      var template = `
+      <div style="padding: 20px; font-family: Arial, sans-serif;">
+          <h2 style="text-align: center; color: #333;">Bookings Summary</h2>
+          <div style="display: flex; justify-content: space-around; flex-wrap: wrap;">
+              <div style="width: 45%; min-width: 300px; margin: 10px;">
+                  <canvas id="priorityChart" height="200"></canvas>
+              </div>
+              <div style="width: 45%; min-width: 300px; margin: 10px;">
+                  <canvas id="hazardousChart" height="200"></canvas>
+              </div>
+          </div>
+      </div>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"></script>
+      <script>
+          pm.getData(function (err, value) {
+              var priorityCounts = value.priorityCounts;
+              var hazardousData = value.hazardousData;
+              var priorities = value.priorities;
+
+              // Chart 1: Bookings by Priority
+              var ctx1 = document.getElementById("priorityChart").getContext("2d");
+              new Chart(ctx1, {
+                  type: "bar",
+                  data: {
+                      labels: priorities,
+                      datasets: [{
+                          label: "Number of Bookings",
+                          data: priorities.map(function(p) { return priorityCounts[p] || 0; }),
+                          backgroundColor: ["#FF6384", "#FFCE56", "#36A2EB"],
+                          borderColor: ["#FF6384", "#FFCE56", "#36A2EB"],
+                          borderWidth: 1
+                      }]
+                  },
+                  options: {
+                      legend: { display: true },
+                      title: {
+                          display: true,
+                          text: "Bookings by Priority"
+                      },
+                      scales: {
+                          xAxes: [{
+                              display: true,
+                              scaleLabel: {
+                                  display: true,
+                                  labelString: "Priority"
+                              }
+                          }],
+                          yAxes: [{
+                              display: true,
+                              scaleLabel: {
+                                  display: true,
+                                  labelString: "Count"
+                              },
+                              ticks: {
+                                  beginAtZero: true,
+                                  stepSize: 1
+                              }
+                          }]
+                      }
+                  }
+              });
+
+              // Chart 2: Hazardous vs Non-Hazardous by Priority (Grouped Bar)
+              var ctx2 = document.getElementById("hazardousChart").getContext("2d");
+              new Chart(ctx2, {
+                  type: "bar",
+                  data: {
+                      labels: priorities,
+                      datasets: [
+                          {
+                              label: "Hazardous",
+                              data: priorities.map(function(p) { return hazardousData[p] ? hazardousData[p].hazardous : 0; }),
+                              backgroundColor: "#FF6384",
+                              borderColor: "#FF6384",
+                              borderWidth: 1
+                          },
+                          {
+                              label: "Non-Hazardous",
+                              data: priorities.map(function(p) { return hazardousData[p] ? hazardousData[p].nonHazardous : 0; }),
+                              backgroundColor: "#36A2EB",
+                              borderColor: "#36A2EB",
+                              borderWidth: 1
+                          }
+                      ]
+                  },
+                  options: {
+                      legend: { display: true },
+                      title: {
+                          display: true,
+                          text: "Hazardous vs Non-Hazardous by Priority"
+                      },
+                      scales: {
+                          xAxes: [{
+                              display: true,
+                              scaleLabel: {
+                                  display: true,
+                                  labelString: "Priority"
+                              }
+                          }],
+                          yAxes: [{
+                              display: true,
+                              scaleLabel: {
+                                  display: true,
+                                  labelString: "Count"
+                              },
+                              ticks: {
+                                  beginAtZero: true,
+                                  stepSize: 1
+                              }
+                          }]
+                      }
+                  }
+              });
+          });
+      </script>
+      `;
+
+      function constructVisualizerPayload() {
+          var response = pm.response.json();
+          var bookings = [];
+          
+          // Handle missing fields gracefully
+          if (response && response.data && Array.isArray(response.data.data)) {
+              bookings = response.data.data;
+          }
+          
+          var priorities = ["high", "medium", "low"];
+          var priorityCounts = { high: 0, medium: 0, low: 0 };
+          var hazardousData = {
+              high: { hazardous: 0, nonHazardous: 0 },
+              medium: { hazardous: 0, nonHazardous: 0 },
+              low: { hazardous: 0, nonHazardous: 0 }
+          };
+          
+          // Compute counts
+          bookings.forEach(function(booking) {
+              var priority = booking.priority || "medium"; // default to medium if missing
+              var isHazardous = booking.isHazardous === true;
+              
+              // Count by priority
+              if (priorityCounts.hasOwnProperty(priority)) {
+                  priorityCounts[priority]++;
+              } else {
+                  priorityCounts[priority] = 1;
+              }
+              
+              // Count hazardous vs non-hazardous per priority
+              if (!hazardousData[priority]) {
+                  hazardousData[priority] = { hazardous: 0, nonHazardous: 0 };
+              }
+              if (isHazardous) {
+                  hazardousData[priority].hazardous++;
+              } else {
+                  hazardousData[priority].nonHazardous++;
+              }
+          });
+          
+          return {
+              response: pm.response.json(),
+              priorityCounts: priorityCounts,
+              hazardousData: hazardousData,
+              priorities: priorities
+          };
+      }
+
+      pm.visualizer.set(template, constructVisualizerPayload());
+    language: text/javascript
+order: 4000

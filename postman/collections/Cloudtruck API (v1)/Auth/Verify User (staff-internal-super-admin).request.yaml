@@ -1,0 +1,7 @@
+$kind: http-request
+name: Verify User (staff/internal/super-admin)
+url: "{{baseUrl}}/auth/verify/{{userId}}"
+method: POST
+headers:
+  Accept: application/json
+order: 12000

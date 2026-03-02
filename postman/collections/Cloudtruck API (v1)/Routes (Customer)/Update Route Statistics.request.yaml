@@ -1,0 +1,14 @@
+$kind: http-request
+url: "{{baseUrl}}/routes/{{routeId}}/statistics"
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "actualCost": 25000,
+      "actualDistance": 150
+    }
+order: 12000

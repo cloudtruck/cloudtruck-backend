@@ -1,0 +1,14 @@
+$kind: http-request
+name: Update Staff (internal/super-admin)
+url: "{{baseUrl}}/staff/{{staffId}}"
+method: PATCH
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "title": "Senior Operator"
+    }
+order: 9000

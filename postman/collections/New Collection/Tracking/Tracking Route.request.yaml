@@ -1,0 +1,8 @@
+$kind: http-request
+url: "{{baseUrl}}/tracking/{{bookingId}}/route?interval=60"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  interval: "60"
+order: 7000

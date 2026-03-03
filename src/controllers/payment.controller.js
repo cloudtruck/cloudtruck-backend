@@ -2,7 +2,9 @@ import PaymentService from '../services/payment.service.js';
 import PDFService from '../services/pdf.service.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
+import ApiError from '../utils/ApiError.js';
 import AuditLog from '../models/auditLog.model.js';
+import Customer from '../models/customer.model.js';
 import logger from '../utils/logger.js';
 
 const getRequestAuditMetadata = (req) => ({
@@ -76,8 +78,6 @@ const mapPayment = (p) => {
     } : null,
     customer: plain.customer,
     amount: plain.amount,
-    advanceAmount: booking?.advanceRequired,
-    balanceAmount: booking ? (booking.expectedAmount - (booking.advanceRequired || 0)) : 0,
     paymentMethod: plain.paymentMethod,
     paymentStatus: statusMap[plain.status] || 'unpaid',
     transactionId: plain.transactionId,
@@ -313,11 +313,58 @@ export const downloadInvoice = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Download Freight Invoice PDF for a booking
+ * GET /api/v1/payments/booking/:bookingId/invoice
+ * Works for unpaid, partial, and fully-paid bookings.
+ */
+export const downloadBookingInvoice = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+
+  // Reuse payment summary (handles all payment states including zero payments)
+  const summary = await PaymentService.getBookingPaymentSummary(bookingId, req.user._id);
+
+  // Fetch booking with customer populated for the PDF
+  const Booking = (await import('../models/booking.model.js')).default;
+  const booking = await Booking.findOne({
+    $or: [
+      ...(bookingId.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: bookingId }] : []),
+      { bookingId }
+    ],
+    isDeleted: false
+  })
+    .populate('customer', 'companyName gst contactPerson')
+    .lean();
+
+  if (!booking) throw new ApiError(404, 'Booking not found');
+
+  const pdfBuffer = await PDFService.generateBookingInvoice(booking, summary);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=invoice-${summary.bookingId || bookingId}.pdf`);
+  return res.send(pdfBuffer);
+});
+
+/**
+ * Get booking payment summary (customer)
+ * GET /api/v1/payments/booking/:bookingId
+ * Returns payable, paid, balance, and full payment history.
+ * Works for unpaid, partial, and fully-paid bookings.
+ */
+export const getBookingPaymentSummary = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const summary = await PaymentService.getBookingPaymentSummary(bookingId, req.user._id);
+  return res.status(200).json(new ApiResponse(200, summary, 'Payment summary fetched successfully'));
+});
+
+/**
  * Get my payments (customer)
  */
 export const getMyPayments = asyncHandler(async (req, res) => {
+  // Payment.customer stores Customer._id, not User._id — resolve first
+  const customer = await Customer.findOne({ user: req.user._id, isDeleted: false }).select('_id');
+  if (!customer) throw new ApiError(404, 'Customer not found');
+
   const filters = {
-    customerId: req.user._id,
+    customerId: customer._id,
     status: req.query.status,
     fromDate: req.query.startDate || req.query.fromDate,
     toDate: req.query.endDate || req.query.toDate

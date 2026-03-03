@@ -123,6 +123,30 @@ export const getBookingLR = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Download Loading Memo PDF for a booking
+ * GET /api/v1/documents/booking/:bookingId/loading-memo
+ */
+export const downloadLoadingMemo = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const { buffer, bookingId: readable } = await DocumentService.getLoadingMemoPDF(
+    bookingId, req.user._id, req.user.role
+  );
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=loading-memo-${readable || bookingId}.pdf`);
+  return res.send(buffer);
+});
+
+/**
+ * Get Auto E-LR (eway bill) for a booking
+ * GET /api/v1/documents/booking/:bookingId/eway-bill
+ */
+export const getBookingEwayBill = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const data = await DocumentService.getEwayBillForBooking(bookingId, req.user._id, req.user.role);
+  return res.status(200).json(new ApiResponse(200, data, 'E-way bill fetched successfully'));
+});
+
+/**
  * Get signed download URL
  */
 export const getSignedUrl = asyncHandler(async (req, res) => {

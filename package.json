@@ -14,6 +14,9 @@
     "seed:org": "node src/scripts/seed-organization.js",
     "create-admin": "node src/scripts/create-admin.js",
     "seed:market-rates": "node src/scripts/seed-market-rates.js",
+    "seed:demo": "node --env-file .env src/scripts/seed-demo.js",
+    "seed:demo:reassign": "node --env-file .env src/scripts/seed-demo.js --reassign",
+    "seed:notifications": "node --env-file .env src/scripts/seed-notifications.js",
     "test": "NODE_ENV=test mocha --exit --recursive test --timeout 10000"
   },
   "keywords": [

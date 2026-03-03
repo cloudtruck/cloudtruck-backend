@@ -14,10 +14,17 @@ dotenv.config();
  * Authentication Service
  * Handles user authentication, registration, and token management
  */
+// Normalize phone to digits-only with country code (e.g. "918459727003").
+// Strips leading +, spaces, dashes. Ensures no duplicates from format differences.
+const normalizePhone = (phone) => {
+  if (!phone) return phone;
+  return String(phone).replace(/[\s\-]/g, '').replace(/^\+/, '');
+};
+
 class AuthService {
   /**
    * Helper to calculate expiry date from string (e.g. '7d', '15m')
-   * @param {string} expiryString 
+   * @param {string} expiryString
    * @returns {Date}
    */
   static getExpiryDate(expiryString) {
@@ -48,6 +55,8 @@ class AuthService {
       if (!phone) {
         throw new ApiError(400, 'Phone number is required');
       }
+
+      phone = normalizePhone(phone);
 
       // Find or create user
       let user = await User.findOne({ phone, isDeleted: false });
@@ -243,7 +252,8 @@ class AuthService {
 
     // Check if phone number already exists (Global unique check)
     if (phone) {
-      const existingPhoneUser = await User.findOne({ phone, isDeleted: false });
+      const normalizedPhone = normalizePhone(phone);
+      const existingPhoneUser = await User.findOne({ phone: normalizedPhone, isDeleted: false });
       if (existingPhoneUser) {
         throw new ApiError(400, `Phone number already registered with role (${existingPhoneUser.role})`);
       }

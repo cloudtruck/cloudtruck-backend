@@ -1,6 +1,7 @@
 import Tracking from '../models/tracking.model.js';
 import Booking from '../models/booking.model.js';
 import Driver from '../models/driver.model.js';
+import EwayBill from '../models/ewayBill.model.js';
 import LocationService from './location.service.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
@@ -66,6 +67,19 @@ class TrackingService {
     booking.lastLocationUpdate = new Date();
     await booking.save();
 
+    // Reverse geocode in the background — non-blocking, best-effort
+    if (process.env.GOOGLE_MAPS_API_KEY) {
+      LocationService.reverseGeocode(latitude, longitude).then((geo) => {
+        if (geo) {
+          Tracking.findByIdAndUpdate(tracking._id, {
+            place: geo.formattedAddress,
+            city: geo.city,
+            state: geo.state
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+
     // Feature 3: Check Geofence Alerts
     await TrackingService._checkGeofence(booking, driverId, latitude, longitude);
 
@@ -86,17 +100,17 @@ class TrackingService {
     const query = { booking: bookingId };
 
     if (filters.fromTime) {
-      query.timestamp = { $gte: new Date(filters.fromTime) };
+      query.ts = { $gte: new Date(filters.fromTime) };
     }
 
     if (filters.toTime) {
-      query.timestamp = query.timestamp || {};
-      query.timestamp.$lte = new Date(filters.toTime);
+      query.ts = query.ts || {};
+      query.ts.$lte = new Date(filters.toTime);
     }
 
     const trackingData = await Tracking.find(query)
       .populate('driver', 'name phone')
-      .sort({ timestamp: 1 })
+      .sort({ ts: 1 })
       .select('-__v')
       .lean();
 
@@ -112,7 +126,7 @@ class TrackingService {
     const booking = await Booking.findById(bookingId)
       .populate('driver', 'name phone')
       .populate('vehicle', 'vehicleNumber truckType')
-      .select('bookingId status lastKnownLocation lastLocationUpdate driver vehicle pickupCity dropCity')
+      .select('bookingId status lastKnownLocation lastLocationUpdate driver vehicle pickup drop')
       .lean();
 
     if (!booking) throw new ApiError(404, 'Booking not found');
@@ -128,8 +142,8 @@ class TrackingService {
         bookingId: booking.bookingId,
         status: booking.status,
         route: {
-          from: booking.pickupCity,
-          to: booking.dropCity
+          from: booking.pickup?.city,
+          to: booking.drop?.city
         }
       },
       driver: booking.driver,
@@ -170,7 +184,7 @@ class TrackingService {
    */
   static async calculateDistanceTraveled(bookingId) {
     const trackingData = await Tracking.find({ booking: bookingId })
-      .sort({ timestamp: 1 })
+      .sort({ ts: 1 })
       .select('location')
       .lean();
 
@@ -255,8 +269,8 @@ class TrackingService {
     const maxSpeed = Math.max(...speeds);
     const averageSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
 
-    const firstUpdate = trackingData[0].timestamp;
-    const lastUpdate = trackingData[trackingData.length - 1].timestamp;
+    const firstUpdate = trackingData[0].ts;
+    const lastUpdate = trackingData[trackingData.length - 1].ts;
     const duration = (lastUpdate - firstUpdate) / (1000 * 60 * 60); // in hours
 
     const distanceTraveled = await this.calculateDistanceTraveled(bookingId);
@@ -283,8 +297,8 @@ class TrackingService {
     if (!booking) throw new ApiError(404, 'Booking not found');
 
     const allTracking = await Tracking.find({ booking: bookingId })
-      .sort({ timestamp: 1 })
-      .select('location timestamp speed')
+      .sort({ ts: 1 })
+      .select('location ts speed')
       .lean();
 
     if (allTracking.length === 0) return [];
@@ -294,25 +308,25 @@ class TrackingService {
     let lastTimestamp = null;
 
     for (const point of allTracking) {
-      if (!lastTimestamp || (point.timestamp - lastTimestamp) >= interval * 60 * 1000) {
+      if (!lastTimestamp || (point.ts - lastTimestamp) >= interval * 60 * 1000) {
         downsampledData.push({
           latitude: point.location.coordinates[1],
           longitude: point.location.coordinates[0],
           speed: point.speed,
-          timestamp: point.timestamp
+          timestamp: point.ts
         });
-        lastTimestamp = point.timestamp;
+        lastTimestamp = point.ts;
       }
     }
 
     // Always include the last point
-    if (downsampledData[downsampledData.length - 1]?.timestamp !== allTracking[allTracking.length - 1].timestamp) {
+    if (downsampledData[downsampledData.length - 1]?.timestamp !== allTracking[allTracking.length - 1].ts) {
       const lastPoint = allTracking[allTracking.length - 1];
       downsampledData.push({
         latitude: lastPoint.location.coordinates[1],
         longitude: lastPoint.location.coordinates[0],
         speed: lastPoint.speed,
-        timestamp: lastPoint.timestamp
+        timestamp: lastPoint.ts
       });
     }
 
@@ -329,7 +343,7 @@ class TrackingService {
     cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
 
     const result = await Tracking.deleteMany({
-      timestamp: { $lt: cutoffDate }
+      ts: { $lt: cutoffDate }
     });
 
     logger.info(`Cleaned old tracking data: ${result.deletedCount} records deleted`);
@@ -501,6 +515,178 @@ class TrackingService {
     if (tasks.length > 0) {
       await Promise.all(tasks);
     }
+  }
+
+  /**
+   * Get unified tracking summary for the customer tracking screen.
+   * Returns all data needed in a single call:
+   * route, driver, vehicle, current location, distances, ETA, e-way bill, timeline.
+   * @param {String} bookingId - ObjectId or readable bookingId
+   * @returns {Promise<Object>}
+   */
+  static async getTrackingSummary(bookingId) {
+    const booking = await Booking.findOne({
+      $or: [
+        ...(bookingId.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: bookingId }] : []),
+        { bookingId }
+      ],
+      isDeleted: false
+    })
+      .populate('driver', 'name phone profileImage')
+      .populate('vehicle', 'vehicleNumber truckType bodyType')
+      .lean();
+
+    if (!booking) throw new ApiError(404, 'Booking not found');
+
+    // Last GPS ping — fall back to booking's stored last location if no Tracking records exist yet
+    const lastTracking = await Tracking.findOne({ booking: booking._id })
+      .sort({ ts: -1 })
+      .select('location speed heading battery ts place city state')
+      .lean();
+
+    let currentLocation = null;
+    if (lastTracking) {
+      currentLocation = {
+        latitude: lastTracking.location.coordinates[1],
+        longitude: lastTracking.location.coordinates[0],
+        speed: lastTracking.speed,
+        heading: lastTracking.heading,
+        battery: lastTracking.battery,
+        timestamp: lastTracking.ts,
+        place: lastTracking.place || null,
+        city: lastTracking.city || null,
+        state: lastTracking.state || null
+      };
+    } else if (booking.lastKnownLocation?.coordinates?.length === 2) {
+      currentLocation = {
+        latitude: booking.lastKnownLocation.coordinates[1],
+        longitude: booking.lastKnownLocation.coordinates[0],
+        speed: null,
+        heading: null,
+        battery: null,
+        timestamp: booking.lastLocationUpdate || null,
+        place: null,
+        city: null,
+        state: null
+      };
+    }
+
+    // Distance traveled from GPS history
+    const distanceTraveled = await this.calculateDistanceTraveled(booking._id.toString());
+
+    // Auto-compute planned route if not cached — getPlannedRoute caches result on booking
+    let estimatedRoute = booking.estimatedRoute?.distance ? booking.estimatedRoute : null;
+    if (!estimatedRoute && booking.pickup?.location?.coordinates && booking.drop?.location?.coordinates) {
+      try {
+        estimatedRoute = await this.getPlannedRoute(booking._id.toString());
+      } catch {
+        // Google Maps unavailable or not configured — degrade gracefully
+        estimatedRoute = null;
+      }
+    }
+
+    // Total planned route distance in km (estimatedRoute.distance is in metres from Google Maps)
+    const totalDistanceKm = estimatedRoute?.distance
+      ? Math.round(estimatedRoute.distance / 100) / 10
+      : null;
+
+    const distanceRemaining = totalDistanceKm != null
+      ? Math.max(0, Math.round((totalDistanceKm - distanceTraveled) * 10) / 10)
+      : null;
+
+    // ETA: prefer stored expectedDeliveryDate, else compute from loadDate + route duration (seconds)
+    let eta = null;
+    if (booking.expectedDeliveryDate) {
+      eta = booking.expectedDeliveryDate;
+    } else if (estimatedRoute?.duration && booking.loadDate) {
+      eta = new Date(new Date(booking.loadDate).getTime() + estimatedRoute.duration * 1000);
+    }
+
+    const isOnTime = eta ? new Date() <= new Date(eta) : null;
+
+    // E-way bill — most recent active/draft bill
+    const ewayBill = await EwayBill.findOne({
+      bookingId: booking._id,
+      isDeleted: false,
+      status: { $in: ['active', 'draft'] }
+    })
+      .select('ewayBillNumber status expiryTracking')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Load timestamp from statusHistory
+    const loadedEntry = (booking.statusHistory || []).find(h => h.status === 'loaded');
+
+    // Timeline — all status changes in order
+    const STATUS_LABELS = {
+      'created': 'Booking Created',
+      'under-review': 'Under Review',
+      'assigned': 'Driver Assigned',
+      'driver-en-route': 'Driver En Route',
+      'reached-pickup': 'Driver at Pickup',
+      'loaded': 'Goods Loaded',
+      'in-transit': 'In Transit',
+      'reached-destination': 'Reached Destination',
+      'delivered': 'Delivered',
+      'pod-received': 'POD Received',
+      'closed': 'Booking Closed',
+      'cancelled': 'Cancelled'
+    };
+
+    const timeline = (booking.statusHistory || []).map(h => ({
+      status: h.status,
+      label: STATUS_LABELS[h.status] || h.status,
+      timestamp: h.timestamp,
+      notes: h.notes || null
+    }));
+
+    return {
+      bookingId: booking.bookingId,
+      status: booking.status,
+      route: {
+        from: {
+          city: booking.pickup?.city,
+          address: booking.pickup?.address,
+          lat: booking.pickup?.location?.coordinates?.[1] ?? null,
+          lng: booking.pickup?.location?.coordinates?.[0] ?? null
+        },
+        to: {
+          city: booking.drop?.city,
+          address: booking.drop?.address,
+          lat: booking.drop?.location?.coordinates?.[1] ?? null,
+          lng: booking.drop?.location?.coordinates?.[0] ?? null
+        }
+      },
+      driver: booking.driver ? {
+        name: booking.driver.name,
+        phone: booking.driver.phone,
+        profileImage: booking.driver.profileImage || null
+      } : null,
+      vehicle: booking.vehicle ? {
+        vehicleNumber: booking.vehicle.vehicleNumber,
+        truckType: booking.vehicle.truckType,
+        bodyType: booking.vehicle.bodyType
+      } : null,
+      currentLocation,
+      distanceTraveled,
+      totalDistance: totalDistanceKm,
+      distanceRemaining,
+      eta,
+      isOnTime,
+      loadDate: booking.loadDate || null,
+      loadTimestamp: loadedEntry?.timestamp || null,
+      expectedDeliveryDate: booking.expectedDeliveryDate || null,
+      ewayBill: ewayBill ? {
+        ewayBillNumber: ewayBill.ewayBillNumber,
+        status: ewayBill.status,
+        validFrom: ewayBill.expiryTracking?.validFrom || null,
+        validUpto: ewayBill.expiryTracking?.validUpto || null,
+        isExpired: ewayBill.expiryTracking?.validUpto
+          ? new Date() > new Date(ewayBill.expiryTracking.validUpto)
+          : false
+      } : null,
+      timeline
+    };
   }
 }
 

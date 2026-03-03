@@ -96,6 +96,22 @@ router.get(
   documentController.getBookingLR
 );
 
+// Download Loading Memo PDF for booking (customer)
+router.get(
+  '/booking/:bookingId/loading-memo',
+  checkRole('customer', 'driver', 'staff', 'internal', 'super-admin'),
+  validate(bookingIdParamSchema),
+  documentController.downloadLoadingMemo
+);
+
+// Get Auto E-LR (eway bill) for booking (customer)
+router.get(
+  '/booking/:bookingId/eway-bill',
+  checkRole('customer', 'driver', 'staff', 'internal', 'super-admin'),
+  validate(bookingIdParamSchema),
+  documentController.getBookingEwayBill
+);
+
 // Get signed download URL
 router.get('/signed-url/:cloudinaryId', validate(getSignedUrlSchema), documentController.getSignedUrl);
 

@@ -140,6 +140,26 @@ class PaymentService {
   }
 
   /**
+   * Compute correct booking paymentStatus by aggregating all successful payments.
+   * Must be called AFTER the triggering payment is already persisted with status='success'.
+   * @param {ObjectId} bookingId
+   * @param {Object} booking - Booking document (for freight amount)
+   * @returns {Promise<'paid'|'partial'|'unpaid'>}
+   */
+  static async computePaymentStatus(bookingId, booking) {
+    const freight = booking.finalAmount || booking.expectedAmount || 0;
+    if (freight === 0) return 'unpaid';
+    const agg = await Payment.aggregate([
+      { $match: { booking: bookingId, status: 'success' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const totalPaid = agg[0]?.total || 0;
+    if (totalPaid >= freight) return 'paid';
+    if (totalPaid > 0) return 'partial';
+    return 'unpaid';
+  }
+
+  /**
    * Handle PhonePe callback
    * @param {Object} data - Callback data
    * @returns {Promise<Payment>}
@@ -153,22 +173,27 @@ class PaymentService {
     }
 
     const decodedResponse = JSON.parse(Buffer.from(response, 'base64').toString());
-    const { merchantTransactionId, transactionId, code, amount } = decodedResponse;
+    const { merchantTransactionId, transactionId, code } = decodedResponse;
 
     const payment = await Payment.findOne({ merchantTransactionId });
     if (!payment) throw new ApiError(404, 'Payment not found');
 
-    // Update payment status
+    payment.gatewayResponse = decodedResponse;
+
     if (code === 'PAYMENT_SUCCESS') {
       payment.status = 'success';
       payment.transactionId = transactionId;
       payment.paidAt = new Date();
 
+      // Save payment first so the aggregate below finds it with status='success'
+      await payment.save();
+
       // Update booking
       const booking = await Booking.findById(payment.booking);
       if (booking) {
-        booking.paymentStatus = 'paid';
         booking.payments.push(payment._id);
+        // Compute correct status: 'partial' if balance remains, 'paid' if fully settled
+        booking.paymentStatus = await PaymentService.computePaymentStatus(booking._id, booking);
         await booking.save();
 
         // Notify staff
@@ -186,11 +211,9 @@ class PaymentService {
     } else {
       payment.status = 'failed';
       payment.failureReason = decodedResponse.message;
+      await payment.save();
       logger.warn('Payment failed:', { paymentId: payment._id, reason: decodedResponse.message });
     }
-
-    payment.gatewayResponse = decodedResponse;
-    await payment.save();
 
     return payment;
   }
@@ -278,9 +301,9 @@ class PaymentService {
       recordedBy
     });
 
-    // Update booking
-    booking.paymentStatus = 'paid';
+    // Update booking — compute correct status in case this is a partial payment
     booking.payments.push(payment._id);
+    booking.paymentStatus = await PaymentService.computePaymentStatus(booking._id, booking);
     await booking.save();
 
     // Update customer outstanding
@@ -423,6 +446,60 @@ class PaymentService {
         total,
         pages: Math.ceil(total / limit)
       }
+    };
+  }
+
+  /**
+   * Get booking-level payment summary for customer app.
+   * Works for all states: no payment, partial, fully paid.
+   * @param {String} bookingId - Booking _id or readable bookingId
+   * @param {String} userId - Authenticated customer user _id
+   * @returns {Promise<Object>}
+   */
+  static async getBookingPaymentSummary(bookingId, userId) {
+    const customer = await Customer.findOne({ user: userId, isDeleted: false });
+    if (!customer) throw new ApiError(404, 'Customer not found');
+
+    const booking = await Booking.findOne({
+      $or: [
+        ...(bookingId.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: bookingId }] : []),
+        { bookingId }
+      ],
+      customer: customer._id,
+      isDeleted: false
+    }).select('bookingId finalAmount expectedAmount advanceRequired paymentStatus payments');
+
+    if (!booking) throw new ApiError(404, 'Booking not found');
+
+    const freight = booking.finalAmount || booking.expectedAmount || 0;
+
+    // Fetch all successful payments — returns empty array when none exist
+    const payments = await Payment.find({ booking: booking._id, status: 'success' })
+      .select('amount paymentMethod gateway referenceNumber transactionId paidAt remarks createdAt')
+      .sort({ paidAt: 1, createdAt: 1 })
+      .lean();
+
+    const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const balance = Math.max(0, freight - totalPaid);
+
+    return {
+      bookingId: booking.bookingId,
+      payable: freight,
+      freight,
+      totalPaid,
+      balance,
+      paymentStatus: booking.paymentStatus,
+      payments: payments.map(p => ({
+        _id: p._id,
+        amount: p.amount,
+        paymentMethod: p.paymentMethod,
+        gateway: p.gateway,
+        referenceNumber: p.referenceNumber,
+        transactionId: p.transactionId,
+        paidAt: p.paidAt,
+        remarks: p.remarks,
+        createdAt: p.createdAt
+      }))
     };
   }
 

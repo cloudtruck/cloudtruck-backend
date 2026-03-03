@@ -566,7 +566,14 @@ class CustomerService {
     };
 
     if (filters.status) {
-      query.status = Array.isArray(filters.status) ? { $in: filters.status } : filters.status;
+      // Map customer-facing status labels to internal DB statuses
+      const CUSTOMER_STATUS_MAP = {
+        'in-transit': ['assigned', 'driver-en-route', 'reached-pickup', 'loaded', 'in-transit', 'reached-destination'],
+        'delivered':  ['delivered', 'pod-received', 'closed']
+      };
+      const rawStatuses = Array.isArray(filters.status) ? filters.status : [filters.status];
+      const expanded = rawStatuses.flatMap(s => CUSTOMER_STATUS_MAP[s] || [s]);
+      query.status = { $in: expanded };
     }
     if (filters.truckType) {
       query.truckTypeNeeded = Array.isArray(filters.truckType) ? { $in: filters.truckType } : filters.truckType;

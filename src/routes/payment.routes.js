@@ -29,6 +29,9 @@ router.use(verifyJWT);
 router.post('/', checkRole('customer'), validate(createPaymentSchema), paymentController.createPaymentOrder);
 router.post('/initiate', checkRole('customer'), validate(initiatePaymentSchema), paymentController.initiatePhonePePayment);
 router.get('/my-payments', checkRole('customer'), paymentController.getMyPayments);
+// Must be before /:id to avoid path collision
+router.get('/booking/:bookingId', checkRole('customer'), paymentController.getBookingPaymentSummary);
+router.get('/booking/:bookingId/invoice', checkRole('customer'), paymentController.downloadBookingInvoice);
 
 // Verify payment status
 router.get('/verify/:merchantTransactionId', validate(verifyPaymentParamsSchema), paymentController.verifyPayment);

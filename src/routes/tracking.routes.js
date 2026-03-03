@@ -48,4 +48,7 @@ router.get('/:bookingId/route', validate(getTrackingRouteSchema), trackingContro
 // Get planned route for booking
 router.get('/:bookingId/planned-route', validate(bookingIdParamSchema), trackingController.getPlannedRoute);
 
+// Unified tracking summary for customer tracking screen
+router.get('/:bookingId/summary', validate(bookingIdParamSchema), trackingController.getTrackingSummary);
+
 export default router;

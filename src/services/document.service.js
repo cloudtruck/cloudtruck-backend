@@ -2,6 +2,8 @@ import cloudinary from '../config/cloudinary.js';
 import Document from '../models/document.model.js';
 import Booking from '../models/booking.model.js';
 import Customer from '../models/customer.model.js';
+import EwayBill from '../models/ewayBill.model.js';
+import PDFService from './pdf.service.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
 import fs from 'fs/promises';
@@ -299,7 +301,9 @@ class DocumentService {
   static async #assertBookingAccess(booking, userId, userRole) {
     if (DocumentService.#PRIVILEGED_ROLES.has(userRole)) return;
     const customerDoc = await Customer.findOne({ user: userId, isDeleted: false }).select('_id');
-    if (!customerDoc || booking.customer.toString() !== customerDoc._id.toString()) {
+    // booking.customer may be a populated object or a raw ObjectId
+    const bookingCustomerId = booking.customer?._id ?? booking.customer;
+    if (!customerDoc || bookingCustomerId.toString() !== customerDoc._id.toString()) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -354,6 +358,78 @@ class DocumentService {
     return {
       available: true,
       lrDetails: booking.lrDetails
+    };
+  }
+
+  /**
+   * Generate Loading Memo PDF buffer for a booking (customer-safe).
+   * @param {String} bookingId
+   * @param {String} userId
+   * @param {String} userRole
+   * @returns {Promise<{ buffer: Buffer, bookingId: String }>}
+   */
+  static async getLoadingMemoPDF(bookingId, userId, userRole) {
+    const booking = await Booking.findOne({
+      $or: [{ _id: bookingId }, { bookingId }],
+      isDeleted: false
+    })
+      .populate('customer', 'companyName gst contactPerson')
+      .populate('driver', 'name phone')
+      .populate('vehicle', 'vehicleNumber truckType')
+      .lean();
+
+    if (!booking) throw new ApiError(404, 'Booking not found');
+    await this.#assertBookingAccess(booking, userId, userRole);
+
+    const buffer = await PDFService.generateLoadingMemo(booking);
+    return { buffer, bookingId: booking.bookingId };
+  }
+
+  /**
+   * Get Auto E-LR (eway bill) details for a booking (customer-safe).
+   * Returns the most recent active/valid eway bill linked to the booking.
+   * @param {String} bookingId
+   * @param {String} userId
+   * @param {String} userRole
+   * @returns {Promise<Object>}
+   */
+  static async getEwayBillForBooking(bookingId, userId, userRole) {
+    const booking = await DocumentService.#findBooking(bookingId);
+    await this.#assertBookingAccess(booking, userId, userRole);
+
+    const ewayBill = await EwayBill.findOne({
+      bookingId: booking._id,
+      isDeleted: false,
+      status: { $in: ['active', 'draft'] }
+    })
+      .select('ewayBillNumber status documentNumber documentDate fromGstin toGstin partATotalValue totalTax vehicleNumber transMode expiryTracking itemList createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!ewayBill) {
+      return { available: false, ewayBill: null };
+    }
+
+    return {
+      available: true,
+      ewayBill: {
+        ewayBillNumber: ewayBill.ewayBillNumber,
+        status: ewayBill.status,
+        documentNumber: ewayBill.documentNumber,
+        documentDate: ewayBill.documentDate,
+        fromGstin: ewayBill.fromGstin,
+        toGstin: ewayBill.toGstin,
+        totalValue: ewayBill.partATotalValue,
+        totalTax: ewayBill.totalTax,
+        vehicleNumber: ewayBill.vehicleNumber,
+        transMode: ewayBill.transMode,
+        validFrom: ewayBill.expiryTracking?.validFrom,
+        validUpto: ewayBill.expiryTracking?.validUpto,
+        isExpired: ewayBill.expiryTracking?.validUpto
+          ? new Date() > new Date(ewayBill.expiryTracking.validUpto)
+          : false,
+        items: ewayBill.itemList
+      }
     };
   }
 

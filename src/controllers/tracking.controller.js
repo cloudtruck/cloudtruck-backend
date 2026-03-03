@@ -98,3 +98,12 @@ export const getPlannedRoute = asyncHandler(async (req, res) => {
   const route = await TrackingService.getPlannedRoute(bookingId);
   return res.status(200).json(new ApiResponse(200, route, 'Planned route retrieved'));
 });
+
+/**
+ * Get unified tracking summary for customer tracking screen
+ */
+export const getTrackingSummary = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const summary = await TrackingService.getTrackingSummary(bookingId);
+  return res.status(200).json(new ApiResponse(200, summary, 'Tracking summary retrieved'));
+});

@@ -30,9 +30,12 @@ const trackingSchema = new mongoose.Schema({
     enum: ['app', 'device', 'manual'],
     default: 'app'
   },
-  ts: { 
-    type: Date, 
-    default: Date.now, 
+  place: String,  // reverse-geocoded street/area name
+  city: String,
+  state: String,
+  ts: {
+    type: Date,
+    default: Date.now,
     index: { expires: '90d' } // TTL index: automatic cleanup after 90 days
   },
   meta: {}

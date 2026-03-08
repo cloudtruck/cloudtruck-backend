@@ -17,6 +17,8 @@
     "seed:demo": "node --env-file .env src/scripts/seed-demo.js",
     "seed:demo:reassign": "node --env-file .env src/scripts/seed-demo.js --reassign",
     "seed:notifications": "node --env-file .env src/scripts/seed-notifications.js",
+    "seed:chat": "node --env-file .env src/scripts/seed-chat.js",
+    "seed:chat:clean": "node --env-file .env src/scripts/seed-chat.js --clean",
     "test": "NODE_ENV=test mocha --exit --recursive test --timeout 10000"
   },
   "keywords": [
@@ -40,6 +42,7 @@
     "express-rate-limit": "^7.5.1",
     "firebase-admin": "13.6.0",
     "helmet": "^7.1.0",
+    "joi": "^18.0.2",
     "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.23",
     "mongoose": "^8.0.0",

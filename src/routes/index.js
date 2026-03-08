@@ -22,6 +22,8 @@ import cityRoutes from './city.routes.js';
 import ewayBillRoutes from './ewayBill.routes.js';
 import marketRateRoutes from './marketRate.routes.js';
 import supportTicketRoutes from './supportTicket.routes.js';
+import chatRoutes from './chat.routes.js';
+import walletRoutes from './wallet.routes.js';
 
 const router = express.Router();
 
@@ -58,6 +60,8 @@ router.use('/cities', cityRoutes);
 router.use('/eway-bills', ewayBillRoutes);
 router.use('/market-rates', marketRateRoutes);
 router.use('/support-tickets', supportTicketRoutes);
+router.use('/chats', chatRoutes);
+router.use('/wallet', walletRoutes);
 
 // 404 handler for undefined routes
 router.use('*', (req, res) => {

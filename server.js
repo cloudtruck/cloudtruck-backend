@@ -9,7 +9,9 @@ import { validateEnvironment } from './src/config/environment.js';
 import logger from './src/utils/logger.js';
 import trackingSocketHandler from './src/sockets/tracking.socket.js';
 import notificationSocketHandler from './src/sockets/notification.socket.js';
+import chatSocketHandler from './src/sockets/chat.socket.js';
 import NotificationService from './src/services/notification.service.js';
+import ChatService from './src/services/chat.service.js';
 import EwayBillExpiryJob from './src/jobs/ewayBillExpiry.job.js';
 
 // Load environment variables from backend/.env
@@ -38,13 +40,16 @@ const io = new Server(server, {
 // Socket.io namespaces
 const trackingNamespace = io.of('/tracking');
 const notificationNamespace = io.of('/notifications');
+const chatNamespace = io.of('/chat');
 
 // Socket handlers
 trackingSocketHandler(trackingNamespace);
 notificationSocketHandler(notificationNamespace);
+chatSocketHandler(chatNamespace);
 
-// Initialize NotificationService with Socket.io for real-time emission
+// Initialize services with Socket.io for real-time emission
 NotificationService.setIO(io);
+ChatService.setIO(io);
 
 // Make io accessible to routes
 app.set('io', io);
@@ -125,6 +130,7 @@ const startServer = async () => {
       logger.info(`API available at http://localhost:${PORT}/api/v1`);
       logger.info(`WebSocket tracking available at ws://localhost:${PORT}/tracking`);
       logger.info(`WebSocket notifications available at ws://localhost:${PORT}/notifications`);
+      logger.info(`WebSocket chat available at ws://localhost:${PORT}/chat`);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

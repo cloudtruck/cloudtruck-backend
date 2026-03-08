@@ -58,6 +58,27 @@ export const getAllTickets = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Add Reply to Ticket
+ * POST /api/v1/support-tickets/:id/reply
+ */
+export const addReply = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user._id;
+  const requesterRole = req.user.role;
+  const { message } = req.body;
+
+  if (!message || message.trim().length < 2) {
+    throw new ApiError(400, 'Reply message must be at least 2 characters');
+  }
+
+  const ticket = await SupportTicketService.addReply(id, userId, requesterRole, { message: message.trim() });
+
+  return res.status(200).json(
+    new ApiResponse(200, ticket, 'Reply added successfully')
+  );
+});
+
+/**
  * Get Ticket By ID
  * GET /api/v1/support-tickets/:id
  */

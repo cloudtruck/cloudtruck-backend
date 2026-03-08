@@ -3,6 +3,8 @@ import Document from '../models/document.model.js';
 import Booking from '../models/booking.model.js';
 import Customer from '../models/customer.model.js';
 import EwayBill from '../models/ewayBill.model.js';
+import Vehicle from '../models/vehicle.model.js';
+import Driver from '../models/driver.model.js';
 import PDFService from './pdf.service.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
@@ -53,6 +55,12 @@ class DocumentService {
     if (entityType === 'booking') {
       const booking = await Booking.findById(entityId);
       if (!booking) throw new ApiError(404, 'Booking not found');
+    } else if (entityType === 'vehicle') {
+      const vehicle = await Vehicle.findById(entityId);
+      if (!vehicle) throw new ApiError(404, 'Vehicle not found');
+    } else if (entityType === 'driver') {
+      const driver = await Driver.findById(entityId);
+      if (!driver) throw new ApiError(404, 'Driver not found');
     }
 
     // Upload to Cloudinary
@@ -63,19 +71,54 @@ class DocumentService {
       uploadedBy: userId
     });
 
-    // Create document record
+    // Create document record (Mapping to correct schema fields: ownerRef and type)
     const document = await Document.create({
-      entityType,
-      entityId,
-      documentType,
+      ownerRef: {
+        kind: entityType,
+        item: entityId
+      },
+      type: documentType,
       url: uploadResult.url,
-      cloudinaryId: uploadResult.cloudinaryId,
+      providerId: uploadResult.cloudinaryId,
       format: uploadResult.format,
-      size: uploadResult.size,
+      bytes: uploadResult.size,
       uploadedBy: userId
     });
 
-    logger.info('Document created:', { documentId: document._id, entityType, entityId });
+    // Link document back to entity if applicable
+    if (entityType === 'vehicle') {
+      const vehicleUpdate = {};
+      if (documentType === 'rc') vehicleUpdate['documents.rcDocument'] = document._id;
+      else if (documentType === 'insurance') vehicleUpdate['documents.insuranceDocument'] = document._id;
+      else if (documentType === 'fitness') vehicleUpdate['documents.fitnessDocument'] = document._id;
+      else if (documentType === 'permit') vehicleUpdate['documents.permitDocument'] = document._id;
+      else if (documentType === 'puc') vehicleUpdate['documents.pucCertificate'] = document._id;
+
+      if (Object.keys(vehicleUpdate).length > 0) {
+        await Vehicle.findByIdAndUpdate(entityId, vehicleUpdate);
+      }
+    } else if (entityType === 'driver') {
+      const driverUpdate = {};
+      if (documentType === 'pan') {
+        driverUpdate['pan.document'] = document._id;
+        driverUpdate['documents.panDocument'] = document._id;
+      } else if (documentType === 'aadhaar') {
+        driverUpdate['aadhaar.document'] = document._id;
+        driverUpdate['documents.aadhaarDocument'] = document._id;
+      } else if (documentType === 'license') {
+        driverUpdate.licenseImage = document.url;
+      } else if (documentType === 'cheque') {
+        driverUpdate['documents.chequeImage'] = document._id;
+      } else if (documentType === 'tds') {
+        driverUpdate['documents.tdsDocument'] = document._id;
+      }
+
+      if (Object.keys(driverUpdate).length > 0) {
+        await Driver.findByIdAndUpdate(entityId, driverUpdate);
+      }
+    }
+
+    logger.info('Document created and linked:', { documentId: document._id, entityType, entityId, documentType });
     return document;
   }
 
@@ -87,8 +130,8 @@ class DocumentService {
    * @returns {Promise<Array>}
    */
   static async getDocumentsByEntity(entityType, entityId, documentType = null) {
-    const query = { entityType, entityId };
-    if (documentType) query.documentType = documentType;
+    const query = { 'ownerRef.kind': entityType, 'ownerRef.item': entityId };
+    if (documentType) query.type = documentType;
 
     const documents = await Document.find(query)
       .populate('uploadedBy', 'name email role')

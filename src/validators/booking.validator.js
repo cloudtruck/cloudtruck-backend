@@ -74,6 +74,25 @@ export const getBookingsQuerySchema = z.object({
 });
 
 /**
+ * Get Available Loads Query Validator
+ * GET /api/v1/bookings/available-loads
+ */
+export const getAvailableLoadsQuerySchema = z.object({
+  query: z.object({
+    city: z.string().optional(),
+    pickupCity: z.string().optional(),
+    dropCity: z.string().optional(),
+    truckType: z.string().optional(), // comma-separated
+    latitude: z.string().optional(),
+    longitude: z.string().optional(),
+    radius: z.string().optional(),
+    loadDate: z.string().optional(), // YYYY-MM-DD
+    page: z.string().optional(),
+    limit: z.string().optional()
+  })
+});
+
+/**
  * Booking ID Param Validator
  */
 export const bookingIdParamSchema = z.object({

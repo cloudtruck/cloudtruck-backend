@@ -123,6 +123,35 @@ class SupportTicketService {
   }
 
   /**
+   * Add a reply to a ticket (driver/customer or staff)
+   */
+  static async addReply(id, userId, requesterRole, { message }) {
+    const ticket = await SupportTicket.findOne({ _id: id, isDeleted: false });
+    if (!ticket) throw new ApiError(404, 'Ticket not found');
+
+    // Access control: owner or staff
+    if (!['staff', 'internal', 'super-admin'].includes(requesterRole)) {
+      if (ticket.user.toString() !== userId.toString()) {
+        throw new ApiError(403, 'Access denied');
+      }
+    }
+
+    ticket.replies.push({ user: userId, message, timestamp: new Date() });
+
+    // Re-open ticket if it was closed/resolved and user replies
+    if (['resolved', 'closed'].includes(ticket.status) && !['staff', 'internal', 'super-admin'].includes(requesterRole)) {
+      ticket.status = 'open';
+    }
+
+    await ticket.save();
+
+    // Return populated ticket so frontend gets updated replies with user names
+    return SupportTicket.findById(ticket._id)
+      .populate('user', 'name phone email role')
+      .populate('replies.user', 'name phone email role');
+  }
+
+  /**
    * Get single ticket by ID
    */
   static async getTicketById(id, requesterId, requesterRole) {

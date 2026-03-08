@@ -302,6 +302,7 @@ class BookingService {
       endDate,
       truckType,
       podPending,
+      lrPending,
       city,
       search
     } = filters;
@@ -322,7 +323,9 @@ class BookingService {
     }
     if (paymentStatus) query.paymentStatus = paymentStatus;
     if (truckType) {
-      query.truckTypeNeeded = Array.isArray(truckType) ? { $in: truckType } : truckType;
+      const normalize = t => (t && typeof t === 'object' ? t.key : t);
+      const typeArray = Array.isArray(truckType) ? truckType.map(normalize) : [normalize(truckType)];
+      query.truckTypeNeeded = { $in: typeArray };
     }
     if (podPending === true) {
       query.status = query.status || { $in: ['delivered'] };
@@ -332,6 +335,18 @@ class BookingService {
       ];
     } else if (podPending === false) {
       query.podDocuments = { $exists: true, $not: { $size: 0 } };
+    }
+    if (lrPending === true) {
+      if (!query.status) {
+        query.status = { $in: ['assigned', 'driver-en-route', 'reached-pickup', 'loaded', 'in-transit', 'reached-destination'] };
+      }
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { 'lrDetails.uploadedAt': { $exists: false } },
+          { 'lrDetails.uploadedAt': null },
+        ]
+      });
     }
     if (startDate || endDate) {
       query.loadDate = {};
@@ -1371,11 +1386,72 @@ class BookingService {
   /**
    * Get available (unassigned) loads for drivers (Fix 6)
    * @param {Object} filters - city, truckType, page, limit
+   * @param {string} driverId - (Optional) Current driver profile ID for pre-filtering compatible loads
    * @returns {Promise<Object>} Paginated result
    */
-  static async getAvailableLoads({ city, truckType, page = 1, limit = 20 }) {
+  static async getAvailableLoads({ city, pickupCity, dropCity, truckType, latitude, longitude, radius, loadDate, driverId, page = 1, limit = 20 }) {
+    const query = { status: ['created', 'under-review'], driverUnassigned: true };
+
+    if (city) {
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { 'pickup.city': new RegExp(city, 'i') },
+          { 'drop.city': new RegExp(city, 'i') }
+        ]
+      });
+    }
+
+    if (pickupCity) {
+      query['pickup.city'] = new RegExp(pickupCity, 'i');
+    }
+
+    if (dropCity) {
+      query['drop.city'] = new RegExp(dropCity, 'i');
+    }
+
+    if (truckType) {
+      const normalize = t => (t && typeof t === 'object' ? t.key : t);
+      const typeArray = Array.isArray(truckType) ? truckType.map(normalize) : [normalize(truckType)];
+      query.truckTypeNeeded = { $in: typeArray };
+    }
+
+    if (loadDate) {
+      const startOfDay = new Date(loadDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(loadDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      query.loadDate = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    // Location-based search (within radius of pickup)
+    if (latitude && longitude) {
+      const rad = parseFloat(radius) || 50; // default 50km
+      query['pickup.location'] = {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [parseFloat(longitude), parseFloat(latitude)]
+          },
+          $maxDistance: rad * 1000
+        }
+      };
+    }
+
+    // If driverId is provided, only show loads matching the driver's vehicle types
+    if (driverId && !truckType) {
+      const vehicles = await Vehicle.find({ owner: driverId, isDeleted: false, verificationStatus: 'verified' }).select('truckType').lean();
+      if (vehicles.length > 0) {
+        const myTruckTypes = [...new Set(vehicles.map(v => v.truckType))];
+        query.truckType = { $in: myTruckTypes };
+      } else {
+        // Driver has no verified vehicles, they can't see any loads (or return empty list)
+        return { data: [], pagination: { page: parseInt(page), limit: parseInt(limit), total: 0, pages: 0 } };
+      }
+    }
+
     return this.getBookings(
-      { status: ['created', 'under-review'], driverUnassigned: true, city, truckType },
+      query,
       { page: parseInt(page) || 1, limit: parseInt(limit) || 20, sort: { createdAt: -1 } },
       { maskCustomer: true }
     );
@@ -1388,12 +1464,32 @@ class BookingService {
    * @returns {Promise<Object>} Updated booking
    */
   static async expressInterest(bookingId, driverId) {
+    const driver = await Driver.findById(driverId);
+    if (!driver || !driver.isVerified) {
+      throw new ApiError(403, 'Your profile must be verified by an admin before you can express interest');
+    }
+
     const booking = await Booking.findById(bookingId);
     if (!booking) throw new ApiError(404, 'Booking not found');
 
     if (!['created', 'under-review'].includes(booking.status)) {
       throw new ApiError(400, 'This load is no longer available');
     }
+
+    // Check if driver has a verified vehicle matching the load's truckType
+    const matchingVehicles = await Vehicle.find({
+      owner: driverId,
+      truckType: booking.truckTypeNeeded,
+      isDeleted: false,
+      verificationStatus: 'verified'
+    });
+
+    if (matchingVehicles.length === 0) {
+      throw new ApiError(400, `You do not have a verified ${booking.truckTypeNeeded} vehicle to carry this load`);
+    }
+
+    // Check if all matching vehicles are busy (optional strictness, but let's just check if they have at least one)
+    // Even if busy now, they might be free by load date. But if strict, we'd check availability: 'available'.
 
     // Use .equals() for Mongoose ObjectId comparison
     if (booking.interestedDrivers.some(id => id.equals(driverId))) {

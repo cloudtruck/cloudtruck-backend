@@ -11,7 +11,8 @@ import {
   assignDriverSchema,
   cancelBookingSchema,
   addDelaySchema,
-  getStatsQuerySchema
+  getStatsQuerySchema,
+  getAvailableLoadsQuerySchema
 } from '../validators/booking.validator.js';
 
 const router = express.Router();
@@ -37,7 +38,7 @@ router.get('/dashboard/status', verifyJWT, checkRole('staff', 'internal', 'super
 router.get('/', verifyJWT, validate(getBookingsQuerySchema), bookingController.getAllBookings);
 
 // Available loads for drivers (Fix 6) — must be BEFORE /:id to avoid path collision
-router.get('/available-loads', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), bookingController.getAvailableLoads);
+router.get('/available-loads', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(getAvailableLoadsQuerySchema), bookingController.getAvailableLoads);
 
 router.get('/:id', verifyJWT, bookingController.getBookingById);
 

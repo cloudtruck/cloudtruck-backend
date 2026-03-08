@@ -75,7 +75,19 @@ export const mapBooking = (b) => {
     weight: bk.weight,
     truckTypeNeeded: bk.truckTypeNeeded,
     bodyType: bk.bodyType,
-    estimatedDistance: bk.estimatedDistance?.value || null,
+    estimatedDistance: (() => {
+      if (bk.estimatedDistance?.value) return bk.estimatedDistance.value;
+      // Fallback: compute on the fly from stored coordinates (handles seeded data)
+      const pc = bk.pickup?.location?.coordinates;
+      const dc = bk.drop?.location?.coordinates;
+      if (!pc || !dc || pc.length < 2 || dc.length < 2) return null;
+      if (pc[0] === 0 && pc[1] === 0) return null; // dummy coordinates
+      const dLat = (dc[1] - pc[1]) * Math.PI / 180;
+      const dLon = (dc[0] - pc[0]) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(pc[1] * Math.PI / 180) * Math.cos(dc[1] * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+      return Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10 || null;
+    })(),
     loadDateTime: bk.loadDateTime || bk.loadDate || bk.loadDateTime,
     status: bk.status,
     paymentStatus: bk.paymentStatus,
@@ -91,6 +103,8 @@ export const mapBooking = (b) => {
     driver: bk.driver ? { _id: bk.driver._id || bk.driver, name: bk.driver.name, phone: bk.driver.phone } : undefined,
     vehicle: bk.vehicle ? { _id: bk.vehicle._id || bk.vehicle, vehicleNumber: bk.vehicle.vehicleNumber, truckType: bk.vehicle.truckType } : undefined,
     assignedAt: bk.assignedAt,
+    statusHistory: bk.statusHistory || [],
+    interestedCount: (bk.interestedDrivers || []).length,
     images: bk.cargoDocuments || bk.images || [],
     createdAt: bk.createdAt,
     updatedAt: bk.updatedAt
@@ -169,20 +183,50 @@ export const getAllBookings = asyncHandler(async (req, res) => {
  * Fix 6
  */
 export const getAvailableLoads = asyncHandler(async (req, res) => {
-  const { city, truckType, page, limit } = req.query;
+  const { city, pickupCity, dropCity, truckType, latitude, longitude, radius, loadDate, page, limit } = req.query;
 
-  const result = await BookingService.getAvailableLoads({ city, truckType, page, limit });
+  // Resolve current driver ObjectId to pre-filter by their fleet capabilities
+  let currentDriverId = null;
+  try {
+    const d = await Driver.findOne({ user: req.user._id }).select('_id').lean();
+    if (d) currentDriverId = d._id;
+  } catch (_) { /* non-driver callers */ }
 
-  const loads = result.docs.map(b => mapBooking(b));
+  const result = await BookingService.getAvailableLoads({
+    city,
+    pickupCity,
+    dropCity,
+    truckType,
+    latitude,
+    longitude,
+    radius,
+    loadDate,
+    driverId: currentDriverId,
+    page,
+    limit
+  });
+
+  const docs = Array.isArray(result.data) ? result.data
+    : Array.isArray(result.docs) ? result.docs
+    : Array.isArray(result.results) ? result.results
+    : [];
+
+  const loads = docs.map(b => {
+    const mapped = mapBooking(b);
+    mapped.alreadyInterested = currentDriverId
+      ? (b.interestedDrivers || []).some(id => String(id) === String(currentDriverId))
+      : false;
+    return mapped;
+  });
 
   return res.status(200).json(
     new ApiResponse(200, {
       loads,
       pagination: {
-        page: result.page,
-        limit: result.limit,
-        total: result.totalDocs,
-        pages: result.totalPages
+        page: result.page || result.pagination?.page || 1,
+        limit: result.limit || result.pagination?.limit || 20,
+        total: result.totalDocs || result.pagination?.total || docs.length,
+        pages: result.totalPages || result.pagination?.pages || 1
       }
     }, 'Available loads fetched')
   );
@@ -371,7 +415,7 @@ export const getStatistics = asyncHandler(async (req, res) => {
  */
 export const getDriverBookings = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const { status, page, limit } = req.query;
+  const { status, page, limit, lrPending } = req.query;
 
   // Find driver document
   const driver = await Driver.findOne({ user: userId, isDeleted: false });
@@ -381,7 +425,8 @@ export const getDriverBookings = asyncHandler(async (req, res) => {
 
   const filters = {
     driverId: driver._id,
-    status: status ? status.split(',') : undefined
+    status: status ? status.split(',') : undefined,
+    lrPending: lrPending !== undefined ? lrPending === 'true' : undefined,
   };
 
   const pagination = { page, limit };

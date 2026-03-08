@@ -368,6 +368,19 @@ bookingSchema.pre('save', async function (next) {
   }
 });
 
+// Auto-calculate estimatedDistance on create or when pickup/drop changes
+bookingSchema.pre('save', function (next) {
+  if (
+    (this.isNew || this.isModified('pickup') || this.isModified('drop')) &&
+    !this.estimatedDistance?.value &&
+    this.pickup?.location?.coordinates?.length === 2 &&
+    this.drop?.location?.coordinates?.length === 2
+  ) {
+    this.calculateDistance();
+  }
+  next();
+});
+
 // Maintain statusHistory (add initial status entry on create and push on status changes)
 bookingSchema.pre('save', function (next) {
   try {

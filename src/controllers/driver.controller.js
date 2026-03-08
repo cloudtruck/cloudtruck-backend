@@ -31,6 +31,8 @@ const mapDriver = (drv) => {
     totalTrips: d.performance?.completedTrips || 0,
     rating: d.performance?.averageRating || 0,
     isReturnTrip: d.isReturnTrip,
+    kycStatus: d.kycStatus,
+    accountInfoStatus: d.accountInfoStatus,
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
     rejectionReason: d.rejectionReason,
@@ -444,6 +446,17 @@ export const getMyTripHistory = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get My Wallet (Driver)
+ * GET /api/v1/drivers/my-wallet
+ */
+export const getMyWallet = asyncHandler(async (req, res) => {
+  const wallet = await DriverService.getMyWallet(req.user._id);
+  return res.status(200).json(
+    new ApiResponse(200, wallet, 'Wallet fetched successfully')
+  );
+});
+
+/**
  * Get Nearby Drivers
  * GET /api/v1/drivers/nearby
  */
@@ -474,6 +487,17 @@ export const deleteDriver = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, driver, 'Driver deleted successfully')
+  );
+});
+
+/**
+ * Driver deletes own account
+ * DELETE /api/v1/drivers/my-account
+ */
+export const deleteMyAccount = asyncHandler(async (req, res) => {
+  await DriverService.deleteMyAccount(req.user._id);
+  return res.status(200).json(
+    new ApiResponse(200, null, 'Account deleted successfully')
   );
 });
 
@@ -512,7 +536,7 @@ export const getMyAccountInfo = asyncHandler(async (req, res) => {
 
   const driver = await Driver.findOne({ user: userId, isDeleted: false })
     .populate('documents.chequeImage documents.tdsDocument documents.aadhaarDocument documents.panDocument')
-    .select('bankDetails gstin documents accountInfoStatus accountInfoSubmittedAt aadhaar pan');
+    .select('bankDetails gstin documents accountInfoStatus accountInfoSubmittedAt aadhaar pan rejectionReason rejectedAt');
 
   if (!driver) {
     throw new ApiError(404, 'Driver profile not found');
@@ -544,13 +568,6 @@ export const addMyTruck = asyncHandler(async (req, res) => {
  * POST /api/v1/drivers/my-account-info
  */
 export const submitAccountInfo = asyncHandler(async (req, res) => {
-  const requiredFiles = ['chequeImage', 'tdsDocument', 'aadhaarDocument', 'panDocument'];
-  for (const field of requiredFiles) {
-    if (!req.files?.[field]?.[0]) {
-      throw new ApiError(400, `${field} file is required`);
-    }
-  }
-
   const driver = await DriverService.submitAccountInfo(req.user._id, req.body, req.files);
 
   return res.status(201).json(

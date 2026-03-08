@@ -1,5 +1,6 @@
 import express from 'express';
 import * as driverController from '../controllers/driver.controller.js';
+import * as walletController from '../controllers/wallet.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validation.middleware.js';
 import {
@@ -22,6 +23,7 @@ import {
   getMyTripHistoryQuerySchema,
   addMyTruckSchema
 } from '../validators/driver.validator.js';
+import { requestPayoutSchema } from '../validators/wallet.validator.js';
 import { upload } from '../middlewares/upload.middleware.js';
 
 const router = express.Router();
@@ -46,10 +48,13 @@ router.post('/my-account-info', verifyJWT, checkRole('driver'),
   validate(submitAccountInfoSchema),
   driverController.submitAccountInfo
 );
+router.get('/my-wallet',          verifyJWT, checkRole('driver'), walletController.getMyWallet);
+router.post('/my-wallet/withdraw', verifyJWT, checkRole('driver'), validate(requestPayoutSchema), walletController.requestPayout);
 router.get('/my-performance', verifyJWT, checkRole('driver'), validate(getPerformanceQuerySchema), driverController.getMyPerformance);
 router.get('/my-trip-history', verifyJWT, checkRole('driver'), validate(getMyTripHistoryQuerySchema), driverController.getMyTripHistory);
 router.post('/my-location', verifyJWT, checkRole('driver'), validate(updateLocationSchema), driverController.updateMyLocation);
 router.patch('/my-availability', verifyJWT, checkRole('driver'), validate(updateAvailabilitySchema), driverController.updateMyAvailability);
+router.delete('/my-account', verifyJWT, checkRole('driver'), driverController.deleteMyAccount);
 
 // Staff/Admin routes - list and view
 router.get('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getDriversQuerySchema), driverController.getAllDrivers);

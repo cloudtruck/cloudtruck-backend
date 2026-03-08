@@ -238,7 +238,9 @@ class DriverService {
     }
 
     if (typeof isVerified === 'boolean') query.isVerified = isVerified;
-    
+    if (filters.kycStatus) query.kycStatus = filters.kycStatus;
+    if (filters.accountInfoStatus) query.accountInfoStatus = filters.accountInfoStatus;
+
     // Only set isBlacklisted if not already set by isAvailable
     if (typeof isBlacklisted === 'boolean' && isAvailable !== true) {
       query.isBlacklisted = isBlacklisted;
@@ -519,6 +521,8 @@ class DriverService {
     driver.isVerified = true;
     driver.verifiedAt = new Date();
     driver.verifiedBy = verifiedBy;
+    driver.kycStatus = 'verified';
+    driver.accountInfoStatus = 'verified';
     await driver.save();
 
     // Update user status
@@ -571,6 +575,8 @@ class DriverService {
     driver.rejectionReason = reason;
     driver.rejectedAt = new Date();
     driver.rejectedBy = rejectedBy;
+    driver.kycStatus = 'rejected';
+    driver.accountInfoStatus = 'rejected';
     await driver.save();
 
     // Audit log
@@ -862,6 +868,71 @@ class DriverService {
   }
 
   /**
+   * Get wallet summary for a driver — derived from booking advances + balances.
+   * Returns { balance, transactions[] } sorted newest-first.
+   * @param {string} userId - Authenticated driver user ID
+   * @returns {Promise<Object>} { balance: Number, transactions: Array }
+   */
+  static async getMyWallet(userId) {
+    const driver = await Driver.findOne({ user: userId, isDeleted: false }).select('_id name');
+    if (!driver) throw new ApiError(404, 'Driver profile not found');
+
+    // Statuses where advance has been disbursed to driver
+    const ADVANCE_STATUSES = ['in-transit', 'reached-destination', 'delivered', 'pod-received', 'closed'];
+    // Statuses where full balance has been paid to driver
+    const BALANCE_STATUSES = ['pod-received', 'closed'];
+
+    const bookings = await Booking.find({
+      driver: driver._id,
+      isDeleted: false,
+      status: { $in: [...new Set([...ADVANCE_STATUSES, ...BALANCE_STATUSES])] },
+    })
+      .select('bookingId status advanceRequired finalAmount expectedAmount pickup drop createdAt updatedAt')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const transactions = [];
+
+    for (const b of bookings) {
+      const freight = b.finalAmount || b.expectedAmount || 0;
+      const advance = b.advanceRequired || 0;
+      const balance = Math.max(0, freight - advance);
+      const route = `${b.pickup?.city || ''} - ${b.drop?.city || ''}`.trim();
+      const label = b.bookingId ? `#${b.bookingId} ${route}` : route;
+
+      if (ADVANCE_STATUSES.includes(b.status) && advance > 0) {
+        transactions.push({
+          type: 'advance',
+          title: 'Advance',
+          subtitle: label,
+          amount: advance,
+          date: b.createdAt,
+          bookingId: b.bookingId,
+        });
+      }
+
+      if (BALANCE_STATUSES.includes(b.status) && balance > 0) {
+        transactions.push({
+          type: 'balance',
+          title: 'Balance',
+          subtitle: label,
+          amount: balance,
+          date: b.updatedAt,
+          bookingId: b.bookingId,
+        });
+      }
+    }
+
+    // Sort newest first
+    transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // Compute running balance (all credits — no debit tracking without a bank-payout model)
+    const balance = transactions.reduce((sum, t) => sum + t.amount, 0);
+
+    return { balance, transactions };
+  }
+
+  /**
    * Submit KYC details (driver self-service)
    * @param {string} userId - Authenticated user ID
    * @param {Object} data - KYC data (fullName, panNumber, city, referralCode, truckType)
@@ -873,7 +944,7 @@ class DriverService {
       throw new ApiError(404, 'Driver profile not found');
     }
 
-    if (driver.kycStatus === 'submitted' || driver.kycStatus === 'verified') {
+    if (driver.kycStatus === 'verified') {
       throw new ApiError(400, `KYC already ${driver.kycStatus}`);
     }
 
@@ -894,6 +965,7 @@ class DriverService {
     if (!driver.pan) driver.pan = {};
     driver.pan.number = data.panNumber;
     driver.city = data.city;
+    driver.licenseNumber = data.licenseNumber;
     if (data.referralCode) driver.referralCode = data.referralCode;
     driver.preferredTruckTypes = [data.truckType];
     driver.kycStatus = 'submitted';
@@ -931,6 +1003,10 @@ class DriverService {
     }
 
     const oldData = driver.toObject();
+
+    if (driver.accountInfoStatus === 'verified') {
+      throw new ApiError(400, `Account information already ${driver.accountInfoStatus}`);
+    }
 
     // Upload each file and create Document records
     const fileFields = ['chequeImage', 'tdsDocument', 'aadhaarDocument', 'panDocument'];
@@ -1007,6 +1083,47 @@ class DriverService {
    * @param {string} deletedBy - User ID
    * @returns {Promise<Object>} Deleted driver
    */
+  /**
+   * Driver self-deletes their own account
+   * @param {string} userId - User ID (from JWT)
+   * @returns {Promise<void>}
+   */
+  static async deleteMyAccount(userId) {
+    const driver = await Driver.findOne({ user: userId });
+    if (!driver) throw new ApiError(404, 'Driver profile not found');
+
+    // Block if there is an active booking
+    const activeBooking = await Booking.findOne({
+      assignedDriver: driver._id,
+      status: { $in: ['assigned', 'driver-en-route', 'loading', 'in-transit', 'reached-destination'] }
+    });
+    if (activeBooking) {
+      throw new ApiError(400, 'Cannot delete account while you have an active trip. Please complete or cancel it first.');
+    }
+
+    // Soft-delete driver doc
+    await driver.softDelete(userId);
+
+    // Soft-delete user doc
+    await User.findByIdAndUpdate(userId, { isDeleted: true, deletedAt: new Date() });
+
+    // Revoke all refresh tokens
+    const RefreshToken = (await import('../models/refreshToken.model.js')).default;
+    await RefreshToken.updateMany(
+      { user: userId, isRevoked: false },
+      { isRevoked: true, revokedAt: new Date(), revokedReason: 'account_deleted' }
+    );
+
+    // Audit log
+    await AuditLog.create({
+      user: userId,
+      action: 'DELETE_OWN_ACCOUNT',
+      entityType: 'driver',
+      entityId: driver._id,
+      changes: { before: { isDeleted: false }, after: { isDeleted: true } }
+    });
+  }
+
   static async deleteDriver(driverId, deletedBy) {
     const driver = await Driver.findById(driverId);
 

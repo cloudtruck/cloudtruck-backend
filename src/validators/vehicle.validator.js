@@ -14,6 +14,10 @@ export const createVehicleSchema = z.object({
       value: z.number().positive('Length must be positive'),
       unit: z.enum(['ft', 'meter', 'm']).transform(u => u === 'm' ? 'meter' : u).default('ft')
     }),
+    height: z.object({
+      value: z.number().positive('Height must be positive'),
+      unit: z.enum(['ft', 'meter', 'm']).transform(u => u === 'm' ? 'meter' : u).default('ft')
+    }).optional(),
     capacity: z.object({
       value: z.number().positive('Capacity must be positive'),
       unit: z.enum(['tons', 'kg']).default('tons')
@@ -98,6 +102,40 @@ export const verifyVehicleSchema = z.object({
 });
 
 /**
+ * Reject Vehicle Validator
+ * POST /api/v1/vehicles/:id/reject
+ */
+export const rejectVehicleSchema = z.object({
+  params: z.object({
+    id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid vehicle ID')
+  }),
+  body: z.object({
+    reason: z.string().min(5, 'Rejection reason must be at least 5 characters')
+  })
+});
+
+/**
+ * Update My Truck Validator (Self-service for Driver)
+ * PATCH /api/v1/vehicles/my-trucks/:vehicleId
+ */
+export const updateMyTruckSchema = z.object({
+  params: z.object({
+    vehicleId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid vehicle ID')
+  }),
+  body: z.object({
+    truckNumber: z.string().min(5).optional(),
+    truckType: z.string().min(1).optional(),
+    truckHeight: z.number().positive().optional(),
+    truckLength: z.number().positive().optional(),
+    truckCapacity: z.number().positive().optional(),
+    insuranceExpiryDate: z.string().datetime().optional(),
+    driverPhoneNumber: z.string().min(10).optional(),
+    currentCity: z.string().min(2).optional(),
+    licenseNumber: z.string().min(5).optional()
+  })
+});
+
+/**
  * Update Vehicle Validator
  * PATCH /api/v1/vehicles/:id
  */
@@ -162,7 +200,7 @@ export const addMaintenanceSchema = z.object({
     id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid vehicle ID')
   }),
   body: z.object({
-    type: z.enum(['repair', 'service', 'inspection', 'replacement']),
+    type: z.enum(['routine', 'repair', 'accident', 'inspection']),
     description: z.string().min(5, 'Description must be at least 5 characters'),
     cost: z.number().nonnegative('Cost cannot be negative'),
     serviceDate: z.string().datetime('Invalid service date'),

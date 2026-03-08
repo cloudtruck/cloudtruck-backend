@@ -96,6 +96,7 @@ const driverSchema = new mongoose.Schema({
   // Verification
   isVerified: { type: Boolean, default: false },
   verifiedAt: Date,
+  verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
   // Blacklist Tracking
   isBlacklisted: { type: Boolean, default: false, index: true },

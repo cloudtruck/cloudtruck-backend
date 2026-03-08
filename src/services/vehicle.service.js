@@ -99,6 +99,18 @@ class VehicleService {
    * @param {Object} data - Truck data from request body
    * @returns {Promise<Object>} Created vehicle
    */
+  /**
+   * Derive bodyType from a truckType key (MasterData key format)
+   */
+  static deriveBodyType(truckTypeKey = '') {
+    const key = truckTypeKey.toLowerCase();
+    if (key.includes('container')) return 'container';
+    if (key.includes('tanker'))    return 'tanker';
+    if (key.includes('flatbed'))   return 'flatbed';
+    if (key.includes('refrigerated') || key.includes('reefer')) return 'refrigerated';
+    return 'open';
+  }
+
   static async addDriverTruck(userId, data) {
     const driver = await Driver.findOne({ user: userId, isDeleted: false });
     if (!driver) {
@@ -121,12 +133,12 @@ class VehicleService {
       length: { value: data.truckLength, unit: 'ft' },
       capacity: { value: data.truckCapacity, unit: 'tons' },
       expiryDates: { insurance: new Date(data.insuranceExpiryDate) },
-      bodyType: 'open',
+      bodyType: VehicleService.deriveBodyType(data.truckType),
       owner: driver._id,
       driverPhoneNumber: data.driverPhoneNumber,
-      lastKnownLocation: {
-        city: data.currentCity
-      },
+      // lastKnownLocation requires valid GeoJSON coordinates — city-only is stripped
+      // by the pre-validate hook. City is stored separately in registrationCity.
+      registrationCity: data.currentCity,
       availability: 'available',
       createdBy: userId
     });
@@ -159,11 +171,107 @@ class VehicleService {
       .populate('owner', 'name phone licenseNumber')
       .populate('currentBooking', 'bookingId status pickup drop')
       .populate('nextBooking', 'bookingId status pickup drop')
-      .populate('documents', 'type status fileUrl expiryDate');
+      .populate('documents.rcDocument', 'type status url');
 
     if (!vehicle) {
       throw new ApiError(404, 'Vehicle not found');
     }
+
+    return vehicle;
+  }
+
+  /**
+   * Get full vehicle details for a driver viewing their own truck
+   * Includes PAN (select: false override) and TDS document from driver profile
+   * @param {string} vehicleId - Vehicle ID
+   * @param {string} userId - Authenticated user ID
+   * @returns {Promise<Object>} Enriched vehicle details
+   */
+  static async getVehicleDetailsForDriver(vehicleId, userId) {
+    const driver = await Driver.findOne({ user: userId, isDeleted: false })
+      .select('+pan.number')
+      .populate('documents.tdsDocument', 'type status url');
+
+    if (!driver) {
+      throw new ApiError(404, 'Driver profile not found');
+    }
+
+    const vehicle = await Vehicle.findOne({ _id: vehicleId, owner: driver._id, isDeleted: false })
+      .populate('documents.rcDocument', 'type status url')
+      .populate('currentBooking', 'bookingId status')
+      .lean();
+
+    if (!vehicle) {
+      throw new ApiError(404, 'Vehicle not found');
+    }
+
+    return {
+      ...vehicle,
+      ownerName: driver.name,
+      ownerLicenseNumber: driver.licenseNumber,
+      ownerLicenseImage: driver.licenseImage,
+      ownerPan: driver.pan?.number || null,
+      tdsDocument: driver.documents?.tdsDocument || null,
+      // Resolved last location: GPS city takes priority, falls back to registrationCity
+      resolvedCity: vehicle.lastKnownLocation?.city || vehicle.registrationCity || null,
+    };
+  }
+
+  /**
+   * Update a truck via driver self-service
+   * @param {string} userId - Authenticated user ID
+   * @param {string} vehicleId - Vehicle ID
+   * @param {Object} data - Update data
+   * @returns {Promise<Object>} Updated vehicle
+   */
+  static async updateMyTruck(userId, vehicleId, data) {
+    const driver = await Driver.findOne({ user: userId, isDeleted: false });
+    if (!driver) {
+      throw new ApiError(404, 'Driver profile not found');
+    }
+
+    const vehicle = await Vehicle.findOne({ _id: vehicleId, owner: driver._id, isDeleted: false });
+    if (!vehicle) {
+      throw new ApiError(404, 'Vehicle not found or you do not have permission to update it');
+    }
+
+    const oldData = vehicle.toObject();
+
+    // Map allowed driver-updateable fields
+    if (data.truckNumber) vehicle.vehicleNumber = data.truckNumber.replace(/-/g, '').toUpperCase();
+    if (data.truckType) {
+      vehicle.truckType = data.truckType;
+      vehicle.bodyType = VehicleService.deriveBodyType(data.truckType);
+    }
+    if (data.truckHeight) vehicle.height = { value: data.truckHeight, unit: 'ft' };
+    if (data.truckLength) vehicle.length = { value: data.truckLength, unit: 'ft' };
+    if (data.truckCapacity) vehicle.capacity = { value: data.truckCapacity, unit: 'tons' };
+    if (data.insuranceExpiryDate) vehicle.expiryDates.insurance = new Date(data.insuranceExpiryDate);
+    if (data.driverPhoneNumber) vehicle.driverPhoneNumber = data.driverPhoneNumber;
+    if (data.currentCity) vehicle.registrationCity = data.currentCity;
+
+    // License number is stored on the driver profile
+    if (data.licenseNumber) {
+      driver.licenseNumber = data.licenseNumber;
+      await driver.save();
+    }
+
+    vehicle.updatedBy = userId;
+    // Set to pending verification if key fields changed
+    vehicle.verificationStatus = 'pending';
+
+    await vehicle.save();
+
+    await AuditLog.create({
+      user: userId,
+      action: 'DRIVER_UPDATE_TRUCK',
+      entityType: 'vehicle',
+      entityId: vehicle._id,
+      changes: {
+        before: oldData,
+        after: vehicle.toObject()
+      }
+    });
 
     return vehicle;
   }
@@ -613,6 +721,60 @@ class VehicleService {
         after: { verificationStatus: 'verified' }
       }
     });
+
+    return vehicle;
+  }
+
+  /**
+   * Reject vehicle
+   * @param {string} vehicleId - Vehicle ID
+   * @param {string} reason - Rejection reason
+   * @param {string} rejectedBy - Staff ID
+   * @returns {Promise<Object>} Updated vehicle
+   */
+  static async rejectVehicle(vehicleId, reason, rejectedBy) {
+    const vehicle = await Vehicle.findById(vehicleId);
+
+    if (!vehicle) {
+      throw new ApiError(404, 'Vehicle not found');
+    }
+
+    const oldStatus = vehicle.verificationStatus;
+    vehicle.verificationStatus = 'rejected';
+    vehicle.verificationDetails = {
+      verifiedBy: rejectedBy,
+      verifiedAt: new Date(),
+      rejectionReason: reason
+    };
+    await vehicle.save();
+
+    // Audit log
+    await AuditLog.create({
+      user: rejectedBy,
+      action: 'REJECT_VEHICLE',
+      entityType: 'vehicle',
+      entityId: vehicle._id,
+      changes: {
+        before: { verificationStatus: oldStatus },
+        after: { verificationStatus: 'rejected', rejectionReason: reason }
+      }
+    });
+
+    // Notify vehicle owner if exists
+    if (vehicle.owner) {
+      const driver = await Driver.findById(vehicle.owner);
+      if (driver && driver.user) {
+        await NotificationService.sendNotification({
+          recipient: driver.user,
+          type: 'vehicle_rejected',
+          title: 'Vehicle Rejected',
+          message: `Your vehicle ${vehicle.vehicleNumber} was rejected. Reason: ${reason}`,
+          entityType: 'vehicle',
+          entityId: vehicle._id,
+          channels: ['push', 'in-app']
+        });
+      }
+    }
 
     return vehicle;
   }

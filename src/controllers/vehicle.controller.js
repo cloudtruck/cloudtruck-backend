@@ -126,6 +126,38 @@ export const getMyTrucks = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get My Truck Detail (Self-service for Driver)
+ * GET /api/v1/vehicles/my-trucks/:vehicleId
+ * Returns full vehicle details enriched with owner's PAN and TDS document
+ */
+export const getMyTruckDetail = asyncHandler(async (req, res) => {
+  const { vehicleId } = req.params;
+  const userId = req.user._id;
+
+  const vehicle = await VehicleService.getVehicleDetailsForDriver(vehicleId, userId);
+
+  return res.status(200).json(
+    new ApiResponse(200, vehicle, 'Vehicle details fetched successfully')
+  );
+});
+
+/**
+ * Update My Truck Detail (Self-service for Driver)
+ * PATCH /api/v1/vehicles/my-trucks/:vehicleId
+ */
+export const updateMyTruck = asyncHandler(async (req, res) => {
+  const { vehicleId } = req.params;
+  const userId = req.user._id;
+  const updateData = req.body;
+
+  const vehicle = await VehicleService.updateMyTruck(userId, vehicleId, updateData);
+
+  return res.status(200).json(
+    new ApiResponse(200, vehicle, 'Vehicle updated successfully')
+  );
+});
+
+/**
  * Update Vehicle
  * PATCH /api/v1/vehicles/:id
  */
@@ -246,6 +278,22 @@ export const verifyVehicle = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, vehicle, 'Vehicle verified successfully')
+  );
+});
+
+/**
+ * Reject Vehicle
+ * POST /api/v1/vehicles/:id/reject
+ */
+export const rejectVehicle = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+  const rejectedBy = req.user._id;
+
+  const vehicle = await VehicleService.rejectVehicle(id, reason, rejectedBy);
+
+  return res.status(200).json(
+    new ApiResponse(200, vehicle, 'Vehicle rejected successfully')
   );
 });
 

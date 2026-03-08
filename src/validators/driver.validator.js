@@ -46,6 +46,7 @@ export const submitDriverKycSchema = z.object({
     fullName: z.string().min(2, 'Full name must be at least 2 characters'),
     panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format'),
     city: z.string().min(2, 'City must be at least 2 characters'),
+    licenseNumber: z.string().min(5, 'License number must be at least 5 characters'),
     referralCode: z.string().optional(),
     truckType: z.string().min(1, 'Truck type is required')
   })
@@ -60,8 +61,8 @@ export const submitAccountInfoSchema = z.object({
     accountHolderName: z.string().min(2, 'Account holder name must be at least 2 characters'),
     accountNumber: z.string().min(5, 'Account number must be at least 5 characters'),
     ifscCode: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC code'),
-    aadhaarNumber: z.string().regex(/^\d{12}$/, 'Aadhaar number must be 12 digits'),
-    panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format'),
+    aadhaarNumber: z.string().regex(/^\d{12}$/, 'Aadhaar number must be 12 digits').optional(),
+    panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format').optional(),
     gstin: z.string().regex(/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}\d[Z]{1}[A-Z\d]{1}$/, 'Invalid GSTIN format').optional()
   })
 });
@@ -91,6 +92,8 @@ export const getDriversQuerySchema = z.object({
   query: z.object({
     isAvailable: z.enum(['true', 'false']).optional(),
     isVerified: z.enum(['true', 'false']).optional(),
+    kycStatus: z.enum(['pending', 'submitted', 'verified', 'rejected']).optional(),
+    accountInfoStatus: z.enum(['pending', 'submitted', 'verified', 'rejected']).optional(),
     isBlacklisted: z.enum(['true', 'false']).optional(),
     truckType: z.string().optional(),
     latitude: z.string().optional(),

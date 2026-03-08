@@ -74,6 +74,13 @@ const vehicleSchema = new mongoose.Schema(
       trim: true
     },
 
+    // City where the truck is currently registered / last known city
+    // Stored separately from lastKnownLocation which requires GeoJSON coordinates
+    registrationCity: {
+      type: String,
+      trim: true
+    },
+
     // Documents
     documents: {
       rcDocument: { type: mongoose.Schema.Types.ObjectId, ref: 'Document' },

@@ -12,10 +12,10 @@ import {
   updateLocationSchema,
   updateAvailabilitySchema,
   addMaintenanceSchema,
-  getAvailableVehiclesQuerySchema
+  getAvailableVehiclesQuerySchema,
+  updateMyTruckSchema,
+  rejectVehicleSchema
 } from '../validators/vehicle.validator.js';
-
-
 
 const router = express.Router();
 
@@ -24,6 +24,12 @@ router.get('/driver/:driverId', verifyJWT, checkRole('staff', 'internal', 'super
 
 // Driver self-service: Get personal fleet
 router.get('/my-trucks', verifyJWT, checkRole('driver'), vehicleController.getMyTrucks);
+
+// Driver self-service: Get single truck detail (with PAN + TDS)
+router.get('/my-trucks/:vehicleId', verifyJWT, checkRole('driver'), vehicleController.getMyTruckDetail);
+
+// Driver self-service: Update single truck
+router.patch('/my-trucks/:vehicleId', verifyJWT, checkRole('driver'), validate(updateMyTruckSchema), vehicleController.updateMyTruck);
 
 // Staff/Admin routes - list and search
 router.get('/available', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getAvailableVehiclesQuerySchema), vehicleController.getAvailableVehicles);
@@ -38,6 +44,7 @@ router.patch('/:id', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-
 
 // Staff/Admin routes - verification
 router.post('/:id/verify', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(verifyVehicleSchema), vehicleController.verifyVehicle);
+router.post('/:id/reject', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(rejectVehicleSchema), vehicleController.rejectVehicle);
 
 // Staff/Admin routes - operations
 router.post('/:id/location', verifyJWT, checkRole('staff', 'driver', 'internal', 'super-admin'), validate(updateLocationSchema), vehicleController.updateLocation);

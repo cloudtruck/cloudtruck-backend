@@ -12,6 +12,10 @@ router.use(verifyJWT);
 // Get categories (staff can view)
 router.get('/categories', masterDataController.getCategories);
 
+// Public reference data — any authenticated user (including drivers) can read
+// Used by driver app to populate truck-type and body-type dropdowns
+router.get('/public/:category', masterDataController.getMasterDataByCategory);
+
 // Staff can read master data
 router.get(
   '/',

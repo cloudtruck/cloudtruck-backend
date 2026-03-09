@@ -100,9 +100,8 @@ class BookingService {
         finalPickupLng = geocoded.longitude;
         finalPickupAddress = geocoded.formattedAddress;
         pickupPlaceId = geocoded.placeId;
-      } else {
-        throw new ApiError(400, 'Could not resolve pickup location. Please provide valid pickup coordinates.');
       }
+      // If geocoding unavailable, continue without coordinates
     } else {
       const reversed = await LocationService.reverseGeocode(pickupLat, pickupLng);
       if (reversed) {
@@ -124,9 +123,8 @@ class BookingService {
         finalDropLng = geocoded.longitude;
         finalDropAddress = geocoded.formattedAddress;
         dropPlaceId = geocoded.placeId;
-      } else {
-        throw new ApiError(400, 'Could not resolve drop location. Please provide valid drop coordinates.');
       }
+      // If geocoding unavailable, continue without coordinates
     } else {
       const reversed = await LocationService.reverseGeocode(dropLat, dropLng);
       if (reversed) {
@@ -1390,7 +1388,11 @@ class BookingService {
    * @returns {Promise<Object>} Paginated result
    */
   static async getAvailableLoads({ city, pickupCity, dropCity, truckType, latitude, longitude, radius, loadDate, driverId, page = 1, limit = 20 }) {
-    const query = { status: ['created', 'under-review'], driverUnassigned: true };
+    const query = {
+      isDeleted: false,
+      status: { $in: ['created', 'under-review'] },
+      driver: null
+    };
 
     if (city) {
       query.$and = query.$and || [];
@@ -1438,23 +1440,29 @@ class BookingService {
       };
     }
 
-    // If driverId is provided, only show loads matching the driver's vehicle types
+    // If driverId provided and no explicit truckType filter, restrict to driver's verified fleet
     if (driverId && !truckType) {
       const vehicles = await Vehicle.find({ owner: driverId, isDeleted: false, verificationStatus: 'verified' }).select('truckType').lean();
       if (vehicles.length > 0) {
         const myTruckTypes = [...new Set(vehicles.map(v => v.truckType))];
-        query.truckType = { $in: myTruckTypes };
+        query.truckTypeNeeded = { $in: myTruckTypes };
       } else {
-        // Driver has no verified vehicles, they can't see any loads (or return empty list)
         return { data: [], pagination: { page: parseInt(page), limit: parseInt(limit), total: 0, pages: 0 } };
       }
     }
 
-    return this.getBookings(
-      query,
-      { page: parseInt(page) || 1, limit: parseInt(limit) || 20, sort: { createdAt: -1 } },
-      { maskCustomer: true }
-    );
+    const result = await Booking.paginate(query, {
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 20,
+      sort: { createdAt: -1 },
+      populate: [
+        { path: 'customer', select: 'companyName' },
+        { path: 'driver', select: 'name phone' },
+        { path: 'vehicle', select: 'vehicleNumber truckType' }
+      ]
+    });
+
+    return result;
   }
 
   /**

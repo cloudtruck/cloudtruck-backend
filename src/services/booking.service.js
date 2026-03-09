@@ -1427,15 +1427,16 @@ class BookingService {
     }
 
     // Location-based search (within radius of pickup)
+    // Use $geoWithin/$centerSphere instead of $near — compatible with sort + pagination
     if (latitude && longitude) {
       const rad = parseFloat(radius) || 50; // default 50km
+      const earthRadiusKm = 6371;
       query['pickup.location'] = {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [parseFloat(longitude), parseFloat(latitude)]
-          },
-          $maxDistance: rad * 1000
+        $geoWithin: {
+          $centerSphere: [
+            [parseFloat(longitude), parseFloat(latitude)],
+            rad / earthRadiusKm
+          ]
         }
       };
     }

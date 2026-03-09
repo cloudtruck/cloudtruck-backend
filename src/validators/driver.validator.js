@@ -46,7 +46,10 @@ export const submitDriverKycSchema = z.object({
     fullName: z.string().min(2, 'Full name must be at least 2 characters'),
     panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format'),
     city: z.string().min(2, 'City must be at least 2 characters'),
-    licenseNumber: z.string().min(5, 'License number must be at least 5 characters'),
+    licenseNumber: z.preprocess(
+      v => (typeof v === 'string' ? v.replace(/-/g, '').toUpperCase().trim() : v),
+      z.string().regex(/^[A-Z]{2}[0-9]{2}[0-9A-Z]{9,12}$/, 'Invalid driving license number format')
+    ),
     referralCode: z.string().optional(),
     truckType: z.string().min(1, 'Truck type is required')
   })
@@ -60,10 +63,22 @@ export const submitAccountInfoSchema = z.object({
   body: z.object({
     accountHolderName: z.string().min(2, 'Account holder name must be at least 2 characters'),
     accountNumber: z.string().min(5, 'Account number must be at least 5 characters'),
-    ifscCode: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC code'),
-    aadhaarNumber: z.string().regex(/^\d{12}$/, 'Aadhaar number must be 12 digits').optional(),
-    panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format').optional(),
-    gstin: z.string().regex(/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}\d[Z]{1}[A-Z\d]{1}$/, 'Invalid GSTIN format').optional()
+    ifscCode: z.preprocess(
+      v => (typeof v === 'string' ? v.toUpperCase().trim() : v),
+      z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC code')
+    ),
+    aadhaarNumber: z.preprocess(
+      v => (v === '' ? undefined : v),
+      z.string().regex(/^\d{12}$/, 'Aadhaar number must be 12 digits').optional()
+    ),
+    panNumber: z.preprocess(
+      v => (v === '' ? undefined : v),
+      z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format').optional()
+    ),
+    gstin: z.preprocess(
+      v => (v === '' ? undefined : (typeof v === 'string' ? v.toUpperCase().trim() : v)),
+      z.string().regex(/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}\d[Z]{1}[A-Z\d]{1}$/, 'Invalid GSTIN format').optional()
+    )
   })
 });
 

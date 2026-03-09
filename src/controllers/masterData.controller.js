@@ -65,7 +65,7 @@ export const createMasterData = asyncHandler(async (req, res) => {
   let imageUrl = undefined;
   if (req.file) {
     const uploadResult = await DocumentService.uploadDocument(
-      req.file.path,
+      req.file,
       'master-data',
       { entityType: 'master-data', entityId: key }
     );
@@ -136,7 +136,7 @@ export const updateMasterData = asyncHandler(async (req, res) => {
 
   if (req.file) {
     const uploadResult = await DocumentService.uploadDocument(
-      req.file.path,
+      req.file,
       'master-data',
       { entityType: 'master-data', entityId: data.key }
     );

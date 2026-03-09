@@ -1016,7 +1016,7 @@ class DriverService {
       const file = files[field]?.[0];
       if (!file) continue;
 
-      const uploadResult = await DocumentService.uploadDocument(file.path, 'driver-account', {
+      const uploadResult = await DocumentService.uploadDocument(file, 'driver-account', {
         entityType: 'driver',
         entityId: driver._id.toString()
       });

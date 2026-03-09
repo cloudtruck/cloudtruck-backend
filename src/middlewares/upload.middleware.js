@@ -1,18 +1,9 @@
 import multer from 'multer';
-import path from 'path';
 import { FILE_UPLOAD } from '../config/constants.js';
 import ApiError from '../utils/ApiError.js';
 
-// Configure storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // Temporary storage before Cloudinary upload
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
-});
+// Use memory storage — no local filesystem dependency (required for deployed environments)
+const storage = multer.memoryStorage();
 
 // File filter
 const fileFilter = (req, file, cb) => {

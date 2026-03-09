@@ -8,7 +8,6 @@ import Driver from '../models/driver.model.js';
 import PDFService from './pdf.service.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
-import fs from 'fs/promises';
 
 class DocumentService {
   /**
@@ -18,17 +17,23 @@ class DocumentService {
    * @param {Object} metadata - Document metadata
    * @returns {Promise<Object>} - Upload result
    */
-  static async uploadDocument(filePath, folder, metadata = {}) {
+  static async uploadDocument(file, folder, metadata = {}) {
     try {
-      const result = await cloudinary.uploader.upload(filePath, {
-        folder: `cloudtruck/${folder}`,
-        resource_type: 'auto',
-        public_id: `${metadata.entityType}_${metadata.entityId}_${Date.now()}`,
-        context: metadata
+      const result = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: `cloudtruck/${folder}`,
+            resource_type: 'auto',
+            public_id: `${metadata.entityType}_${metadata.entityId}_${Date.now()}`,
+            context: metadata
+          },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+        uploadStream.end(file.buffer);
       });
-
-      // Delete local file after upload
-      await fs.unlink(filePath).catch(() => {});
 
       return {
         url: result.secure_url,
@@ -64,7 +69,7 @@ class DocumentService {
     }
 
     // Upload to Cloudinary
-    const uploadResult = await this.uploadDocument(file.path, entityType, {
+    const uploadResult = await this.uploadDocument(file, entityType, {
       entityType,
       entityId,
       documentType,

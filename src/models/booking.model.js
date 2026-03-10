@@ -201,6 +201,24 @@ const bookingSchema = new Schema(
     weightSlipDocuments: [{ type: Schema.Types.ObjectId, ref: 'Document' }],
     otherDocuments: [{ type: Schema.Types.ObjectId, ref: 'Document' }],
     invoices: [{ type: Schema.Types.ObjectId, ref: 'Document' }],
+    invoicePdf: {
+      cloudinaryId: String,
+      url: String,
+      generatedAt: Date,
+    },
+
+    // Payment Requests (driver requests payment for completed trip)
+    paymentRequests: [{
+      _id: { type: Schema.Types.ObjectId, auto: true },
+      amount: { type: Number, required: true },
+      note: { type: String },
+      status: { type: String, enum: ['pending', 'paid', 'rejected'], default: 'pending' },
+      requestedAt: { type: Date, default: Date.now },
+      requestedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+      processedAt: { type: Date },
+      processedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+      rejectionReason: { type: String },
+    }],
 
     podUploadedAt: { type: Date },
     podUploadedBy: { type: Schema.Types.ObjectId, ref: 'User' },

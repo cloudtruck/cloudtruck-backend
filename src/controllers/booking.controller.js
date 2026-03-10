@@ -1,11 +1,15 @@
 import BookingService from '../services/booking.service.js';
 import Driver from '../models/driver.model.js';
+import Booking from '../models/booking.model.js';
 import MasterData from '../models/masterData.model.js';
 import TrackingService from '../services/tracking.service.js';
+import PDFService from '../services/pdf.service.js';
+import cloudinary from '../config/cloudinary.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
 import mongoose from 'mongoose';
+import { randomUUID } from 'crypto';
 
 /**
  * Create Booking
@@ -104,8 +108,11 @@ export const mapBooking = (b) => {
     vehicle: bk.vehicle ? { _id: bk.vehicle._id || bk.vehicle, vehicleNumber: bk.vehicle.vehicleNumber, truckType: bk.vehicle.truckType } : undefined,
     assignedAt: bk.assignedAt,
     statusHistory: bk.statusHistory || [],
+    podUploadedAt: bk.podUploadedAt || null,
+    deliveredAt: bk.podDetails?.deliveredAt || (bk.statusHistory || []).find(h => h.status === 'delivered')?.timestamp || null,
     interestedCount: (bk.interestedDrivers || []).length,
     images: bk.cargoDocuments || bk.images || [],
+    hasPendingPaymentRequest: (bk.paymentRequests || []).some(r => r.status === 'pending'),
     createdAt: bk.createdAt,
     updatedAt: bk.updatedAt
   };
@@ -461,4 +468,87 @@ export const getDriverBookings = asyncHandler(async (req, res) => {
   return res.status(200).json(
     new ApiResponse(200, { bookings, pagination: paginationRes }, 'Bookings fetched successfully')
   );
+});
+
+/**
+ * Generate and upload driver trip invoice PDF to Cloudinary, return URL
+ * GET /api/v1/bookings/:id/driver-invoice
+ */
+export const getDriverInvoice = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const booking = await Booking.findOne({
+    $or: [
+      ...(id.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: id }] : []),
+      { bookingId: id }
+    ],
+    isDeleted: false
+  })
+    .populate('driver', 'name phone')
+    .populate('vehicle', 'vehicleNumber truckType')
+    .populate('customer', 'companyName gst contactPerson')
+    .lean();
+
+  if (!booking) throw new ApiError(404, 'Booking not found');
+
+  // Verify requesting driver is assigned to this booking
+  if (req.user.role === 'driver') {
+    const driver = await Driver.findOne({ user: req.user._id });
+    if (!driver || !booking.driver || booking.driver._id.toString() !== driver._id.toString()) {
+      throw new ApiError(403, 'Access denied: not your booking');
+    }
+  }
+
+  // Return cached URL if already generated
+  if (booking.invoicePdf?.url) {
+    return res.status(200).json(
+      new ApiResponse(200, { url: booking.invoicePdf.url, bookingId: booking.bookingId }, 'Invoice generated successfully')
+    );
+  }
+
+  // Generate PDF and upload with UUID public_id (non-guessable, permanent)
+  const pdfBuffer = await PDFService.generateDriverInvoice(booking);
+  const publicId = `cloudtruck/invoices/${randomUUID()}`;
+
+  const uploadResult = await new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { resource_type: 'raw', public_id: publicId, format: 'pdf' },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    stream.end(pdfBuffer);
+  });
+
+  // Persist permanent URL so future requests return it instantly
+  await Booking.updateOne(
+    { _id: booking._id },
+    { invoicePdf: { cloudinaryId: uploadResult.public_id, url: uploadResult.secure_url, generatedAt: new Date() } }
+  );
+
+  return res.status(200).json(
+    new ApiResponse(200, { url: uploadResult.secure_url, bookingId: booking.bookingId }, 'Invoice generated successfully')
+  );
+});
+
+// POST /bookings/:id/request-payment — driver requests payment for a trip
+export const requestPayment = asyncHandler(async (req, res) => {
+  const request = await BookingService.requestPayment(req.params.id, req.user._id, req.body);
+  return res.status(201).json(new ApiResponse(201, request, 'Payment request submitted'));
+});
+
+// PATCH /bookings/:id/payment-requests/:requestId/pay|reject — admin action
+export const processPaymentRequest = asyncHandler(async (req, res) => {
+  const { id, requestId } = req.params;
+  const action = req.path.endsWith('/pay') ? 'pay' : 'reject';
+  const request = await BookingService.processPaymentRequest(id, requestId, req.user._id, { action, ...req.body });
+  return res.status(200).json(new ApiResponse(200, request, action === 'pay' ? 'Payment marked as paid' : 'Request rejected'));
+});
+
+// GET /bookings/payment-requests — admin list all payment requests
+export const getAllPaymentRequests = asyncHandler(async (req, res) => {
+  const { status, page, limit } = req.query;
+  const result = await BookingService.getAllPaymentRequests(parseInt(page) || 1, parseInt(limit) || 20, status);
+  return res.status(200).json(new ApiResponse(200, result, 'Payment requests fetched'));
 });

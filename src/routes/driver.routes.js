@@ -23,7 +23,6 @@ import {
   getMyTripHistoryQuerySchema,
   addMyTruckSchema
 } from '../validators/driver.validator.js';
-import { requestPayoutSchema } from '../validators/wallet.validator.js';
 import { upload } from '../middlewares/upload.middleware.js';
 
 const router = express.Router();
@@ -49,7 +48,7 @@ router.post('/my-account-info', verifyJWT, checkRole('driver'),
   driverController.submitAccountInfo
 );
 router.get('/my-wallet',          verifyJWT, checkRole('driver'), walletController.getMyWallet);
-router.post('/my-wallet/withdraw', verifyJWT, checkRole('driver'), validate(requestPayoutSchema), walletController.requestPayout);
+router.post('/my-wallet/withdraw', verifyJWT, checkRole('driver'), walletController.requestPayout);
 router.get('/my-performance', verifyJWT, checkRole('driver'), validate(getPerformanceQuerySchema), driverController.getMyPerformance);
 router.get('/my-trip-history', verifyJWT, checkRole('driver'), validate(getMyTripHistoryQuerySchema), driverController.getMyTripHistory);
 router.post('/my-location', verifyJWT, checkRole('driver'), validate(updateLocationSchema), driverController.updateMyLocation);

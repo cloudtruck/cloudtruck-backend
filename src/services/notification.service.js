@@ -178,6 +178,57 @@ class NotificationService {
   }
 
   /**
+   * Notify admin/staff that a driver has requested a payout
+   * @param {Object} driver - Driver doc with name, _id
+   * @param {number} amount
+   * @param {string} txId - WalletTransaction _id
+   */
+  static async notifyPayoutRequested(driver, amount, txId) {
+    try {
+      const staff = await Staff.find({ isActive: true }).populate('user', '_id fcmToken');
+      const staffUserIds = staff.map((s) => s.user._id);
+      await this.sendToMultipleUsers(staffUserIds, {
+        title: 'Payout Request',
+        body: `${driver.name} requested ₹${amount.toLocaleString('en-IN')} payout`,
+        data: {
+          type: 'payout_requested',
+          transactionId: txId.toString(),
+          driverId: driver._id.toString(),
+          action: 'view_payouts',
+        },
+      });
+    } catch (err) {
+      logger.error('notifyPayoutRequested failed:', err);
+    }
+  }
+
+  /**
+   * Notify driver that their payout was approved or rejected
+   * @param {string} driverUserId - User._id of the driver
+   * @param {'approved'|'rejected'} status
+   * @param {number} amount
+   * @param {string} [utrNumber]
+   * @param {string} [reason]
+   */
+  static async notifyPayoutProcessed(driverUserId, status, amount, utrNumber, reason) {
+    try {
+      const isApproved = status === 'approved';
+      await this.sendToUser(driverUserId, {
+        title: isApproved ? 'Payout Approved' : 'Payout Rejected',
+        body: isApproved
+          ? `₹${amount.toLocaleString('en-IN')} has been transferred to your bank${utrNumber ? ` (UTR: ${utrNumber})` : ''}`
+          : `Your payout of ₹${amount.toLocaleString('en-IN')} was rejected${reason ? `: ${reason}` : ''}`,
+        data: {
+          type: isApproved ? 'payout_approved' : 'payout_rejected',
+          action: 'view_wallet',
+        },
+      });
+    } catch (err) {
+      logger.error('notifyPayoutProcessed failed:', err);
+    }
+  }
+
+  /**
    * Notify driver assigned
    * @param {Object} booking - Booking object
    * @param {String} driverId - Driver ID

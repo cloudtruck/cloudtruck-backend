@@ -1,6 +1,7 @@
 import { DriverWallet, WalletTransaction } from '../models/wallet.model.js';
 import Driver from '../models/driver.model.js';
 import ApiError from '../utils/ApiError.js';
+import NotificationService from './notification.service.js';
 
 export class WalletService {
 
@@ -113,6 +114,9 @@ export class WalletService {
       lastTransactionAt: new Date(),
     });
 
+    // Notify admin/staff (fire-and-forget)
+    NotificationService.notifyPayoutRequested(driver, amount, tx._id).catch(() => {});
+
     return tx;
   }
 
@@ -143,6 +147,12 @@ export class WalletService {
       { driver: tx.driver },
       { $inc: { totalDebits: tx.amount }, lastTransactionAt: new Date() }
     );
+
+    // Notify driver (fire-and-forget)
+    const driver = await Driver.findById(tx.driver).select('user').lean();
+    if (driver?.user) {
+      NotificationService.notifyPayoutProcessed(driver.user, 'approved', tx.amount, utrNumber).catch(() => {});
+    }
 
     return tx;
   }
@@ -177,6 +187,12 @@ export class WalletService {
         { $inc: { balance: tx.amount }, lastTransactionAt: new Date() }
       ),
     ]);
+
+    // Notify driver (fire-and-forget)
+    const driver = await Driver.findById(tx.driver).select('user').lean();
+    if (driver?.user) {
+      NotificationService.notifyPayoutProcessed(driver.user, 'rejected', tx.amount, null, reason).catch(() => {});
+    }
 
     return tx;
   }
@@ -253,19 +269,29 @@ export class WalletService {
         page,
         limit,
         sort: { createdAt: 1 }, // oldest first
-        populate: { path: 'driver', select: 'name' },
+        populate: { path: 'driver', select: 'name phone' },
         lean: true,
       }
     );
 
-    return {
-      payouts: result.docs,
-      pagination: {
-        page: result.page,
-        limit: result.limit,
-        total: result.totalDocs,
-        pages: result.totalPages,
-      },
-    };
+    return { payouts: result.data, pagination: result.pagination };
+  }
+
+  static async getAllPayouts(page = 1, limit = 20, status) {
+    const filter = { type: 'payout' };
+    if (status) filter.status = status;
+
+    const result = await WalletTransaction.paginate(filter, {
+      page,
+      limit,
+      sort: { createdAt: -1 },
+      populate: [
+        { path: 'driver', select: 'name phone' },
+        { path: 'booking', select: 'bookingId' },
+      ],
+      lean: true,
+    });
+
+    return { payouts: result.data, pagination: result.pagination };
   }
 }

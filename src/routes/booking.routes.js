@@ -26,6 +26,9 @@ router.post('/', verifyJWT, checkRole('customer', 'staff', 'internal', 'super-ad
 // Driver routes
 router.get('/driver-bookings', verifyJWT, checkRole('driver'), bookingController.getDriverBookings);
 
+// Admin: list all payment requests — must be before /:id
+router.get('/payment-requests', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.getAllPaymentRequests);
+
 // Staff/Admin routes
 router.get('/stats', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getStatsQuerySchema), bookingController.getStatistics);
 
@@ -41,6 +44,9 @@ router.get('/', verifyJWT, validate(getBookingsQuerySchema), bookingController.g
 router.get('/available-loads', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(getAvailableLoadsQuerySchema), bookingController.getAvailableLoads);
 
 router.get('/:id', verifyJWT, bookingController.getBookingById);
+
+// Driver invoice — after /:id so it matches /:id/driver-invoice correctly
+router.get('/:id/driver-invoice', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), bookingController.getDriverInvoice);
 
 // Staff only - booking updates
 router.patch(
@@ -94,5 +100,12 @@ router.post(
   checkRole('driver', 'staff', 'internal', 'super-admin'),
   bookingController.expressInterest
 );
+
+// Driver - request payment for a completed trip
+router.post('/:id/request-payment', verifyJWT, checkRole('driver'), bookingController.requestPayment);
+
+// Admin - approve/reject a payment request
+router.patch('/:id/payment-requests/:requestId/pay',    verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.processPaymentRequest);
+router.patch('/:id/payment-requests/:requestId/reject', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.processPaymentRequest);
 
 export default router;

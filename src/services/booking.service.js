@@ -1511,6 +1511,104 @@ class BookingService {
     logger.info('Driver expressed interest:', { bookingId, driverId });
     return booking;
   }
+
+  // ── Payment Requests ─────────────────────────────────────────────────────────
+
+  static async requestPayment(bookingId, userId, { amount, note }) {
+    const booking = await Booking.findOne({ _id: bookingId, isDeleted: false })
+      .populate('driver', 'name user _id');
+    if (!booking) throw new ApiError(404, 'Booking not found');
+
+    const driver = await Driver.findOne({ user: userId, isDeleted: false });
+    if (!driver || !booking.driver || booking.driver._id.toString() !== driver._id.toString()) {
+      throw new ApiError(403, 'Access denied: not your booking');
+    }
+
+    if (!['delivered', 'pod-received', 'closed'].includes(booking.status)) {
+      throw new ApiError(400, 'Payment can only be requested for completed trips');
+    }
+
+    const hasPending = booking.paymentRequests?.some(r => r.status === 'pending');
+    if (hasPending) throw new ApiError(409, 'A payment request is already pending for this trip');
+
+    booking.paymentRequests.push({ amount, note, requestedBy: userId });
+    await booking.save();
+
+    NotificationService.notifyPayoutRequested(
+      { name: booking.driver.name, _id: driver._id },
+      amount,
+      booking._id
+    ).catch(() => {});
+
+    return booking.paymentRequests[booking.paymentRequests.length - 1];
+  }
+
+  static async processPaymentRequest(bookingId, requestId, userId, { action, rejectionReason, utrNumber }) {
+    const booking = await Booking.findOne({ _id: bookingId, isDeleted: false })
+      .populate('driver', 'user name _id');
+    if (!booking) throw new ApiError(404, 'Booking not found');
+
+    const request = booking.paymentRequests.id(requestId);
+    if (!request) throw new ApiError(404, 'Payment request not found');
+    if (request.status !== 'pending') throw new ApiError(400, `Request is already ${request.status}`);
+
+    request.processedAt = new Date();
+    request.processedBy = userId;
+
+    if (action === 'pay') {
+      request.status = 'paid';
+      const { WalletService } = await import('./wallet.service.js');
+      const driver = await Driver.findOne({ user: booking.driver.user });
+      await WalletService.credit(driver._id, {
+        amount: request.amount,
+        type: 'balance',
+        bookingRef: booking.bookingId,
+        note: utrNumber ? `UTR: ${utrNumber}` : 'Payment settled by admin',
+        createdBy: userId,
+      });
+      NotificationService.notifyPayoutProcessed(booking.driver.user, 'approved', request.amount, utrNumber).catch(() => {});
+    } else {
+      request.status = 'rejected';
+      request.rejectionReason = rejectionReason;
+      NotificationService.notifyPayoutProcessed(booking.driver.user, 'rejected', request.amount, null, rejectionReason).catch(() => {});
+    }
+
+    await booking.save();
+    return request;
+  }
+
+  static async getAllPaymentRequests(page = 1, limit = 20, status) {
+    const match = { isDeleted: false, 'paymentRequests.0': { $exists: true } };
+
+    const bookings = await Booking.find(match)
+      .populate('driver', 'name phone')
+      .select('bookingId driver paymentRequests pickup drop')
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    let requests = bookings.flatMap(b =>
+      b.paymentRequests
+        .filter(r => !status || r.status === status)
+        .map(r => ({
+          ...r,
+          bookingId: b.bookingId,
+          bookingObjectId: b._id,
+          driver: b.driver,
+          pickup: b.pickup?.city,
+          drop: b.drop?.city,
+        }))
+    );
+
+    requests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
+
+    const total = requests.length;
+    requests = requests.slice((page - 1) * limit, page * limit);
+
+    return {
+      requests,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    };
+  }
 }
 
 export default BookingService;

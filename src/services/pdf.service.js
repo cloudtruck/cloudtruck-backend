@@ -303,6 +303,135 @@ class PDFService {
     });
   }
 
+  /**
+   * Generate Driver Trip Invoice PDF
+   * Shows trip details, freight breakdown (advance + balance) for the driver.
+   * @param {Object} booking - Booking doc (populated: customer, driver, vehicle)
+   * @returns {Promise<Buffer>}
+   */
+  static async generateDriverInvoice(booking) {
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 50 });
+      const buffers = [];
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+
+      const fmt = (n) => `INR ${(n || 0).toLocaleString('en-IN')}`;
+      const na = (v) => (v != null && v !== '') ? String(v) : 'N/A';
+
+      // Header
+      doc.fillColor('#444444').fontSize(20).text('CLOUDTRUCK', 50, 57)
+        .fontSize(10)
+        .text('Managed Trucking Solutions', 50, 80)
+        .text('123 Logistics Park, Sector 5', 50, 95)
+        .text('New Delhi, India - 110001', 50, 110);
+
+      doc.fillColor('#333333').fontSize(18).text('TRIP INVOICE', 50, 57, { align: 'right' });
+      this.generateHr(doc, 125);
+
+      // Booking meta
+      let y = 140;
+      doc.fontSize(10).font('Helvetica-Bold')
+        .text('Booking ID:', 50, y).font('Helvetica').text(na(booking.bookingId), 150, y)
+        .font('Helvetica-Bold').text('Invoice Date:', 300, y).font('Helvetica')
+        .text(format(new Date(), 'dd-MMM-yyyy'), 400, y);
+
+      y += 18;
+      doc.font('Helvetica-Bold').text('Status:', 50, y).font('Helvetica')
+        .text(na(booking.status).replace(/-/g, ' ').toUpperCase(), 150, y)
+        .font('Helvetica-Bold').text('Load Date:', 300, y).font('Helvetica')
+        .text(booking.loadDateTime ? format(new Date(booking.loadDateTime), 'dd-MMM-yyyy') : 'N/A', 400, y);
+
+      this.generateHr(doc, y + 18);
+
+      // Route
+      y += 32;
+      doc.font('Helvetica-Bold').fontSize(11).text('FROM', 50, y).text('TO', 310, y);
+      y += 16;
+      doc.fontSize(10).font('Helvetica')
+        .text(na(booking.pickup?.city), 50, y).text(na(booking.drop?.city), 310, y);
+      y += 14;
+      doc.text(na(booking.pickup?.address), 50, y, { width: 240 })
+        .text(na(booking.drop?.address), 310, y, { width: 240 });
+
+      this.generateHr(doc, y + 28);
+
+      // Cargo
+      y += 44;
+      doc.font('Helvetica-Bold').text('CARGO DETAILS', 50, y);
+      y += 16;
+      const weightStr = booking.weight?.value ? `${booking.weight.value} ${booking.weight.unit || ''}` : 'N/A';
+      doc.font('Helvetica')
+        .text(`Material: ${na(booking.materialType)}`, 50, y)
+        .text(`Weight: ${weightStr}`, 220, y)
+        .text(`Distance: ${booking.estimatedDistance ? `${booking.estimatedDistance} km` : 'N/A'}`, 400, y);
+      y += 14;
+      doc.text(`Truck Type: ${na(booking.truckTypeNeeded)}`, 50, y)
+        .text(`Body Type: ${na(booking.bodyType)}`, 220, y);
+
+      this.generateHr(doc, y + 18);
+
+      // Driver & Vehicle
+      y += 32;
+      doc.font('Helvetica-Bold').text('DRIVER', 50, y).text('VEHICLE', 310, y);
+      y += 16;
+      doc.font('Helvetica')
+        .text(`Name: ${na(booking.driver?.name)}`, 50, y)
+        .text(`Number: ${na(booking.vehicle?.vehicleNumber)}`, 310, y);
+      y += 14;
+      doc.text(`Phone: ${na(booking.driver?.phone)}`, 50, y)
+        .text(`Type: ${na(booking.vehicle?.truckType)}`, 310, y);
+
+      this.generateHr(doc, y + 18);
+
+      // Freight breakdown
+      y += 32;
+      const freight = booking.finalAmount || booking.expectedAmount || 0;
+      const advance = booking.advanceRequired || 0;
+      const balance = freight - advance;
+
+      doc.font('Helvetica-Bold').text('FREIGHT BREAKDOWN', 50, y);
+      y += 16;
+      this.generateHr(doc, y);
+      y += 8;
+      doc.font('Helvetica')
+        .text('Total Freight:', 300, y).font('Helvetica-Bold').text(fmt(freight), 450, y, { align: 'right' });
+      y += 18;
+      doc.font('Helvetica')
+        .text('Advance Paid:', 300, y).text(fmt(advance), 450, y, { align: 'right' });
+      y += 18;
+      this.generateHr(doc, y);
+      y += 8;
+      doc.font('Helvetica-Bold').fontSize(12)
+        .text('Balance Due:', 300, y).text(fmt(balance), 450, y, { align: 'right' });
+
+      // POD details if available
+      if (booking.podDetails?.receiverName) {
+        y += 32;
+        doc.fontSize(10).font('Helvetica-Bold').text('DELIVERY CONFIRMATION', 50, y);
+        y += 16;
+        doc.font('Helvetica')
+          .text(`Receiver: ${booking.podDetails.receiverName}`, 50, y)
+          .text(`Phone: ${na(booking.podDetails.receiverPhone)}`, 220, y);
+        if (booking.podDetails.deliveredAt) {
+          y += 14;
+          doc.text(`Delivered At: ${format(new Date(booking.podDetails.deliveredAt), 'dd-MMM-yyyy HH:mm')}`, 50, y);
+        }
+        if (booking.podDetails.remarks) {
+          y += 14;
+          doc.text(`Remarks: ${booking.podDetails.remarks}`, 50, y);
+        }
+      }
+
+      doc.fontSize(9).fillColor('#777777')
+        .text('This is a computer-generated document. No signature required.',
+          50, 700, { align: 'center', width: 500 });
+
+      doc.end();
+    });
+  }
+
   static generateTableRow(doc, y, description, bookingId, amount) {
     doc
       .fontSize(10)

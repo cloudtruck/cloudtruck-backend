@@ -229,6 +229,7 @@ class DocumentService {
       }
     }
 
+    booking.status = 'pod-received';
     booking.podUploadedAt = new Date();
     booking.podUploadedBy = userId;
 

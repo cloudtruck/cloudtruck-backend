@@ -1,16 +1,10 @@
 import express from 'express';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
-import { validate } from '../middlewares/validation.middleware.js';
-import {
-  creditWalletSchema,
-  approvePayoutSchema,
-  rejectPayoutSchema,
-  walletQuerySchema,
-} from '../validators/wallet.validator.js';
 import {
   getDriverWallet,
   creditDriverWallet,
   getPendingPayouts,
+  getAllPayouts,
   approvePayout,
   rejectPayout,
 } from '../controllers/wallet.controller.js';
@@ -21,14 +15,15 @@ const admin = checkRole('staff', 'internal', 'super-admin');
 
 // ── Admin: pending payout queue ───────────────────────────────────────────────
 // Must come before /:driverId to avoid path collision
-router.get('/payouts/pending', verifyJWT, admin, validate(walletQuerySchema, 'query'), getPendingPayouts);
+router.get('/payouts/pending', verifyJWT, admin, getPendingPayouts);
+router.get('/payouts/all',     verifyJWT, admin, getAllPayouts);
 
 // ── Admin: approve / reject a payout ─────────────────────────────────────────
-router.patch('/payouts/:transactionId/approve', verifyJWT, admin, validate(approvePayoutSchema), approvePayout);
-router.patch('/payouts/:transactionId/reject',  verifyJWT, admin, validate(rejectPayoutSchema),  rejectPayout);
+router.patch('/payouts/:transactionId/approve', verifyJWT, admin, approvePayout);
+router.patch('/payouts/:transactionId/reject',  verifyJWT, admin, rejectPayout);
 
 // ── Admin: view / credit a driver wallet ─────────────────────────────────────
-router.get( '/drivers/:driverId',        verifyJWT, admin, validate(walletQuerySchema, 'query'), getDriverWallet);
-router.post('/drivers/:driverId/credit', verifyJWT, admin, validate(creditWalletSchema),         creditDriverWallet);
+router.get( '/drivers/:driverId',        verifyJWT, admin, getDriverWallet);
+router.post('/drivers/:driverId/credit', verifyJWT, admin, creditDriverWallet);
 
 export default router;

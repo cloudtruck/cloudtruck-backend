@@ -90,3 +90,15 @@ export const rejectPayout = asyncHandler(async (req, res) => {
   );
   res.json(new ApiResponse(200, tx, 'Payout rejected and balance refunded'));
 });
+
+/**
+ * GET /api/v1/wallet/payouts/all
+ * Admin: list all payouts (pending + completed), optionally filtered by status.
+ */
+export const getAllPayouts = asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 20;
+  const { status } = req.query;
+  const result = await WalletService.getAllPayouts(page, limit, status);
+  res.json(new ApiResponse(200, result, 'Payouts fetched'));
+});

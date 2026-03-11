@@ -560,10 +560,11 @@ class BookingService {
       if (booking.driver) {
         const driver = await Driver.findById(booking.driver);
         if (driver) {
-          // A driver is available to execute their next load if they've reached destination of current
-          // or if they are completely free.
-          if (driver.currentBooking?.toString() === booking._id.toString()) {
+          // Reset availability — booking has reached a terminal/available state.
+          // Don't guard on currentBooking match; seeded/legacy drivers may not have it set.
+          if (!driver.nextBooking) {
             driver.availability = 'available';
+            driver.currentBooking = null;
           }
 
           // Update last known location to destination on reached-destination

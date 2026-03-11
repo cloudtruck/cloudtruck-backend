@@ -134,7 +134,11 @@ class DriverService {
       .populate('user', 'phone email status fcmToken')
       .populate('currentBooking', 'bookingId status pickup drop')
       .populate('nextBooking', 'bookingId status pickup drop')
-      .populate('vehicles', 'vehicleNumber truckType');
+      .populate('vehicles', 'vehicleNumber truckType')
+      .populate('documents.aadhaarDocument', 'url')
+      .populate('documents.panDocument', 'url')
+      .populate('documents.chequeImage', 'url')
+      .populate('documents.tdsDocument', 'url');
 
     if (driver) return driver;
 
@@ -143,7 +147,11 @@ class DriverService {
       .populate('user', 'phone email status fcmToken')
       .populate('currentBooking', 'bookingId status pickup drop')
       .populate('nextBooking', 'bookingId status pickup drop')
-      .populate('vehicles', 'vehicleNumber truckType');
+      .populate('vehicles', 'vehicleNumber truckType')
+      .populate('documents.aadhaarDocument', 'url')
+      .populate('documents.panDocument', 'url')
+      .populate('documents.chequeImage', 'url')
+      .populate('documents.tdsDocument', 'url');
 
     if (!driver) {
       throw new ApiError(404, 'Driver not found');

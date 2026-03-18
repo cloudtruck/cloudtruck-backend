@@ -31,7 +31,18 @@ const mapCustomer = (cust) => {
     totalBookings: c.businessMetrics?.totalBookings || 0,
     lastBookingDate: c.updatedAt, // Using updatedAt as a fallback for lastBookingDate
     createdAt: c.createdAt,
-    updatedAt: c.updatedAt
+    updatedAt: c.updatedAt,
+    // Extended profile fields
+    pan: c.pan,
+    transporter: c.transporter,
+    customerType: c.customerType,
+    podType: c.podType,
+    customerAdmin: c.customerAdmin,
+    materialType: c.materialType,
+    customerCode: c.customerCode,
+    locations: c.locations || [],
+    charges: c.charges || [],
+    comments: c.comments || []
   };
 };
 
@@ -373,5 +384,103 @@ export const updateMyGst = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, mapCustomer(customer), 'GST number updated successfully')
+  );
+});
+
+/**
+ * Add Location
+ * POST /api/v1/customers/:id/locations
+ */
+export const addLocation = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const customer = await CustomerService.getCustomerById(id);
+
+  customer.locations.push(req.body);
+  await customer.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, mapCustomer(customer), 'Location added successfully')
+  );
+});
+
+/**
+ * Remove Location
+ * DELETE /api/v1/customers/:id/locations/:locId
+ */
+export const removeLocation = asyncHandler(async (req, res) => {
+  const { id, locId } = req.params;
+  const customer = await CustomerService.getCustomerById(id);
+
+  customer.locations.pull(locId);
+  await customer.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, mapCustomer(customer), 'Location removed successfully')
+  );
+});
+
+/**
+ * Add Charge
+ * POST /api/v1/customers/:id/charges
+ */
+export const addCharge = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { type, amount, remarks, chargeType } = req.body;
+  const customer = await CustomerService.getCustomerById(id);
+
+  customer.charges.push({ type, amount, remarks, chargeType });
+  await customer.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, mapCustomer(customer), 'Charge added successfully')
+  );
+});
+
+/**
+ * Remove Charge
+ * DELETE /api/v1/customers/:id/charges/:chargeId
+ */
+export const removeCharge = asyncHandler(async (req, res) => {
+  const { id, chargeId } = req.params;
+  const customer = await CustomerService.getCustomerById(id);
+
+  customer.charges.pull(chargeId);
+  await customer.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, mapCustomer(customer), 'Charge removed successfully')
+  );
+});
+
+/**
+ * Add Comment
+ * POST /api/v1/customers/:id/comments
+ */
+export const addComment = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { topic, comment } = req.body;
+  const createdBy = req.user.name || req.user.email;
+  const customer = await CustomerService.getCustomerById(id);
+
+  customer.comments.push({ topic, comment, createdBy });
+  await customer.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, mapCustomer(customer), 'Comment added successfully')
+  );
+});
+
+/**
+ * Get Comments
+ * GET /api/v1/customers/:id/comments
+ */
+export const getComments = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const customer = await CustomerService.getCustomerById(id);
+
+  const comments = (customer.comments || []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  return res.status(200).json(
+    new ApiResponse(200, comments, 'Comments fetched successfully')
   );
 });

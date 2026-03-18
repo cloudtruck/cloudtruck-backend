@@ -14,9 +14,9 @@ const addressSchema = new mongoose.Schema({
 
 const customerSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
-  companyName: { type: String, required: true, index: true },
+  companyName: { type: String, required: true }, // indexed via customerSchema.index({ companyName: 1 }) below
   companyType: String, // e.g., 'proprietorship', 'private_limited'
-  gst: { type: String, index: true },
+  gst: { type: String }, // indexed via customerSchema.index({ gst: 1 }, partialFilter) below
   contactPerson: {
     name: String,
     phone: String,
@@ -77,8 +77,41 @@ const customerSchema = new mongoose.Schema({
     isPrimary: { type: Boolean, default: false }
   }],
 
+  // Extended profile fields
+  pan: { type: String },
+  transporter: { type: String },
+  customerType: { type: String }, // Shipper/Consignee/Both
+  podType: { type: String, enum: ['Hard', 'Soft'] },
+  customerAdmin: { type: String },
+  materialType: { type: String },
+  customerCode: { type: String },
+
+  // Sub-resource arrays
+  locations: [{
+    source: String,
+    pincode: String,
+    loadingPoint: String,
+    locationName: String,
+    address: String,
+    supervisor: String,
+    createdAt: { type: Date, default: Date.now }
+  }],
+  charges: [{
+    type: String,
+    amount: Number,
+    remarks: String,
+    chargeType: { type: String, enum: ['add', 'reduce'], default: 'add' },
+    createdAt: { type: Date, default: Date.now }
+  }],
+  comments: [{
+    topic: String,
+    comment: String,
+    createdBy: String,
+    createdAt: { type: Date, default: Date.now }
+  }],
+
   // Soft Delete
-  isDeleted: { type: Boolean, default: false, index: true },
+  isDeleted: { type: Boolean, default: false }, // covered by compound index({ isDeleted: 1, createdAt: -1 }) below
   deletedAt: Date,
   deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   

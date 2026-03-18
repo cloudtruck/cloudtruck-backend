@@ -34,6 +34,15 @@ router.patch('/my-bank-accounts/:accountId/primary', verifyJWT, checkRole('custo
 
 // Staff/Admin routes - list and view
 router.get('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getCustomersQuerySchema), customerController.getAllCustomers);
+
+// Sub-resource routes — must come BEFORE /:id to avoid path collisions
+router.post('/:id/locations', verifyJWT, checkRole('staff', 'internal', 'super-admin'), customerController.addLocation);
+router.delete('/:id/locations/:locId', verifyJWT, checkRole('staff', 'internal', 'super-admin'), customerController.removeLocation);
+router.post('/:id/charges', verifyJWT, checkRole('staff', 'internal', 'super-admin'), customerController.addCharge);
+router.delete('/:id/charges/:chargeId', verifyJWT, checkRole('staff', 'internal', 'super-admin'), customerController.removeCharge);
+router.post('/:id/comments', verifyJWT, checkRole('staff', 'internal', 'super-admin'), customerController.addComment);
+router.get('/:id/comments', verifyJWT, checkRole('staff', 'internal', 'super-admin'), customerController.getComments);
+
 router.get('/:id', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(customerIdParamSchema), customerController.getCustomerById);
 router.get('/:id/dashboard', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(customerIdParamSchema), customerController.getDashboardStats);
 router.get('/:id/bookings', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getBookingHistoryQuerySchema), customerController.getBookingHistory);

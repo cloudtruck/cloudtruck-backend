@@ -16,10 +16,10 @@ export const createCustomerSchema = z.object({
     gstNumber: z.string()
       .regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, 'Invalid GST format')
       .optional(),
-    address: z.string().min(5, 'Address must be at least 5 characters'),
-    city: z.string().min(2, 'City is required'),
-    state: z.string().min(2, 'State is required'),
-    pincode: z.string().regex(/^\d{6}$/, 'Pincode must be 6 digits'),
+    address: z.string().min(5, 'Address must be at least 5 characters').optional(),
+    city: z.string().min(2, 'City is required').optional(),
+    state: z.string().min(2, 'State is required').optional(),
+    pincode: z.string().regex(/^\d{6}$/, 'Pincode must be 6 digits').optional(),
     contactPerson: z.union([
       z.string().min(2, 'Contact person name is required'),
       z.object({
@@ -27,11 +27,16 @@ export const createCustomerSchema = z.object({
         phone: z.string().regex(/^\+?[1-9]\d{9,14}$/, 'Invalid phone format').optional(),
         email: z.string().email('Invalid email address').optional()
       })
-    ]),
+    ]).optional(),
     designation: z.string().optional(),
     alternatePhone: z.string().regex(/^\+?[1-9]\d{9,14}$/).optional(),
     creditLimit: z.number().nonnegative().optional(),
-    paymentTerms: z.enum(['advance', 'credit', 'cod']).optional()
+    paymentTerms: z.enum(['advance', 'credit', 'cod']).optional(),
+    pan: z.string().optional(),
+    customerType: z.string().optional(),
+    companyType: z.string().optional(),
+    shortName: z.string().optional(),
+    customerCode: z.string().optional()
   })
 });
 

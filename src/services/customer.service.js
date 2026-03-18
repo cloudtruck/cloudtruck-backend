@@ -36,7 +36,13 @@ class CustomerService {
       designation,
       alternatePhone,
       creditLimit,
-      paymentTerms
+      paymentTerms,
+      pan,
+      customerType,
+      companyType,
+      shortName,
+      customerCode,
+      city: cityParam
     } = data;
 
     let resolvedTargetUserId = targetUserId || userId || null;
@@ -125,12 +131,12 @@ class CustomerService {
       user: resolvedTargetUserId,
       companyName,
       gst: gstNumber,
-      address: {
+      address: (address || city || cityParam || state || pincode) ? {
         street: address,
-        city,
+        city: city || cityParam,
         state,
         pincode
-      },
+      } : undefined,
       contactPerson: normalizedContactPerson,
       designation,
       alternatePhone,
@@ -141,9 +147,14 @@ class CustomerService {
       },
       paymentTerms: normalizedPaymentTerms || 'prepaid',
       isVerified: false,
+      pan,
+      customerType,
+      companyType,
+      customerCode,
       createdBy: actorUserId,
       metadata: {
-        gstVerification: gstVerification || undefined
+        gstVerification: gstVerification || undefined,
+        shortName: shortName || undefined
       }
     });
 
@@ -256,7 +267,17 @@ class CustomerService {
       'address',
       'contactPerson',
       'designation',
-      'alternatePhone'
+      'alternatePhone',
+      'pan',
+      'transporter',
+      'customerType',
+      'podType',
+      'customerAdmin',
+      'materialType',
+      'customerCode',
+      'locations',
+      'charges',
+      'comments'
     ];
 
     allowedFields.forEach(field => {

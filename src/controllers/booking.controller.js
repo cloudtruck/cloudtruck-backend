@@ -2,6 +2,7 @@ import BookingService from '../services/booking.service.js';
 import Driver from '../models/driver.model.js';
 import Booking from '../models/booking.model.js';
 import MasterData from '../models/masterData.model.js';
+import AuditLog from '../models/auditLog.model.js';
 import TrackingService from '../services/tracking.service.js';
 import PDFService from '../services/pdf.service.js';
 import cloudinary from '../config/cloudinary.js';
@@ -107,12 +108,89 @@ export const mapBooking = (b) => {
     driver: bk.driver ? { _id: bk.driver._id || bk.driver, name: bk.driver.name, phone: bk.driver.phone } : undefined,
     vehicle: bk.vehicle ? { _id: bk.vehicle._id || bk.vehicle, vehicleNumber: bk.vehicle.vehicleNumber, truckType: bk.vehicle.truckType } : undefined,
     assignedAt: bk.assignedAt,
-    statusHistory: bk.statusHistory || [],
+    statusHistory: (bk.statusHistory || []).map(h => ({
+      status: h.status,
+      timestamp: h.timestamp,
+      notes: h.notes,
+      updatedBy: h.updatedBy ? (h.updatedBy._id || h.updatedBy).toString() : undefined,
+    })),
     podUploadedAt: bk.podUploadedAt || null,
     deliveredAt: bk.podDetails?.deliveredAt || (bk.statusHistory || []).find(h => h.status === 'delivered')?.timestamp || null,
     interestedCount: (bk.interestedDrivers || []).length,
     images: bk.cargoDocuments || bk.images || [],
+    loadingDocuments: (bk.loadingDocuments || []).map(d => d?.url ? { _id: d._id, url: d.url, fileType: d.fileType } : null).filter(Boolean),
+    otherDocuments: (bk.otherDocuments || []).map(d => d?.url ? { _id: d._id, url: d.url, fileType: d.fileType } : null).filter(Boolean),
     hasPendingPaymentRequest: (bk.paymentRequests || []).some(r => r.status === 'pending'),
+    lastKnownLocation: bk.lastKnownLocation || null,
+    lastLocationUpdate: bk.lastLocationUpdate || null,
+    laneCode: bk.laneCode || null,
+    isAdhoc: bk.isAdhoc || false,
+    indentType: bk.indentType || null,
+    exim: bk.exim || 'domestic',
+    trafficManager: bk.trafficManager || null,
+    supervisor: bk.supervisor ? {
+      _id: bk.supervisor._id || bk.supervisor,
+      name: bk.supervisor.name,
+      phone: bk.supervisor.phone || null,
+    } : null,
+    // Location master data
+    sourceCode: bk.sourceCode || null,
+    destinationCode: bk.destinationCode || null,
+    supplier: bk.supplier || null,
+    // Pricing
+    supplierPrice: bk.supplierPrice || 0,
+    customerPrice: bk.customerPrice || bk.expectedAmount || 0,
+    weightUnit: bk.weightUnit || 'tons',
+    ratePerTon: bk.ratePerTon || false,
+    // Indent lifecycle
+    expiryTime: bk.expiryTime || null,
+    postToSupplier: bk.postToSupplier !== false,
+    remarks: bk.remarks || null,
+    numberOfTrucks: bk.numberOfTrucks || 1,
+    // Post-creation operational
+    lrNumber: bk.lrDetails?.lrNumber || null,
+    lrDetails: bk.lrDetails ? {
+      lrNumber: bk.lrDetails.lrNumber || null,
+      lrDate: bk.lrDetails.lrDate || null,
+      remarks: bk.lrDetails.remarks || null,
+      uploadedAt: bk.lrDetails.uploadedAt || null,
+      uploadedBy: bk.lrDetails.uploadedBy?.name || null,
+      documents: (bk.lrDetails.documents || []).filter(d => d?.url).map(d => ({
+        _id: d._id,
+        url: d.url,
+        fileType: d.fileType,
+        originalName: d.originalName,
+      })),
+    } : null,
+    podDetails: bk.podDetails ? {
+      receiverName: bk.podDetails.receiverName || null,
+      receiverPhone: bk.podDetails.receiverPhone || null,
+      remarks: bk.podDetails.remarks || null,
+      deliveredAt: bk.podDetails.deliveredAt || null,
+      signatureUrl: bk.podDetails.receiverSignatureDocument?.url || null,
+    } : null,
+    boeNumber: bk.boeNumber || null,
+    jobNo: bk.jobNo || null,
+    hireChallan: bk.hireChallan || null,
+    actualKm: bk.actualKm || null,
+    createdByStaff: bk.createdByStaff ? {
+      _id: bk.createdByStaff._id || bk.createdByStaff,
+      name: bk.createdByStaff.name,
+    } : null,
+    // Direct Load / Direct Invoice fields
+    bookingType: bk.bookingType || 'indent',
+    customerAdvancePct: bk.customerAdvancePct,
+    supplierAdvancePct: bk.supplierAdvancePct,
+    customerOnDelivery: bk.customerOnDelivery,
+    customerPaysSupplier: bk.customerPaysSupplier,
+    supplierPaysSupplier: bk.supplierPaysSupplier,
+    customerPodBalance: bk.customerPodBalance,
+    supplierPodBalance: bk.supplierPodBalance,
+    invoiceTo: bk.invoiceTo,
+    payTo: bk.payTo,
+    accountNo: bk.accountNo,
+    podType: bk.podType,
+    tripKm: bk.tripKm,
     createdAt: bk.createdAt,
     updatedAt: bk.updatedAt
   };
@@ -260,6 +338,57 @@ export const expressInterest = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get Unloading Trucks
+ * GET /api/v1/bookings/unloading-trucks?dropCity=<city>&truckType=<type>
+ * Returns vehicles currently unloading (reached-destination / delivered) at a given city.
+ */
+export const getUnloadingTrucks = asyncHandler(async (req, res) => {
+  const { dropCity, truckType, limit = '50' } = req.query;
+
+  if (!dropCity) throw new ApiError(400, 'dropCity is required');
+
+  const query = {
+    isDeleted: false,
+    status: { $in: ['reached-destination', 'delivered'] },
+    vehicle: { $ne: null },
+    'drop.city': new RegExp(dropCity.trim(), 'i'),
+  };
+
+  if (truckType) {
+    query.truckTypeNeeded = new RegExp(truckType.trim(), 'i');
+  }
+
+  const bookings = await Booking.find(query)
+    .limit(parseInt(limit))
+    .sort({ updatedAt: -1 })
+    .populate('vehicle', 'vehicleNumber truckType owner')
+    .populate('driver', 'name phone')
+    .lean();
+
+  const trucks = bookings.map((b) => ({
+    bookingId: b.bookingId,
+    bookingDbId: b._id,
+    vehicle: b.vehicle ? {
+      _id: b.vehicle._id,
+      vehicleNumber: b.vehicle.vehicleNumber,
+      truckType: b.vehicle.truckType,
+    } : null,
+    driver: b.driver ? {
+      _id: b.driver._id,
+      name: b.driver.name,
+      phone: b.driver.phone,
+    } : null,
+    dropCity: b.drop?.city,
+    status: b.status,
+    updatedAt: b.updatedAt,
+  }));
+
+  return res.status(200).json(
+    new ApiResponse(200, trucks, 'Unloading trucks fetched successfully')
+  );
+});
+
+/**
  * Get Booking by ID
  * GET /api/v1/bookings/:id
  */
@@ -277,7 +406,7 @@ export const getBookingById = asyncHandler(async (req, res) => {
   const distanceTraveled = await TrackingService.calculateDistanceTraveled(booking._id);
 
   return res.status(200).json(
-    new ApiResponse(200, { ...booking.toObject(), distanceTraveled }, 'Booking fetched successfully')
+    new ApiResponse(200, { ...mapBooking(booking), distanceTraveled }, 'Booking fetched successfully')
   );
 });
 
@@ -551,4 +680,33 @@ export const getAllPaymentRequests = asyncHandler(async (req, res) => {
   const { status, page, limit } = req.query;
   const result = await BookingService.getAllPaymentRequests(parseInt(page) || 1, parseInt(limit) || 20, status);
   return res.status(200).json(new ApiResponse(200, result, 'Payment requests fetched'));
+});
+
+// POST /bookings/:id/notes — add a comment/note to a booking
+export const addBookingNote = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { text } = req.body;
+  if (!text?.trim()) throw new ApiError(400, 'Note text is required');
+  const booking = await Booking.findById(id);
+  if (!booking) throw new ApiError(404, 'Booking not found');
+  booking.notes.push({ text: text.trim(), addedBy: req.user._id });
+  await booking.save();
+  await AuditLog.create({
+    user: req.user._id,
+    action: 'ADD_BOOKING_NOTE',
+    entityType: 'booking',
+    entityId: booking._id,
+    context: { module: 'booking-management', description: text.trim(), severity: 'low' }
+  });
+  return res.status(201).json(new ApiResponse(201, booking.notes.at(-1), 'Note added'));
+});
+
+// GET /bookings/:id/audit-logs — fetch audit history for a booking
+export const getBookingAuditLogs = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const logs = await AuditLog.find({ entityType: 'booking', entityId: id })
+    .sort({ timestamp: -1 })
+    .limit(50)
+    .populate('user', 'name email');
+  return res.status(200).json(new ApiResponse(200, logs, 'Audit logs fetched'));
 });

@@ -12,7 +12,8 @@ import {
   cancelBookingSchema,
   addDelaySchema,
   getStatsQuerySchema,
-  getAvailableLoadsQuerySchema
+  getAvailableLoadsQuerySchema,
+  getUnloadingTrucksQuerySchema
 } from '../validators/booking.validator.js';
 
 const router = express.Router();
@@ -42,6 +43,9 @@ router.get('/', verifyJWT, validate(getBookingsQuerySchema), bookingController.g
 
 // Available loads for drivers (Fix 6) — must be BEFORE /:id to avoid path collision
 router.get('/available-loads', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(getAvailableLoadsQuerySchema), bookingController.getAvailableLoads);
+
+// Unloading trucks — trucks at destination whose drop city matches indent pickup city
+router.get('/unloading-trucks', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getUnloadingTrucksQuerySchema), bookingController.getUnloadingTrucks);
 
 router.get('/:id', verifyJWT, bookingController.getBookingById);
 
@@ -107,5 +111,11 @@ router.post('/:id/request-payment', verifyJWT, checkRole('driver'), bookingContr
 // Admin - approve/reject a payment request
 router.patch('/:id/payment-requests/:requestId/pay',    verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.processPaymentRequest);
 router.patch('/:id/payment-requests/:requestId/reject', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.processPaymentRequest);
+
+// Staff/Admin - trip comments/notes
+router.post('/:id/notes', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.addBookingNote);
+
+// Staff/Admin - booking audit log history
+router.get('/:id/audit-logs', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.getBookingAuditLogs);
 
 export default router;

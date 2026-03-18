@@ -4,6 +4,7 @@ import Customer from '../models/customer.model.js';
 import Driver from '../models/driver.model.js';
 import Vehicle from '../models/vehicle.model.js';
 import Staff from '../models/staff.model.js';
+import User from '../models/user.model.js';
 import AuditLog from '../models/auditLog.model.js';
 import NotificationService from './notification.service.js';
 import DocumentService from './document.service.js';
@@ -56,7 +57,38 @@ class BookingService {
       isFragile,
       requiresTemperatureControl,
       priority,
-      customerId // Optional customer profile ID for admin creation
+      customerId, // Optional customer profile ID for admin creation
+      // Digitify / indent fields
+      laneCode,
+      sourceCode,
+      destinationCode,
+      supplier,
+      indentType,
+      exim,
+      trafficController,
+      supplierPrice,
+      customerPrice,
+      ratePerTon,
+      expiryTime,
+      postToSupplier,
+      remarks,
+      numberOfTrucks,
+      // Direct Load / Direct Invoice fields
+      vehicleId,
+      driverId: driverIdFromData,
+      customerAdvancePct,
+      supplierAdvancePct,
+      customerOnDelivery,
+      customerPaysSupplier,
+      supplierPaysSupplier,
+      customerPodBalance,
+      supplierPodBalance,
+      invoiceTo,
+      payTo,
+      accountNo,
+      podType,
+      tripKm,
+      bookingType,
     } = data;
 
     // Verify customer exists
@@ -190,6 +222,36 @@ class BookingService {
           isFragile: isFragile || false,
           requiresTemperatureControl: requiresTemperatureControl || false,
           priority: priority || 'medium',
+          numberOfTrucks: numberOfTrucks || 1,
+          // Digitify / indent fields
+          laneCode: laneCode || undefined,
+          sourceCode: sourceCode || undefined,
+          destinationCode: destinationCode || undefined,
+          supplier: supplier || undefined,
+          indentType: indentType || null,
+          exim: exim || 'domestic',
+          trafficController: trafficController || undefined,
+          supplierPrice: supplierPrice || 0,
+          customerPrice: customerPrice || expectedAmount || 0,
+          ratePerTon: ratePerTon || false,
+          expiryTime: expiryTime ? new Date(expiryTime) : undefined,
+          postToSupplier: postToSupplier !== false,
+          remarks: remarks || undefined,
+          createdByStaff: userId,
+          // Direct Load / Direct Invoice fields
+          customerAdvancePct: customerAdvancePct || 0,
+          supplierAdvancePct: supplierAdvancePct || 0,
+          customerOnDelivery: customerOnDelivery || 0,
+          customerPaysSupplier: customerPaysSupplier || 0,
+          supplierPaysSupplier: supplierPaysSupplier || 0,
+          customerPodBalance: customerPodBalance || 0,
+          supplierPodBalance: supplierPodBalance || 0,
+          invoiceTo: invoiceTo || undefined,
+          payTo: payTo || undefined,
+          accountNo: accountNo || undefined,
+          podType: podType || undefined,
+          tripKm: tripKm || undefined,
+          bookingType: bookingType || 'indent',
           status: 'created',
           statusHistory: [
             {
@@ -210,6 +272,38 @@ class BookingService {
       });
     } finally {
       await session.endSession();
+    }
+
+    // Auto-assign vehicle and driver if provided (Direct Load / Direct Invoice)
+    if (vehicleId && mongoose.isValidObjectId(vehicleId)) {
+      try {
+        const vehicle = await Vehicle.findById(vehicleId);
+        if (vehicle) {
+          booking.vehicle = vehicle._id;
+          // If driverId not provided, try to find driver from vehicle's owner
+          let resolvedDriverId = driverIdFromData;
+          if (!resolvedDriverId && vehicle.driver) resolvedDriverId = vehicle.driver;
+          if (resolvedDriverId && mongoose.isValidObjectId(resolvedDriverId)) {
+            const driver = await Driver.findById(resolvedDriverId);
+            if (driver) {
+              booking.driver = driver._id;
+              booking.status = 'assigned';
+              booking.statusHistory.push({ status: 'assigned', updatedBy: userId, timestamp: new Date() });
+              // Update driver availability
+              driver.currentBooking = booking._id;
+              driver.status = 'on-trip';
+              await driver.save();
+              // Update vehicle
+              vehicle.status = 'assigned';
+              await vehicle.save();
+            }
+          }
+          await booking.save();
+        }
+      } catch (assignErr) {
+        // Non-fatal: booking created, assignment just failed silently
+        logger.error('Direct load auto-assign failed:', assignErr);
+      }
     }
 
     // Attach uploaded cargo images (if any) — outside transaction, non-critical
@@ -388,13 +482,38 @@ class BookingService {
         { path: 'customer', select: customerSelect },
         { path: 'driver', select: 'name phone' },
         { path: 'vehicle', select: 'vehicleNumber truckType availability verificationStatus' },
-        { 
-          path: 'assignedBy', 
-          select: 'name department', 
-          populate: { path: 'user', select: 'phone' } 
-        }
+        {
+          path: 'assignedBy',
+          select: 'name department',
+          populate: { path: 'user', select: 'phone' }
+        },
+        { path: 'supervisor', select: 'name department', populate: { path: 'user', select: 'phone' } },
+        { path: 'trafficController', select: 'name department', populate: { path: 'user', select: 'phone' } },
       ]
     });
+
+    // Enrich createdByStaff name (still a User ref on booking)
+    const docs = result.docs || [];
+    if (docs.length) {
+      const userIds = new Set();
+      for (const b of docs) {
+        if (b.createdByStaff) userIds.add(b.createdByStaff.toString());
+      }
+      if (userIds.size) {
+        const ids = [...userIds];
+        const staffList = await Staff.find({ user: { $in: ids }, isDeleted: false }).select('user name').lean();
+        const staffByUser = {};
+        for (const s of staffList) staffByUser[s.user.toString()] = s.name;
+        result.docs = docs.map(b => {
+          const plain = b.toObject ? b.toObject() : { ...b };
+          if (plain.createdByStaff) {
+            const uid = plain.createdByStaff.toString();
+            plain.createdByStaff = { _id: plain.createdByStaff, name: staffByUser[uid] || null };
+          }
+          return plain;
+        });
+      }
+    }
 
     return result;
   }
@@ -443,7 +562,14 @@ class BookingService {
         select: 'name department',
         populate: { path: 'user', select: 'phone' }
       })
-      .populate('payments');
+      .populate('payments')
+      .populate({ path: 'supervisor', select: 'name department', populate: { path: 'user', select: 'phone' } })
+      .populate({ path: 'trafficController', select: 'name department', populate: { path: 'user', select: 'phone' } })
+      .populate({ path: 'lrDetails.documents', select: 'url fileType originalName' })
+      .populate({ path: 'lrDetails.uploadedBy', select: 'name' })
+      .populate({ path: 'podDetails.receiverSignatureDocument', select: 'url fileType' })
+      .populate({ path: 'loadingDocuments', select: 'url fileType originalName' })
+      .populate({ path: 'otherDocuments', select: 'url fileType originalName' });
 
     const booking = await query;
 
@@ -719,9 +845,9 @@ class BookingService {
       throw new ApiError(404, 'Booking not found');
     }
 
-    // Only allow updates for bookings in early stages
-    if (!['created', 'under-review'].includes(booking.status)) {
-      throw new ApiError(400, 'Cannot update booking. Booking already assigned or in progress');
+    // Only allow updates for non-terminal statuses
+    if (['delivered', 'pod-received', 'cancelled', 'closed'].includes(booking.status)) {
+      throw new ApiError(400, 'Cannot update booking in its current status');
     }
 
     // Store old values for audit
@@ -734,7 +860,11 @@ class BookingService {
       'dropCity', 'dropState', 'dropLat', 'dropLng', 'dropAddress',
       'dropContactName', 'dropContactPhone',
       'materialType', 'weight', 'truckType', 'bodyType', 'expectedDeliveryDate',
-      'additionalInstructions', 'isHazardous', 'isFragile', 'requiresTemperatureControl'
+      'additionalInstructions', 'isHazardous', 'isFragile', 'requiresTemperatureControl',
+      // Indent-specific fields
+      'trafficController', 'numberOfTrucks', 'customerPrice', 'supplierPrice',
+      'truckTypeNeeded', 'expiryTime', 'postToSupplier', 'supervisor',
+      'laneCode', 'indentType', 'remarks',
     ];
 
     // Update only allowed fields
@@ -751,6 +881,14 @@ class BookingService {
           booking.drop.contactPerson.name = updateData[field];
         } else if (field === 'dropContactPhone') {
           booking.drop.contactPerson.phone = updateData[field];
+        } else if (field === 'weight') {
+          // weight may arrive as a number (validator coerces it) — preserve unit
+          const incoming = updateData[field];
+          if (typeof incoming === 'number') {
+            booking.weight = { value: incoming, unit: booking.weight?.unit || 'tons' };
+          } else if (incoming && typeof incoming === 'object') {
+            booking.weight = incoming;
+          }
         } else {
           booking[field] = updateData[field];
         }

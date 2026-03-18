@@ -45,7 +45,38 @@ export const createBookingSchema = z.object({
     isFragile: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional().default(false),
     requiresTemperatureControl: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional().default(false),
     priority: z.enum(['low', 'medium', 'high', 'urgent']).optional().default('medium'),
-    customerId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid customer ID').optional()
+    customerId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid customer ID').optional(),
+    // Digitify / indent fields
+    laneCode:        z.string().optional(),
+    sourceCode:      z.string().optional(),
+    destinationCode: z.string().optional(),
+    supplier:        z.string().optional(),
+    indentType:      z.enum(['FTL', 'LTL', 'PTL']).nullable().optional().default(null),
+    exim:            z.enum(['domestic', 'import', 'export']).optional().default('domestic'),
+    trafficManager:  z.string().optional(),
+    supplierPrice:   z.preprocess((v) => (v === undefined ? 0 : parseFloat(v)), z.number().nonnegative()).optional().default(0),
+    customerPrice:   z.preprocess((v) => (v === undefined ? 0 : parseFloat(v)), z.number().nonnegative()).optional().default(0),
+    ratePerTon:      z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional().default(false),
+    expiryTime:      z.string().datetime().optional(),
+    postToSupplier:  z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional().default(true),
+    remarks:         z.string().optional(),
+    numberOfTrucks:  z.preprocess((v) => (v === undefined ? 1 : parseInt(v)), z.number().positive()).optional().default(1),
+    // Direct Load / Direct Invoice fields
+    vehicleId:            z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+    driverId:             z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+    customerAdvancePct:   z.preprocess(v => v === undefined ? 0 : parseFloat(v), z.number().min(0).max(100)).optional().default(0),
+    supplierAdvancePct:   z.preprocess(v => v === undefined ? 0 : parseFloat(v), z.number().min(0).max(100)).optional().default(0),
+    customerOnDelivery:   z.preprocess(v => v === undefined ? 0 : parseFloat(v), z.number().nonnegative()).optional().default(0),
+    customerPaysSupplier: z.preprocess(v => v === undefined ? 0 : parseFloat(v), z.number().nonnegative()).optional().default(0),
+    supplierPaysSupplier: z.preprocess(v => v === undefined ? 0 : parseFloat(v), z.number().nonnegative()).optional().default(0),
+    customerPodBalance:   z.preprocess(v => v === undefined ? 0 : parseFloat(v), z.number().nonnegative()).optional().default(0),
+    supplierPodBalance:   z.preprocess(v => v === undefined ? 0 : parseFloat(v), z.number().nonnegative()).optional().default(0),
+    invoiceTo:            z.enum(['Customer', 'Supplier', 'Both']).optional(),
+    payTo:                z.enum(['Supplier', 'Driver', 'Customer']).optional(),
+    accountNo:            z.string().optional(),
+    podType:              z.enum(['Hard', 'Soft']).optional(),
+    tripKm:               z.preprocess(v => v === undefined ? undefined : parseFloat(v), z.number().positive()).optional(),
+    bookingType:          z.enum(['indent', 'direct-load', 'direct-invoice']).optional().default('indent'),
   })
 });
 
@@ -89,6 +120,18 @@ export const getAvailableLoadsQuerySchema = z.object({
     loadDate: z.string().optional(), // YYYY-MM-DD
     page: z.string().optional(),
     limit: z.string().optional()
+  })
+});
+
+/**
+ * Get Unloading Trucks Query Validator
+ * GET /api/v1/bookings/unloading-trucks
+ */
+export const getUnloadingTrucksQuerySchema = z.object({
+  query: z.object({
+    dropCity: z.string().min(1, 'dropCity is required'),
+    truckType: z.string().optional(),
+    limit: z.string().optional(),
   })
 });
 
@@ -159,7 +202,21 @@ export const updateBookingSchema = z.object({
     additionalInstructions: z.string().optional(),
     isHazardous: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional(),
     isFragile: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional(),
-    requiresTemperatureControl: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional()
+    requiresTemperatureControl: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional(),
+    // Indent-specific fields
+    trafficManager: z.string().optional(),
+    numberOfTrucks: z.preprocess((v) => (v === undefined ? v : parseInt(v)), z.number().int().min(1).max(10)).optional(),
+    customerPrice: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(0)).optional(),
+    supplierPrice: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(0)).optional(),
+    customerDetentionCharge: z.preprocess((v) => (v === undefined || v === null ? v : parseFloat(v)), z.number().min(0).nullable()).optional(),
+    supplierDetentionCharge: z.preprocess((v) => (v === undefined || v === null ? v : parseFloat(v)), z.number().min(0).nullable()).optional(),
+    truckTypeNeeded: z.string().optional(),
+    expiryTime: z.string().optional(),
+    postToSupplier: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional(),
+    supervisor: z.string().optional(),
+    laneCode: z.string().optional(),
+    indentType: z.enum(['FTL', 'LTL', 'PTL']).nullable().optional(),
+    remarks: z.string().optional(),
   })
 });
 

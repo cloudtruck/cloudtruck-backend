@@ -55,9 +55,9 @@ const addressBlockSchema = new Schema(
 
 const bookingSchema = new Schema(
   {
-    bookingId: { type: String, unique: true, index: true },
+    bookingId: { type: String, unique: true }, // unique already creates an index
 
-    customer: { type: Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
+    customer: { type: Schema.Types.ObjectId, ref: 'Customer', required: true }, // covered by compound index({ customer: 1, status: 1 }) below
 
     // Locations
     pickup: { type: addressBlockSchema, required: true },
@@ -129,17 +129,17 @@ const bookingSchema = new Schema(
     specialRequirements: [String],
 
     // Scheduling
-    loadDate: { type: Date, required: true, index: true },
+    loadDate: { type: Date, required: true }, // covered by compound index({ loadDate: 1 }) and ({ status: 1, loadDate: 1 }) below
     loadTime: { type: String, required: true },
     expectedDeliveryDate: Date,
     additionalInstructions: { type: String, maxlength: 1000 },
 
     // Assignment
-    driver: { type: Schema.Types.ObjectId, ref: 'Driver', index: true, default: null },
-    vehicle: { type: Schema.Types.ObjectId, ref: 'Vehicle', index: true, default: null },
+    driver: { type: Schema.Types.ObjectId, ref: 'Driver', default: null }, // covered by compound index({ driver: 1, status: 1 }) below
+    vehicle: { type: Schema.Types.ObjectId, ref: 'Vehicle', default: null },
     assignedBy: { type: Schema.Types.ObjectId, ref: 'Staff', default: null },
-    assignedAt: { type: Date, index: true },
-    assignedBranch: { type: Schema.Types.ObjectId, ref: 'Branch', default: null, index: true },
+    assignedAt: { type: Date },
+    assignedBranch: { type: Schema.Types.ObjectId, ref: 'Branch', default: null },
 
     // Status
     status: {
@@ -178,6 +178,8 @@ const bookingSchema = new Schema(
     expectedAmount: { type: Number, min: 0 },
     advanceRequired: { type: Number, required: true, min: 0 },
     finalAmount: { type: Number, min: 0 },
+    customerDetentionCharge: { type: Number, min: 0, default: null },
+    supplierDetentionCharge: { type: Number, min: 0, default: null },
     pricingBreakdown: {
       baseFreight: Number,
       loadingCharges: Number,
@@ -190,7 +192,7 @@ const bookingSchema = new Schema(
       totalAmount: Number
     },
 
-    paymentStatus: { type: String, enum: ['unpaid', 'paid', 'partial', 'failed', 'refunded'], default: 'unpaid', required: true, index: true },
+    paymentStatus: { type: String, enum: ['unpaid', 'paid', 'partial', 'failed', 'refunded'], default: 'unpaid', required: true }, // covered by bookingSchema.index({ paymentStatus: 1 }) below
     payments: [{ type: Schema.Types.ObjectId, ref: 'Payment' }],
 
     // Documents - prefer Document refs (cloudinary/file metadata stored in Document docs)
@@ -318,8 +320,63 @@ const bookingSchema = new Schema(
     bookingSource: { type: String, enum: ['web', 'mobile-app', 'phone', 'staff', 'api'], default: 'web' },
     priority: { type: String, enum: ['low', 'medium', 'high', 'urgent'], default: 'medium' },
 
+    // Digitify fields
+    laneCode:         { type: String, trim: true, index: true },
+    isAdhoc:          { type: Boolean, default: false },
+    indentType:       { type: String, enum: ['FTL', 'LTL', 'PTL'], default: null },
+    exim:             { type: String, enum: ['domestic', 'import', 'export'], default: 'domestic' },
+    supervisor:       { type: Schema.Types.ObjectId, ref: 'Staff', default: null },
+    trafficController: { type: Schema.Types.ObjectId, ref: 'Staff', default: null },
+
+    // PIN code of source and destination locations
+    sourceCode:       { type: String, trim: true },
+    destinationCode:  { type: String, trim: true },
+    supplier:         { type: String, trim: true },  // MasterData key from 'supplier' category
+
+    // Pricing
+    supplierPrice:    { type: Number, default: 0 },  // What transporter gets paid (S Price)
+    customerPrice:    { type: Number, default: 0 },  // What customer pays (C Price)
+    weightUnit:       { type: String, enum: ['kg', 'tons'], default: 'tons' },
+    ratePerTon:       { type: Boolean, default: false },
+
+    // Indent lifecycle
+    expiryTime:       { type: Date },               // When this indent expires if unassigned
+    postToSupplier:   { type: Boolean, default: true }, // Visible in driver Find Load
+    remarks:          { type: String, trim: true },  // Internal remarks at creation
+
+    // Post-creation operational fields (filled during trip lifecycle)
+    boeNumber:        { type: String, trim: true },  // Bill of Entry / customer booking ref
+    jobNo:            { type: String, trim: true },  // Internal job/trip number
+    hireChallan:      { type: String, trim: true },  // Transporter payment challan
+    actualKm:         { type: Number },              // Actual kilometers traveled
+
+    // Audit
+    createdByStaff:   { type: Schema.Types.ObjectId, ref: 'User' }, // Staff who created this indent
+
+    // Financial breakdown (Direct Load / Direct Invoice)
+    customerAdvancePct:   { type: Number, default: 0 },      // % of customerPrice paid as advance
+    supplierAdvancePct:   { type: Number, default: 0 },      // % of supplierPrice paid as advance
+    customerOnDelivery:   { type: Number, default: 0 },      // amount paid on delivery by customer
+    customerPaysSupplier: { type: Number, default: 0 },
+    supplierPaysSupplier: { type: Number, default: 0 },
+    customerPodBalance:   { type: Number, default: 0 },
+    supplierPodBalance:   { type: Number, default: 0 },
+    invoiceTo:            { type: String, enum: ['Customer', 'Supplier', 'Both'], default: null },
+    payTo:                { type: String, enum: ['Supplier', 'Driver', 'Customer'], default: null },
+    accountNo:            { type: String, default: null },
+    podType:              { type: String, enum: ['Hard', 'Soft'], default: null },
+    tripKm:               { type: Number, default: null },
+    bookingType:          { type: String, enum: ['indent', 'direct-load', 'direct-invoice'], default: 'indent' },
+
     // Interested drivers (Fix 7)
     interestedDrivers: [{ type: Schema.Types.ObjectId, ref: 'Driver' }],
+
+    // Trip comments / notes
+    notes: [{
+      text: { type: String, required: true },
+      addedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+      addedAt: { type: Date, default: Date.now }
+    }],
 
     // Soft delete
     isDeleted: { type: Boolean, default: false, index: true },

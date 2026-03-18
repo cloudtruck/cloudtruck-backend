@@ -37,8 +37,8 @@ export const uploadLRSchema = z.object({
     bookingId: z.string().regex(objectIdRegex, 'Invalid booking ID')
   }),
   body: z.object({
-    lrNumber: z.string().min(1, 'LR number is required'),
-    lrDate: z.string().refine(val => !isNaN(Date.parse(val)), 'Invalid date format'),
+    lrNumber: z.string().min(1).optional(),
+    lrDate: z.string().refine(val => !val || !isNaN(Date.parse(val)), 'Invalid date format').optional(),
     remarks: z.string().optional()
   })
 });

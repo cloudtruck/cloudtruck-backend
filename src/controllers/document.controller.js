@@ -82,6 +82,15 @@ export const uploadLR = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Delete entire LR for booking
+ */
+export const deleteLR = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  await DocumentService.deleteLR(bookingId, req.user._id);
+  return res.status(200).json(new ApiResponse(200, null, 'LR deleted successfully'));
+});
+
+/**
  * Upload loading images for booking
  */
 export const uploadLoadingImages = asyncHandler(async (req, res) => {
@@ -91,6 +100,22 @@ export const uploadLoadingImages = asyncHandler(async (req, res) => {
   const documents = await DocumentService.uploadLoadingImages(bookingId, files, req.user._id);
 
   return res.status(201).json(new ApiResponse(201, documents, 'Loading images uploaded successfully'));
+});
+
+/**
+ * Upload other documents for booking
+ */
+export const uploadOtherDocuments = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const files = req.files;
+
+  if (!files || files.length === 0) {
+    throw new ApiError(400, 'At least one file is required');
+  }
+
+  const documents = await DocumentService.uploadOtherDocuments(bookingId, files, req.user._id);
+
+  return res.status(201).json(new ApiResponse(201, documents, 'Other documents uploaded successfully'));
 });
 
 /**

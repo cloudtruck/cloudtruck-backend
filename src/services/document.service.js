@@ -180,6 +180,22 @@ class DocumentService {
 
     // Delete from database
     await document.deleteOne();
+
+    // Remove ref from booking arrays if this doc belongs to a booking
+    if (document.entityType === 'booking' && document.entityId) {
+      await Booking.updateOne(
+        { _id: document.entityId },
+        {
+          $pull: {
+            'lrDetails.documents': document._id,
+            loadingDocuments: document._id,
+            otherDocuments: document._id,
+            cargoDocuments: document._id,
+          }
+        }
+      );
+    }
+
     logger.info('Document deleted:', { documentId, deletedBy: userId });
   }
 
@@ -259,21 +275,29 @@ class DocumentService {
     const booking = await Booking.findById(bookingId);
     if (!booking) throw new ApiError(404, 'Booking not found');
 
-    // Upload all files and collect document IDs (Fix 5)
+    const MAX_LR = 5;
+    const existingLr = (booking.lrDetails?.documents || []).length;
+    if (existingLr >= MAX_LR) {
+      throw new ApiError(400, `Maximum ${MAX_LR} LR files allowed`);
+    }
+    const allowedLr = MAX_LR - existingLr;
+    const limitedFiles = files.slice(0, allowedLr);
     const docIds = await Promise.all(
-      files.map(file =>
+      limitedFiles.map(file =>
         this.createDocument(
           { entityType: 'booking', entityId: bookingId, documentType: 'lr', file },
           userId
         ).then(d => d._id)
       )
     );
+    // Merge with existing docs rather than replace, up to max
+    const existingDocIds = (booking.lrDetails?.documents || []).map(d => d._id || d);
 
     booking.lrDetails = {
-      lrNumber: lrData.lrNumber,
-      lrDate: new Date(lrData.lrDate),
-      remarks: lrData.remarks,
-      documents: docIds,
+      lrNumber: lrData.lrNumber || booking.lrDetails?.lrNumber,
+      lrDate: lrData.lrDate ? new Date(lrData.lrDate) : (booking.lrDetails?.lrDate || undefined),
+      remarks: lrData.remarks || booking.lrDetails?.remarks,
+      documents: [...existingDocIds, ...docIds],
       uploadedAt: new Date(),
       uploadedBy: userId
     };
@@ -281,6 +305,33 @@ class DocumentService {
 
     logger.info('LR uploaded:', { bookingId, documentCount: docIds.length });
     return { documents: docIds };
+  }
+
+  /**
+   * Delete entire LR for booking — removes all LR documents from Cloudinary + DB and clears lrDetails
+   * @param {String} bookingId - Booking ID
+   * @param {String} userId - User performing deletion
+   */
+  static async deleteLR(bookingId, userId) {
+    const booking = await Booking.findById(bookingId);
+    if (!booking) throw new ApiError(404, 'Booking not found');
+
+    const docIds = (booking.lrDetails?.documents || []).map(d => d._id || d);
+
+    // Delete each document from Cloudinary + DB
+    for (const docId of docIds) {
+      try {
+        await this.deleteDocument(docId.toString(), userId);
+      } catch (err) {
+        logger.warn('Could not delete LR document during LR delete:', { docId, err: err.message });
+      }
+    }
+
+    // Clear lrDetails
+    booking.lrDetails = null;
+    await booking.save();
+
+    logger.info('LR deleted:', { bookingId });
   }
 
   /**
@@ -297,6 +348,14 @@ class DocumentService {
     if (!['loaded', 'in-transit', 'reached-destination', 'delivered'].includes(booking.status)) {
       throw new ApiError(400, 'Loading images can only be uploaded after loading');
     }
+
+    const MAX_LOADING = 2;
+    const existing = (booking.loadingDocuments || []).length;
+    if (existing >= MAX_LOADING) {
+      throw new ApiError(400, `Maximum ${MAX_LOADING} loading memo files allowed`);
+    }
+    const allowed = MAX_LOADING - existing;
+    files = files.slice(0, allowed);
 
     const documents = [];
     for (const file of files) {
@@ -315,6 +374,40 @@ class DocumentService {
 
     await booking.save();
     logger.info('Loading images uploaded:', { bookingId, count: files.length });
+    return documents;
+  }
+
+  /**
+   * Upload other documents for booking
+   * @param {String} bookingId - Booking ID
+   * @param {Array} files - Files to upload
+   * @param {String} userId - User uploading
+   * @returns {Promise<Array>}
+   */
+  static async uploadOtherDocuments(bookingId, files, userId) {
+    const booking = await Booking.findById(bookingId);
+    if (!booking) throw new ApiError(404, 'Booking not found');
+
+    const MAX_OTHER = 6;
+    const existing = (booking.otherDocuments || []).length;
+    if (existing >= MAX_OTHER) {
+      throw new ApiError(400, `Maximum ${MAX_OTHER} other documents allowed`);
+    }
+    const allowed = MAX_OTHER - existing;
+    files = files.slice(0, allowed);
+
+    const documents = [];
+    for (const file of files) {
+      const document = await this.createDocument(
+        { entityType: 'booking', entityId: bookingId, documentType: 'other', file },
+        userId
+      );
+      documents.push(document);
+      booking.otherDocuments.push(document._id);
+    }
+
+    await booking.save();
+    logger.info('Other documents uploaded:', { bookingId, count: files.length });
     return documents;
   }
 

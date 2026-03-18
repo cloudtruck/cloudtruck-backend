@@ -68,6 +68,14 @@ router.post(
   documentController.uploadLR
 );
 
+// Delete entire LR for booking
+router.delete(
+  '/booking/:bookingId/lr',
+  checkRole('staff', 'internal', 'super-admin'),
+  validate(bookingIdParamSchema),
+  documentController.deleteLR
+);
+
 // Upload loading images for booking
 router.post(
   '/booking/:bookingId/loading-images',
@@ -75,6 +83,15 @@ router.post(
   upload.array('files', 10),
   validate(bookingIdParamSchema),
   documentController.uploadLoadingImages
+);
+
+// Upload other documents for booking
+router.post(
+  '/booking/:bookingId/other-documents',
+  checkRole('driver', 'staff', 'internal', 'super-admin'),
+  upload.array('files', 6),
+  validate(bookingIdParamSchema),
+  documentController.uploadOtherDocuments
 );
 
 // Get all documents for booking

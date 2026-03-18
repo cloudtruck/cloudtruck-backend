@@ -13,7 +13,7 @@ export const createStaffSchema = z.object({
       name: z.string().min(2, 'Name must be at least 2 characters'),
       phone: z.string().optional(),
       department: z
-        .enum(['operations', 'support', 'sales', 'finance', 'admin', 'management'])
+        .enum(['operations', 'support', 'sales', 'finance', 'admin', 'management', 'traffic'])
         .optional(),
       title: z.string().min(2, 'Title is required').optional(),
       roleTemplate: z.string().optional(),
@@ -41,7 +41,7 @@ export const createStaffSchema = z.object({
  */
 export const getStaffQuerySchema = z.object({
   query: z.object({
-    department: z.enum(['operations', 'support', 'sales', 'finance', 'admin', 'management']).optional(),
+    department: z.enum(['operations', 'support', 'sales', 'finance', 'admin', 'management', 'traffic']).optional(),
     isActive: z.enum(['true', 'false']).optional(),
     reportingManager: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
     search: z.string().optional(),
@@ -70,7 +70,7 @@ export const updateStaffSchema = z.object({
   }),
   body: z.object({
     name: z.string().min(2).optional(),
-    department: z.enum(['operations', 'support', 'sales', 'finance', 'admin', 'management']).optional(),
+    department: z.enum(['operations', 'support', 'sales', 'finance', 'admin', 'management', 'traffic']).optional(),
     title: z.string().min(2).optional(),
     reportingManager: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
     workingHours: z.object({

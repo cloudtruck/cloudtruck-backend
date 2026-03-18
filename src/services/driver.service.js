@@ -291,7 +291,8 @@ class DriverService {
       populate: [
         { path: 'user', select: 'phone status' },
         { path: 'currentBooking', select: 'bookingId status pickup drop' },
-        { path: 'nextBooking', select: 'bookingId status' }
+        { path: 'nextBooking', select: 'bookingId status' },
+        { path: 'vehicles', select: 'vehicleNumber truckType' }
       ]
     });
 

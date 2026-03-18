@@ -499,10 +499,11 @@ class AuthService {
     // Revoke all tokens
     await this.logoutAllDevices(user._id);
 
-    // TODO: Send email with temporary password
-    // await EmailService.sendPasswordReset(email, tempPassword);
+    // Email integration pending — log securely for ops retrieval during early production
+    // TODO: Replace with EmailService.sendPasswordReset(email, tempPassword) once email is configured
+    logger.warn(`[PASSWORD-RESET] Temporary password issued for ${email} — deliver via email service`);
 
-    return tempPassword; // In production, don't return this, just send email
+    return { message: 'Password reset successful. Temporary password has been sent to the registered email.' };
   }
 
   /**

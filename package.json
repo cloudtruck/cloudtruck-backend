@@ -19,6 +19,10 @@
     "seed:notifications": "node --env-file .env src/scripts/seed-notifications.js",
     "seed:chat": "node --env-file .env src/scripts/seed-chat.js",
     "seed:chat:clean": "node --env-file .env src/scripts/seed-chat.js --clean",
+    "seed:dashboard": "node --env-file .env src/scripts/seed-dashboard.js",
+    "seed:dashboard:clean": "node --env-file .env src/scripts/seed-dashboard.js --clean",
+    "seed:comments": "node --env-file .env src/scripts/seed-comments.js",
+    "seed:comments:clean": "node --env-file .env src/scripts/seed-comments.js --clean",
     "fix:driver-availability": "node --env-file .env src/scripts/fix-driver-availability.js",
     "test": "NODE_ENV=test mocha --exit --recursive test --timeout 10000"
   },

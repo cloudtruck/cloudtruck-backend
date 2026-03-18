@@ -4,7 +4,7 @@ const masterDataSchema = new mongoose.Schema({
   category: { 
     type: String, 
     required: true,
-    enum: ['truck-type', 'material-type', 'charge-type', 'body-type', 'document-type'],
+    enum: ['truck-type', 'material-type', 'charge-type', 'body-type', 'document-type', 'location', 'lane', 'supplier', 'cost-center'],
     index: true
   },
   key: { 

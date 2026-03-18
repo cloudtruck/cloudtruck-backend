@@ -74,6 +74,43 @@ const seedMasterData = async () => {
     { category: 'document-type', key: 'permit', displayName: 'Permit', displayOrder: 9 },
     { category: 'document-type', key: 'driver-license', displayName: 'Driver License', displayOrder: 10 },
     { category: 'document-type', key: 'cargo-photos', displayName: 'Cargo Photos', displayOrder: 11 },
+
+    // Locations (source/destination — admin adds their own plants, warehouses, ports)
+    // metadata: { city, state, address, type: 'plant'|'warehouse'|'port'|'depot' }
+    { category: 'location', key: 'mum-plant-01', displayName: 'Mumbai Plant 1', displayOrder: 1, metadata: { city: 'Mumbai', state: 'Maharashtra', type: 'plant', address: 'Bhiwandi, Mumbai' } },
+    { category: 'location', key: 'del-wh-01', displayName: 'Delhi Warehouse 1', displayOrder: 2, metadata: { city: 'Delhi', state: 'Delhi', type: 'warehouse', address: 'Kundli Industrial Area, Delhi' } },
+    { category: 'location', key: 'blr-depot-01', displayName: 'Bangalore Depot', displayOrder: 3, metadata: { city: 'Bangalore', state: 'Karnataka', type: 'depot', address: 'Peenya Industrial Area, Bangalore' } },
+    { category: 'location', key: 'hyd-plant-01', displayName: 'Hyderabad Plant', displayOrder: 4, metadata: { city: 'Hyderabad', state: 'Telangana', type: 'plant', address: 'Patancheru, Hyderabad' } },
+    { category: 'location', key: 'che-port-01', displayName: 'Chennai Port', displayOrder: 5, metadata: { city: 'Chennai', state: 'Tamil Nadu', type: 'port', address: 'Chennai Port Trust, Chennai' } },
+    { category: 'location', key: 'pun-wh-01', displayName: 'Pune Warehouse', displayOrder: 6, metadata: { city: 'Pune', state: 'Maharashtra', type: 'warehouse', address: 'Chakan Industrial Area, Pune' } },
+    { category: 'location', key: 'ahm-depot-01', displayName: 'Ahmedabad Depot', displayOrder: 7, metadata: { city: 'Ahmedabad', state: 'Gujarat', type: 'depot', address: 'Naroda Industrial Area, Ahmedabad' } },
+    { category: 'location', key: 'jnpt-port-01', displayName: 'JNPT Port', displayOrder: 8, metadata: { city: 'Navi Mumbai', state: 'Maharashtra', type: 'port', address: 'Jawaharlal Nehru Port, Navi Mumbai' } },
+
+    // Lanes (predefined source→destination routes — auto-fills Source + Destination on indent)
+    // metadata: { sourceKey, destinationKey, distanceKm, transitDays }
+    { category: 'lane', key: 'mum-del-ln01', displayName: 'Mumbai → Delhi (LN01)', displayOrder: 1, metadata: { sourceKey: 'mum-plant-01', destinationKey: 'del-wh-01', distanceKm: 1400, transitDays: 2 } },
+    { category: 'lane', key: 'mum-blr-ln01', displayName: 'Mumbai → Bangalore (LN01)', displayOrder: 2, metadata: { sourceKey: 'mum-plant-01', destinationKey: 'blr-depot-01', distanceKm: 980, transitDays: 2 } },
+    { category: 'lane', key: 'del-hyd-ln01', displayName: 'Delhi → Hyderabad (LN01)', displayOrder: 3, metadata: { sourceKey: 'del-wh-01', destinationKey: 'hyd-plant-01', distanceKm: 1580, transitDays: 3 } },
+    { category: 'lane', key: 'blr-che-ln01', displayName: 'Bangalore → Chennai (LN01)', displayOrder: 4, metadata: { sourceKey: 'blr-depot-01', destinationKey: 'che-port-01', distanceKm: 345, transitDays: 1 } },
+    { category: 'lane', key: 'mum-pun-ln01', displayName: 'Mumbai → Pune (LN01)', displayOrder: 5, metadata: { sourceKey: 'mum-plant-01', destinationKey: 'pun-wh-01', distanceKm: 150, transitDays: 1 } },
+    { category: 'lane', key: 'ahm-del-ln01', displayName: 'Ahmedabad → Delhi (LN01)', displayOrder: 6, metadata: { sourceKey: 'ahm-depot-01', destinationKey: 'del-wh-01', distanceKm: 930, transitDays: 2 } },
+
+    // Suppliers (transporter vendors / fleet owners)
+    // metadata: { contactName, phone, email, gstIn, panNumber }
+    { category: 'supplier', key: 'fastmove-logistics', displayName: 'FastMove Logistics', displayOrder: 1, metadata: { contactName: 'Rajesh Kumar', phone: '9876543210', city: 'Mumbai' } },
+    { category: 'supplier', key: 'speedcargo-ltd', displayName: 'SpeedCargo Ltd', displayOrder: 2, metadata: { contactName: 'Sunil Sharma', phone: '9812345678', city: 'Delhi' } },
+    { category: 'supplier', key: 'bharat-transport', displayName: 'Bharat Transport Co.', displayOrder: 3, metadata: { contactName: 'Mahesh Patel', phone: '9823456789', city: 'Ahmedabad' } },
+    { category: 'supplier', key: 'shree-ganesh-carriers', displayName: 'Shree Ganesh Carriers', displayOrder: 4, metadata: { contactName: 'Ganesh Reddy', phone: '9845678901', city: 'Hyderabad' } },
+    { category: 'supplier', key: 'national-road-lines', displayName: 'National Road Lines', displayOrder: 5, metadata: { contactName: 'Vinod Singh', phone: '9867890123', city: 'Delhi' } },
+
+    // Cost Centers (internal accounting / department codes)
+    // metadata: { department, glCode }
+    { category: 'cost-center', key: 'cc-north-ops', displayName: 'North Operations', displayOrder: 1, metadata: { department: 'Operations', glCode: 'CC-N-001' } },
+    { category: 'cost-center', key: 'cc-south-ops', displayName: 'South Operations', displayOrder: 2, metadata: { department: 'Operations', glCode: 'CC-S-001' } },
+    { category: 'cost-center', key: 'cc-west-ops', displayName: 'West Operations', displayOrder: 3, metadata: { department: 'Operations', glCode: 'CC-W-001' } },
+    { category: 'cost-center', key: 'cc-east-ops', displayName: 'East Operations', displayOrder: 4, metadata: { department: 'Operations', glCode: 'CC-E-001' } },
+    { category: 'cost-center', key: 'cc-sales', displayName: 'Sales', displayOrder: 5, metadata: { department: 'Sales', glCode: 'CC-SAL-001' } },
+    { category: 'cost-center', key: 'cc-exim', displayName: 'EXIM / Exports', displayOrder: 6, metadata: { department: 'EXIM', glCode: 'CC-EXI-001' } },
   ];
 
   await Promise.all(

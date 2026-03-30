@@ -30,6 +30,8 @@ export const validate = (schema) => {
           message: err.message
         }));
 
+        console.log('[validate] Validation failed. Body received:', JSON.stringify(req.body));
+        console.log('[validate] Errors:', JSON.stringify(errors));
         return next(new ApiError(400, 'Validation failed', errors));
       }
       next(error);

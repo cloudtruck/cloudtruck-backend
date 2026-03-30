@@ -26,12 +26,24 @@ class VehicleService {
       model,
       year,
       owner,
+      ownerRef: ownerRefInput,
       registrationState,
       permitType,
       expiryDates,
       hasGPS,
       hasFASTag
     } = data;
+
+    // Normalize ownerRef — support both legacy `owner` and new `ownerRef`
+    const resolvedOwnerRef = ownerRefInput
+      ? ownerRefInput
+      : owner
+        ? { kind: 'Driver', item: owner }
+        : null;
+
+    if (!resolvedOwnerRef) {
+      throw new ApiError(400, 'Vehicle owner is required (provide ownerRef or owner)');
+    }
 
     // Check if vehicle number already exists
     const existingVehicle = await Vehicle.findOne({
@@ -43,12 +55,16 @@ class VehicleService {
       throw new ApiError(400, 'Vehicle number already registered');
     }
 
-    // Verify owner exists if provided
-    if (owner) {
-      const driver = await Driver.findById(owner);
+    // Verify owner exists
+    if (resolvedOwnerRef.kind === 'Driver') {
+      const driver = await Driver.findById(resolvedOwnerRef.item);
       if (!driver || driver.isDeleted) {
         throw new ApiError(404, 'Vehicle owner (driver) not found');
       }
+    } else if (resolvedOwnerRef.kind === 'Supplier') {
+      const Supplier = (await import('../models/supplier.model.js')).default;
+      const supplier = await Supplier.findOne({ _id: resolvedOwnerRef.item, isDeleted: false });
+      if (!supplier) throw new ApiError(404, 'Vehicle owner (supplier) not found');
     }
 
     // Create vehicle
@@ -61,7 +77,8 @@ class VehicleService {
       manufacturer,
       model,
       year,
-      owner,
+      ownerRef: resolvedOwnerRef,
+      owner: resolvedOwnerRef.kind === 'Driver' ? resolvedOwnerRef.item : undefined,
       registrationState,
       permitType,
       expiryDates,
@@ -71,9 +88,9 @@ class VehicleService {
       createdBy
     });
 
-    // Update driver's vehicle list
-    if (owner) {
-      await Driver.findByIdAndUpdate(owner, {
+    // Update driver's vehicle list if Driver-owned
+    if (resolvedOwnerRef.kind === 'Driver') {
+      await Driver.findByIdAndUpdate(resolvedOwnerRef.item, {
         $addToSet: { vehicles: vehicle._id }
       });
     }
@@ -135,6 +152,7 @@ class VehicleService {
       expiryDates: { insurance: new Date(data.insuranceExpiryDate) },
       bodyType: VehicleService.deriveBodyType(data.truckType),
       owner: driver._id,
+      ownerRef: { kind: 'Driver', item: driver._id },
       driverPhoneNumber: data.driverPhoneNumber,
       // lastKnownLocation requires valid GeoJSON coordinates — city-only is stripped
       // by the pre-validate hook. City is stored separately in registrationCity.
@@ -168,7 +186,7 @@ class VehicleService {
    */
   static async getVehicleById(vehicleId) {
     const vehicle = await Vehicle.findOne({ _id: vehicleId, isDeleted: false })
-      .populate('owner', 'name phone licenseNumber')
+      .populate({ path: 'ownerRef.item', select: 'name phone licenseNumber displayName companyName' })
       .populate('currentBooking', 'bookingId status pickup drop')
       .populate('nextBooking', 'bookingId status pickup drop')
       .populate('documents.rcDocument', 'type status url');
@@ -196,7 +214,7 @@ class VehicleService {
       throw new ApiError(404, 'Driver profile not found');
     }
 
-    const vehicle = await Vehicle.findOne({ _id: vehicleId, owner: driver._id, isDeleted: false })
+    const vehicle = await Vehicle.findOne({ _id: vehicleId, $or: [{ 'ownerRef.item': driver._id }, { owner: driver._id }], isDeleted: false })
       .populate('documents.rcDocument', 'type status url')
       .populate('currentBooking', 'bookingId status')
       .lean();
@@ -230,7 +248,7 @@ class VehicleService {
       throw new ApiError(404, 'Driver profile not found');
     }
 
-    const vehicle = await Vehicle.findOne({ _id: vehicleId, owner: driver._id, isDeleted: false });
+    const vehicle = await Vehicle.findOne({ _id: vehicleId, $or: [{ 'ownerRef.item': driver._id }, { owner: driver._id }], isDeleted: false });
     if (!vehicle) {
       throw new ApiError(404, 'Vehicle not found or you do not have permission to update it');
     }
@@ -316,7 +334,7 @@ class VehicleService {
     if (bodyType) query.bodyType = bodyType;
     if (minCapacity) query['capacity.value'] = { ...query['capacity.value'], $gte: minCapacity };
     if (maxCapacity) query['capacity.value'] = { ...query['capacity.value'], $lte: maxCapacity };
-    if (owner) query.owner = owner;
+    if (owner) query['ownerRef.item'] = owner;
     if (typeof hasGPS === 'boolean') query['features.hasGPS'] = hasGPS;
     if (typeof hasFASTag === 'boolean') query['features.hasFastTag'] = hasFASTag;
     if (status) {
@@ -355,7 +373,7 @@ class VehicleService {
       limit: pagination.limit || 20,
       sort: pagination.sort || { createdAt: -1 },
       populate: [
-        { path: 'owner', select: 'name phone' },
+        { path: 'ownerRef.item', select: 'name phone displayName companyName' },
         { path: 'currentBooking', select: 'bookingId status' }
       ]
     });
@@ -390,6 +408,7 @@ class VehicleService {
       'model',
       'year',
       'owner',
+      'ownerRef',
       'registrationState',
       'permitType',
       'expiryDates',
@@ -555,7 +574,7 @@ class VehicleService {
     }
 
     let vehicles = await Vehicle.find(query)
-      .populate('owner', 'name phone performance.rating')
+      .populate({ path: 'ownerRef.item', select: 'name phone performance displayName companyName' })
       .lean();
 
     // Filter by location if provided
@@ -589,8 +608,8 @@ class VehicleService {
       throw new ApiError(404, 'Driver not found');
     }
 
-    const vehicles = await Vehicle.find({ owner: driverId, isDeleted: false })
-      .populate('owner', 'name phone')
+    const vehicles = await Vehicle.find({ $or: [{ 'ownerRef.item': driverId, 'ownerRef.kind': 'Driver' }, { owner: driverId }], isDeleted: false })
+      .populate({ path: 'ownerRef.item', select: 'name phone displayName companyName' })
       .lean();
 
     return vehicles;
@@ -760,9 +779,10 @@ class VehicleService {
       }
     });
 
-    // Notify vehicle owner if exists
-    if (vehicle.owner) {
-      const driver = await Driver.findById(vehicle.owner);
+    // Notify vehicle owner if Driver-owned
+    const ownerDriverId = vehicle.ownerRef?.kind === 'Driver' ? vehicle.ownerRef?.item : vehicle.owner;
+    if (ownerDriverId) {
+      const driver = await Driver.findById(ownerDriverId);
       if (driver && driver.user) {
         await NotificationService.sendNotification({
           recipient: driver.user,
@@ -798,9 +818,10 @@ class VehicleService {
 
     await vehicle.softDelete(deletedBy);
 
-    // Remove from owner's vehicle list
-    if (vehicle.owner) {
-      await Driver.findByIdAndUpdate(vehicle.owner, {
+    // Remove from owner's vehicle list (only if Driver-owned)
+    const deleteOwnerDriverId = vehicle.ownerRef?.kind === 'Driver' ? vehicle.ownerRef?.item : vehicle.owner;
+    if (deleteOwnerDriverId) {
+      await Driver.findByIdAndUpdate(deleteOwnerDriverId, {
         $pull: { vehicles: vehicle._id }
       });
     }

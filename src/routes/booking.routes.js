@@ -37,6 +37,9 @@ router.get('/stats', verifyJWT, checkRole('staff', 'internal', 'super-admin'), v
 router.get('/dashboard/activities', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.getActivities);
 router.get('/dashboard/trends', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.getTrends);
 router.get('/dashboard/status', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.getStatusBreakdown);
+router.get('/dashboard/branch-kpi', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.getBranchKpi);
+router.get('/dashboard/driver-stats', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.getDriverStats);
+router.get('/dashboard/ring-counts', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.getRingCounts);
 
 // Common protected routes
 router.get('/', verifyJWT, validate(getBookingsQuerySchema), bookingController.getAllBookings);

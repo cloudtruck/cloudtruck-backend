@@ -3,6 +3,7 @@ import * as staffController from '../controllers/staff.controller.js';
 import * as authController from '../controllers/auth.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validation.middleware.js';
+import { requireDeleteApproval } from '../middlewares/requireDeleteApproval.js';
 import {
   createStaffSchema,
   getStaffQuerySchema,
@@ -38,7 +39,7 @@ router.patch('/:id', verifyJWT, checkRole('internal', 'super-admin'), validate(u
 router.post('/:id/permissions', verifyJWT, checkRole('internal', 'super-admin'), validate(assignPermissionsSchema), staffController.assignPermissions);
 router.patch('/:id/active-status', verifyJWT, checkRole('internal', 'super-admin'), validate(setActiveStatusSchema), staffController.setActiveStatus);
 
-// Super admin only - delete
-router.delete('/:id', verifyJWT, checkRole('super-admin'), validate(staffIdParamSchema), staffController.deleteStaff);
+// Super admin only - delete (staff role requires approval from internal/super-admin)
+router.delete('/:id', verifyJWT, checkRole('super-admin', 'internal', 'staff'), validate(staffIdParamSchema), requireDeleteApproval('staff', 'Staff'), staffController.deleteStaff);
 
 export default router;

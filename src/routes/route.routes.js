@@ -2,6 +2,7 @@ import express from 'express';
 import * as routeController from '../controllers/route.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validation.middleware.js';
+import { requireDeleteApproval } from '../middlewares/requireDeleteApproval.js';
 import {
   createRouteSchema,
   getMyRoutesQuerySchema,
@@ -29,7 +30,7 @@ router.get('/my-routes', validate(getMyRoutesQuerySchema), routeController.getMy
 router.post('/', validate(createRouteSchema), routeController.createRoute);
 router.get('/:id', validate(routeIdParamSchema), routeController.getRouteById);
 router.patch('/:id', validate(updateRouteSchema), routeController.updateRoute);
-router.delete('/:id', validate(routeIdParamSchema), routeController.deleteRoute);
+router.delete('/:id', validate(routeIdParamSchema), requireDeleteApproval('route', 'Route'), routeController.deleteRoute);
 
 // Route actions
 router.post('/:id/use', validate(routeIdParamSchema), routeController.markAsUsed);

@@ -162,7 +162,7 @@ function buildDefs({ customer, drivers, vehicles }) {
     bookingSource: 'web',
     priority: rnd(['medium', 'high', 'low']),
     isAdhoc: true,
-    indentType: 'FTL',
+    loadType: 'FTL',
     exim: 'domestic',
     laneCode: rnd(LANES),
     trafficManager: rnd(['ROHITH', 'AMIT', 'PRIYA']),

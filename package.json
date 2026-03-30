@@ -23,7 +23,14 @@
     "seed:dashboard:clean": "node --env-file .env src/scripts/seed-dashboard.js --clean",
     "seed:comments": "node --env-file .env src/scripts/seed-comments.js",
     "seed:comments:clean": "node --env-file .env src/scripts/seed-comments.js --clean",
+    "clear-data": "node --env-file .env src/scripts/clear-data.js",
+    "seed:fresh": "node --env-file .env src/scripts/seed-fresh.js",
+    "seed:demo:clean": "node --env-file .env src/scripts/seed-transactional.js --clean",
+    "seed:transactional": "node --env-file .env src/scripts/seed-transactional.js",
+    "seed:suppliers": "node --env-file .env src/scripts/seed-suppliers.js",
+    "seed:suppliers:clean": "node --env-file .env src/scripts/seed-suppliers.js --clean",
     "fix:driver-availability": "node --env-file .env src/scripts/fix-driver-availability.js",
+    "migrate:vehicle-owner": "node --env-file .env src/scripts/migrate-vehicle-owner.js",
     "test": "NODE_ENV=test mocha --exit --recursive test --timeout 10000"
   },
   "keywords": [

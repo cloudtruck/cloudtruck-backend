@@ -30,7 +30,11 @@ export const createVehicleSchema = z.object({
       .min(1990, 'Year must be 1990 or later')
       .max(new Date().getFullYear() + 1, 'Invalid year')
       .optional(),
-    owner: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid owner ID'),
+    ownerRef: z.object({
+      kind: z.enum(['Driver', 'Supplier']),
+      item: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid owner ID'),
+    }).optional(),
+    owner: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid owner ID').optional(),
     expiryDates: z.object({
       insurance: z.string().datetime('Invalid insurance expiry date'),
       fitness: z.string().datetime().optional(),
@@ -43,6 +47,10 @@ export const createVehicleSchema = z.object({
     hasGPS: z.boolean().optional(),
     hasFASTag: z.boolean().optional(),
     status: z.string().optional()
+  }).superRefine((data, ctx) => {
+    if (!data.owner && !data.ownerRef) {
+      ctx.addIssue({ code: 'custom', path: ['ownerRef'], message: 'Either owner or ownerRef is required' });
+    }
   })
 });
 
@@ -157,6 +165,10 @@ export const updateVehicleSchema = z.object({
     manufacturer: z.string().optional(),
     model: z.string().optional(),
     year: z.number().int().min(1990).max(new Date().getFullYear() + 1).optional(),
+    ownerRef: z.object({
+      kind: z.enum(['Driver', 'Supplier']),
+      item: z.string().regex(/^[0-9a-fA-F]{24}$/),
+    }).optional(),
     owner: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
     permitType: z.enum(['national', 'state', 'city']).optional(),
     hasGPS: z.boolean().optional(),

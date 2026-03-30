@@ -1,6 +1,7 @@
 import BookingService from '../services/booking.service.js';
 import Driver from '../models/driver.model.js';
 import Booking from '../models/booking.model.js';
+import Vehicle from '../models/vehicle.model.js';
 import MasterData from '../models/masterData.model.js';
 import AuditLog from '../models/auditLog.model.js';
 import TrackingService from '../services/tracking.service.js';
@@ -117,6 +118,11 @@ export const mapBooking = (b) => {
     podUploadedAt: bk.podUploadedAt || null,
     deliveredAt: bk.podDetails?.deliveredAt || (bk.statusHistory || []).find(h => h.status === 'delivered')?.timestamp || null,
     interestedCount: (bk.interestedDrivers || []).length,
+    interestedDrivers: (bk.interestedDrivers || []).map(e => ({
+      driver: e.driver ?? e,
+      offeredPrice: e.offeredPrice ?? null,
+      submittedAt: e.submittedAt ?? null,
+    })),
     images: bk.cargoDocuments || bk.images || [],
     loadingDocuments: (bk.loadingDocuments || []).map(d => d?.url ? { _id: d._id, url: d.url, fileType: d.fileType } : null).filter(Boolean),
     otherDocuments: (bk.otherDocuments || []).map(d => d?.url ? { _id: d._id, url: d.url, fileType: d.fileType } : null).filter(Boolean),
@@ -125,7 +131,7 @@ export const mapBooking = (b) => {
     lastLocationUpdate: bk.lastLocationUpdate || null,
     laneCode: bk.laneCode || null,
     isAdhoc: bk.isAdhoc || false,
-    indentType: bk.indentType || null,
+    loadType: bk.loadType || bk.indentType || null,
     exim: bk.exim || 'domestic',
     trafficManager: bk.trafficManager || null,
     supervisor: bk.supervisor ? {
@@ -136,7 +142,15 @@ export const mapBooking = (b) => {
     // Location master data
     sourceCode: bk.sourceCode || null,
     destinationCode: bk.destinationCode || null,
-    supplier: bk.supplier || null,
+    supplierEntity: bk.supplierEntity
+      ? {
+          _id:         bk.supplierEntity._id  || bk.supplierEntity,
+          displayName: bk.supplierEntity.displayName,
+          companyName: bk.supplierEntity.companyName || null,
+          phone:       bk.supplierEntity.phone || null,
+          supplierType: bk.supplierEntity.supplierType || null,
+        }
+      : null,
     // Pricing
     supplierPrice: bk.supplierPrice || 0,
     customerPrice: bk.customerPrice || bk.expectedAmount || 0,
@@ -168,10 +182,19 @@ export const mapBooking = (b) => {
       remarks: bk.podDetails.remarks || null,
       deliveredAt: bk.podDetails.deliveredAt || null,
       signatureUrl: bk.podDetails.receiverSignatureDocument?.url || null,
+      courier: bk.podDetails.courier || null,
+      docketNo: bk.podDetails.docketNo || null,
+      ackNo: bk.podDetails.ackNo || null,
     } : null,
+    customerDetentionCharge: bk.customerDetentionCharge ?? null,
+    supplierDetentionCharge: bk.supplierDetentionCharge ?? null,
     boeNumber: bk.boeNumber || null,
     jobNo: bk.jobNo || null,
     hireChallan: bk.hireChallan || null,
+    invoiceNo: bk.invoiceNo || null,
+    shipmentNo: bk.shipmentNo || null,
+    containerNo: bk.containerNo || null,
+    poNumber: bk.poNumber || null,
     actualKm: bk.actualKm || null,
     createdByStaff: bk.createdByStaff ? {
       _id: bk.createdByStaff._id || bk.createdByStaff,
@@ -179,8 +202,9 @@ export const mapBooking = (b) => {
     } : null,
     // Direct Load / Direct Invoice fields
     bookingType: bk.bookingType || 'indent',
-    customerAdvancePct: bk.customerAdvancePct,
-    supplierAdvancePct: bk.supplierAdvancePct,
+    customerAdvancePct: bk.customerAdvancePct ?? 0,
+    supplierAdvancePct: bk.supplierAdvancePct ?? 0,
+    supplierTds: bk.supplierTds ?? null,
     customerOnDelivery: bk.customerOnDelivery,
     customerPaysSupplier: bk.customerPaysSupplier,
     supplierPaysSupplier: bk.supplierPaysSupplier,
@@ -191,6 +215,7 @@ export const mapBooking = (b) => {
     accountNo: bk.accountNo,
     podType: bk.podType,
     tripKm: bk.tripKm,
+    expectedDeliveryDate: bk.expectedDeliveryDate || null,
     createdAt: bk.createdAt,
     updatedAt: bk.updatedAt
   };
@@ -240,14 +265,43 @@ export const getAllBookings = asyncHandler(async (req, res) => {
   else if (Array.isArray(result.docs)) docs = result.docs, p = { page: result.page, limit: result.limit, total: result.totalDocs };
   else if (Array.isArray(result.results)) docs = result.results, p = { page: result.page, limit: result.limit, total: result.totalDocs };
 
-  const distanceMap = {};
-  await Promise.all(docs.map(async (b) => {
-    distanceMap[b._id] = await TrackingService.calculateDistanceTraveled(b._id);
-  }));
+  const distanceMap = await TrackingService.calculateDistancesBatch(docs.map((b) => b._id));
+
+  // Aggregate available vehicle counts (own vs market) per truck type in one query
+  const uniqueTruckTypes = [...new Set(docs.map(b => b.truckTypeNeeded).filter(Boolean))];
+  const truckTypeCountMap = {};
+  if (uniqueTruckTypes.length > 0) {
+    const aggResult = await Vehicle.aggregate([
+      {
+        $match: {
+          isDeleted: { $ne: true },
+          availability: 'available',
+          truckType: { $in: uniqueTruckTypes },
+        },
+      },
+      {
+        $group: {
+          _id: { truckType: '$truckType', ownershipType: '$ownershipType' },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+    for (const row of aggResult) {
+      const tt = row._id.truckType;
+      if (!truckTypeCountMap[tt]) truckTypeCountMap[tt] = { own: 0, market: 0 };
+      if (row._id.ownershipType === 'own') {
+        truckTypeCountMap[tt].own = row.count;
+      } else {
+        truckTypeCountMap[tt].market += row.count;
+      }
+    }
+  }
 
   const bookings = docs.map(b => ({
     ...mapBooking(b),
-    distanceTraveled: distanceMap[b._id] ?? 0
+    distanceTraveled: distanceMap[b._id] ?? 0,
+    matchedOwnCount: truckTypeCountMap[b.truckTypeNeeded]?.own ?? 0,
+    matchedMarketCount: truckTypeCountMap[b.truckTypeNeeded]?.market ?? 0,
   }));
 
   const paginationRes = {
@@ -298,9 +352,11 @@ export const getAvailableLoads = asyncHandler(async (req, res) => {
 
   const loads = docs.map(b => {
     const mapped = mapBooking(b);
-    mapped.alreadyInterested = currentDriverId
-      ? (b.interestedDrivers || []).some(id => String(id) === String(currentDriverId))
-      : false;
+    const myEntry = currentDriverId
+      ? (b.interestedDrivers || []).find(e => String(e.driver ?? e) === String(currentDriverId))
+      : null;
+    mapped.alreadyInterested = !!myEntry;
+    mapped.myOfferedPrice = myEntry?.offeredPrice ?? null;
     return mapped;
   });
 
@@ -330,7 +386,8 @@ export const expressInterest = asyncHandler(async (req, res) => {
   const driver = await Driver.findOne({ user: userId, isDeleted: false }).select('_id');
   if (!driver) throw new ApiError(404, 'Driver profile not found');
 
-  await BookingService.expressInterest(id, driver._id);
+  const { offeredPrice } = req.body;
+  await BookingService.expressInterest(id, driver._id, offeredPrice ?? null);
 
   return res.status(200).json(
     new ApiResponse(200, null, 'Interest submitted successfully')
@@ -349,7 +406,7 @@ export const getUnloadingTrucks = asyncHandler(async (req, res) => {
 
   const query = {
     isDeleted: false,
-    status: { $in: ['reached-destination', 'delivered'] },
+    status: { $in: ['reached-destination', 'unloading', 'delivered'] },
     vehicle: { $ne: null },
     'drop.city': new RegExp(dropCity.trim(), 'i'),
   };
@@ -361,8 +418,8 @@ export const getUnloadingTrucks = asyncHandler(async (req, res) => {
   const bookings = await Booking.find(query)
     .limit(parseInt(limit))
     .sort({ updatedAt: -1 })
-    .populate('vehicle', 'vehicleNumber truckType owner')
-    .populate('driver', 'name phone')
+    .populate('vehicle', 'vehicleNumber truckType ownerRef supplierOwner')
+    .populate('driver', 'name phone supplierOwner driverRole')
     .lean();
 
   const trucks = bookings.map((b) => ({
@@ -372,11 +429,15 @@ export const getUnloadingTrucks = asyncHandler(async (req, res) => {
       _id: b.vehicle._id,
       vehicleNumber: b.vehicle.vehicleNumber,
       truckType: b.vehicle.truckType,
+      ownerRef: b.vehicle.ownerRef || null,
+      supplierOwner: b.vehicle.supplierOwner || null,
     } : null,
     driver: b.driver ? {
       _id: b.driver._id,
       name: b.driver.name,
       phone: b.driver.phone,
+      supplierOwner: b.driver.supplierOwner || null,
+      driverRole: b.driver.driverRole || 'individual',
     } : null,
     dropCity: b.drop?.city,
     status: b.status,
@@ -498,6 +559,33 @@ export const getStatusBreakdown = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get Branch KPI aggregation
+ * GET /api/v1/bookings/dashboard/branch-kpi
+ */
+export const getBranchKpi = asyncHandler(async (req, res) => {
+  const kpi = await BookingService.getBranchKpi();
+  return res.status(200).json(new ApiResponse(200, kpi, 'Branch KPI fetched successfully'));
+});
+
+/**
+ * Get Driver Stats aggregation
+ * GET /api/v1/bookings/dashboard/driver-stats
+ */
+export const getDriverStats = asyncHandler(async (req, res) => {
+  const stats = await BookingService.getDriverStats();
+  return res.status(200).json(new ApiResponse(200, stats, 'Driver stats fetched successfully'));
+});
+
+/**
+ * Get ring counts (status counts) — replaces N per-status getAll calls
+ * GET /api/v1/bookings/dashboard/ring-counts
+ */
+export const getRingCounts = asyncHandler(async (req, res) => {
+  const counts = await BookingService.getRingCounts();
+  return res.status(200).json(new ApiResponse(200, counts, 'Ring counts fetched successfully'));
+});
+
+/**
  * Cancel Booking
  * POST /api/v1/bookings/:id/cancel
  */
@@ -577,10 +665,7 @@ export const getDriverBookings = asyncHandler(async (req, res) => {
   else if (Array.isArray(result.data)) docs = result.data, p = result.pagination || {};
   else if (Array.isArray(result.docs)) docs = result.docs, p = { page: result.page, limit: result.limit, total: result.totalDocs };
 
-  const distanceMap = {};
-  await Promise.all(docs.map(async (b) => {
-    distanceMap[b._id] = await TrackingService.calculateDistanceTraveled(b._id);
-  }));
+  const distanceMap = await TrackingService.calculateDistancesBatch(docs.map((b) => b._id));
 
   const bookings = docs.map(b => ({
     ...mapBooking(b),

@@ -5,6 +5,8 @@ import Customer from '../models/customer.model.js';
 import EwayBill from '../models/ewayBill.model.js';
 import Vehicle from '../models/vehicle.model.js';
 import Driver from '../models/driver.model.js';
+import User from '../models/user.model.js';
+import Supplier from '../models/supplier.model.js';
 import PDFService from './pdf.service.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
@@ -210,6 +212,15 @@ class DocumentService {
     const booking = await Booking.findById(bookingId);
     if (!booking) throw new ApiError(404, 'Booking not found');
 
+    // Supplier ownership guard: supplier can only upload POD for their own bookings
+    const caller = await User.findById(userId).select('role');
+    if (caller?.role === 'supplier') {
+      const supplier = await Supplier.findOne({ user: userId }).select('_id');
+      if (!supplier || !booking.supplierEntity?.equals(supplier._id)) {
+        throw new ApiError(403, 'You can only upload POD for bookings assigned to your company');
+      }
+    }
+
     if (booking.status !== 'delivered') {
       throw new ApiError(400, 'POD can only be uploaded for delivered bookings');
     }
@@ -274,6 +285,15 @@ class DocumentService {
   static async uploadLR(bookingId, files, lrData, userId) {
     const booking = await Booking.findById(bookingId);
     if (!booking) throw new ApiError(404, 'Booking not found');
+
+    // Supplier ownership guard: supplier can only upload LR for their own bookings
+    const caller = await User.findById(userId).select('role');
+    if (caller?.role === 'supplier') {
+      const supplier = await Supplier.findOne({ user: userId }).select('_id');
+      if (!supplier || !booking.supplierEntity?.equals(supplier._id)) {
+        throw new ApiError(403, 'You can only upload LR for bookings assigned to your company');
+      }
+    }
 
     const MAX_LR = 5;
     const existingLr = (booking.lrDetails?.documents || []).length;

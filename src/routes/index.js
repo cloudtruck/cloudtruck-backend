@@ -24,6 +24,9 @@ import marketRateRoutes from './marketRate.routes.js';
 import supportTicketRoutes from './supportTicket.routes.js';
 import chatRoutes from './chat.routes.js';
 import walletRoutes from './wallet.routes.js';
+import supplierRoutes from './supplier.routes.js';
+import supplierPaymentRoutes from './supplierPayment.routes.js';
+import deleteRequestRoutes from './deleteRequest.routes.js';
 
 const router = express.Router();
 
@@ -62,6 +65,9 @@ router.use('/market-rates', marketRateRoutes);
 router.use('/support-tickets', supportTicketRoutes);
 router.use('/chats', chatRoutes);
 router.use('/wallet', walletRoutes);
+router.use('/suppliers', supplierRoutes);
+router.use('/supplier-payments', supplierPaymentRoutes);
+router.use('/delete-requests', deleteRequestRoutes);
 
 // 404 handler for undefined routes
 router.use('*', (req, res) => {

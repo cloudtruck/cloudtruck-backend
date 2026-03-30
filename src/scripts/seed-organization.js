@@ -95,14 +95,6 @@ const seedMasterData = async () => {
     { category: 'lane', key: 'mum-pun-ln01', displayName: 'Mumbai → Pune (LN01)', displayOrder: 5, metadata: { sourceKey: 'mum-plant-01', destinationKey: 'pun-wh-01', distanceKm: 150, transitDays: 1 } },
     { category: 'lane', key: 'ahm-del-ln01', displayName: 'Ahmedabad → Delhi (LN01)', displayOrder: 6, metadata: { sourceKey: 'ahm-depot-01', destinationKey: 'del-wh-01', distanceKm: 930, transitDays: 2 } },
 
-    // Suppliers (transporter vendors / fleet owners)
-    // metadata: { contactName, phone, email, gstIn, panNumber }
-    { category: 'supplier', key: 'fastmove-logistics', displayName: 'FastMove Logistics', displayOrder: 1, metadata: { contactName: 'Rajesh Kumar', phone: '9876543210', city: 'Mumbai' } },
-    { category: 'supplier', key: 'speedcargo-ltd', displayName: 'SpeedCargo Ltd', displayOrder: 2, metadata: { contactName: 'Sunil Sharma', phone: '9812345678', city: 'Delhi' } },
-    { category: 'supplier', key: 'bharat-transport', displayName: 'Bharat Transport Co.', displayOrder: 3, metadata: { contactName: 'Mahesh Patel', phone: '9823456789', city: 'Ahmedabad' } },
-    { category: 'supplier', key: 'shree-ganesh-carriers', displayName: 'Shree Ganesh Carriers', displayOrder: 4, metadata: { contactName: 'Ganesh Reddy', phone: '9845678901', city: 'Hyderabad' } },
-    { category: 'supplier', key: 'national-road-lines', displayName: 'National Road Lines', displayOrder: 5, metadata: { contactName: 'Vinod Singh', phone: '9867890123', city: 'Delhi' } },
-
     // Cost Centers (internal accounting / department codes)
     // metadata: { department, glCode }
     { category: 'cost-center', key: 'cc-north-ops', displayName: 'North Operations', displayOrder: 1, metadata: { department: 'Operations', glCode: 'CC-N-001' } },

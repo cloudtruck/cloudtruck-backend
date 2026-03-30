@@ -101,6 +101,17 @@ export const canApprove = checkRole('internal', 'super-admin');
 export const canManagePayments = checkRole('staff', 'internal', 'super-admin');
 
 /**
+ * Shorthand for checkRole('supplier')
+ * Company supplier owners (web portal access)
+ */
+export const isSupplier = checkRole('supplier');
+
+/**
+ * Supplier or any staff tier
+ */
+export const isSupplierOrAbove = checkRole('supplier', 'staff', 'internal', 'super-admin');
+
+/**
  * Check if user can view audit logs
  * Only internal and super-admin can view audit logs
  */

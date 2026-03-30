@@ -24,11 +24,12 @@ const branchSchema = new mongoose.Schema({
     trim: true,
     index: true
   },
-  branchManager: { 
-    type: mongoose.Schema.Types.ObjectId, 
+  branchManager: {
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'Staff'
   },
-  
+  trafficCoordinator: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff', default: null },
+
   // Contact & Address
   address: {
     street: String,

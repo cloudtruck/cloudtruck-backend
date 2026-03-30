@@ -138,23 +138,139 @@ export const updateNotificationSettings = asyncHandler(async (req, res) => {
   );
 });
 
+// @desc    Get/Update deletion approval policy
+// @route   PATCH /api/v1/organization/settings/deletion-policy
+// @access  Super-admin only
+export const updateDeletionPolicy = asyncHandler(async (req, res) => {
+  const { requireApprovalFor } = req.body;
+
+  const VALID_RESOURCES = ['driver', 'vehicle', 'customer', 'staff', 'branch', 'supplier', 'master-data', 'account', 'route', 'document'];
+
+  if (!Array.isArray(requireApprovalFor)) {
+    throw new ApiError(400, 'requireApprovalFor must be an array');
+  }
+
+  const invalid = requireApprovalFor.filter((r) => !VALID_RESOURCES.includes(r));
+  if (invalid.length > 0) {
+    throw new ApiError(400, `Invalid resources: ${invalid.join(', ')}. Valid options: ${VALID_RESOURCES.join(', ')}`);
+  }
+
+  const settings = await OrganizationSettings.getInstance();
+  settings.deletionPolicy = { requireApprovalFor };
+  settings.updatedBy = req.user._id;
+  await settings.save();
+
+  // Invalidate Redis cache so requireDeleteApproval middleware picks up the change immediately
+  try {
+    const { getRedisClient } = await import('../config/redis.js');
+    const redisClient = getRedisClient();
+    await redisClient.del('org:deletion-policy');
+  } catch (_) {
+    // Redis unavailable — cache will expire naturally
+  }
+
+  res.json(
+    new ApiResponse(200, settings.deletionPolicy, 'Deletion policy updated successfully')
+  );
+});
+
 // @desc    Update tax settings
 // @route   PATCH /api/v1/organization/settings/tax
 // @access  Super-admin
 export const updateTaxSettings = asyncHandler(async (req, res) => {
   const { gstEnabled, cgstRate, sgstRate, igstRate } = req.body;
-  
+
   const settings = await OrganizationSettings.getInstance();
-  
+
   if (gstEnabled !== undefined) settings.taxSettings.gstEnabled = gstEnabled;
   if (cgstRate !== undefined) settings.taxSettings.cgstRate = cgstRate;
   if (sgstRate !== undefined) settings.taxSettings.sgstRate = sgstRate;
   if (igstRate !== undefined) settings.taxSettings.igstRate = igstRate;
   settings.updatedBy = req.user._id;
-  
+
   await settings.save();
-  
+
   res.json(
     new ApiResponse(200, settings, 'Tax settings updated successfully')
   );
+});
+
+// @desc    Get all addresses
+// @route   GET /api/v1/organization/addresses
+// @access  Authenticated
+export const getAddresses = asyncHandler(async (req, res) => {
+  const settings = await OrganizationSettings.getInstance();
+  const addresses = (settings.addresses || []).slice().sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
+  res.json(new ApiResponse(200, addresses, 'Addresses fetched successfully'));
+});
+
+// @desc    Add a new address
+// @route   POST /api/v1/organization/addresses
+// @access  Authenticated
+export const addAddress = asyncHandler(async (req, res) => {
+  const { name, address, city, state, pincode, isPrimary, ...rest } = req.body;
+
+  if (!name || !address || !city || !state || !pincode) {
+    throw new ApiError(400, 'name, address, city, state, and pincode are required');
+  }
+
+  const settings = await OrganizationSettings.getInstance();
+
+  if (isPrimary) {
+    settings.addresses.forEach(addr => { addr.isPrimary = false; });
+  }
+
+  settings.addresses.push({ name, address, city, state, pincode, isPrimary: isPrimary || false, ...rest });
+  await settings.save();
+
+  const newAddress = settings.addresses[settings.addresses.length - 1];
+  res.status(201).json(new ApiResponse(201, newAddress, 'Address added successfully'));
+});
+
+// @desc    Update an address
+// @route   PATCH /api/v1/organization/addresses/:addressId
+// @access  Authenticated
+export const updateAddress = asyncHandler(async (req, res) => {
+  const { addressId } = req.params;
+  const settings = await OrganizationSettings.getInstance();
+  const addr = settings.addresses.id(addressId);
+  if (!addr) throw new ApiError(404, 'Address not found');
+
+  const allowedFields = ['name', 'address', 'city', 'state', 'pincode', 'country', 'gstin', 'pan', 'series', 'accountNo', 'isPrimary', 'isActive'];
+  allowedFields.forEach(field => {
+    if (req.body[field] !== undefined) addr[field] = req.body[field];
+  });
+
+  await settings.save();
+  res.json(new ApiResponse(200, addr, 'Address updated successfully'));
+});
+
+// @desc    Delete an address
+// @route   DELETE /api/v1/organization/addresses/:addressId
+// @access  Authenticated
+export const deleteAddress = asyncHandler(async (req, res) => {
+  const { addressId } = req.params;
+  const settings = await OrganizationSettings.getInstance();
+  const addr = settings.addresses.id(addressId);
+  if (!addr) throw new ApiError(404, 'Address not found');
+
+  addr.deleteOne();
+  await settings.save();
+  res.json(new ApiResponse(200, null, 'Address deleted successfully'));
+});
+
+// @desc    Set primary address
+// @route   PATCH /api/v1/organization/addresses/:addressId/primary
+// @access  Authenticated
+export const setPrimaryAddress = asyncHandler(async (req, res) => {
+  const { addressId } = req.params;
+  const settings = await OrganizationSettings.getInstance();
+  const target = settings.addresses.id(addressId);
+  if (!target) throw new ApiError(404, 'Address not found');
+
+  settings.addresses.forEach(addr => { addr.isPrimary = false; });
+  target.isPrimary = true;
+
+  await settings.save();
+  res.json(new ApiResponse(200, target, 'Primary address set successfully'));
 });

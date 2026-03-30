@@ -7,12 +7,12 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     required: function requiredPhone() {
-      return ['customer', 'driver'].includes(this.role);
+      return ['customer', 'driver', 'supplier'].includes(this.role);
     }
   },
   email: { type: String, sparse: true },
   password: { type: String, select: false }, // staff/internal only
-  role: { type: String, enum: ['customer','driver','staff','internal','super-admin'], required: true, index: true },
+  role: { type: String, enum: ['customer','driver','staff','internal','super-admin','supplier'], required: true, index: true },
   status: { type: String, enum: ['active','blocked','pending-verification','inactive'], default: 'pending-verification', index: true },
   firebaseUid: String,
   lastLogin: Date,

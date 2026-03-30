@@ -81,7 +81,7 @@ class AuthService {
             companyName: 'New Customer', // Placeholder
             createdBy: user._id
           });
-        } else if (role === 'driver') {
+        } else if (role === 'driver' || role === 'supplier') {
           await Driver.create({
             user: user._id,
             name: 'New Driver', // Placeholder

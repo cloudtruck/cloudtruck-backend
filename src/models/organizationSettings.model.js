@@ -1,5 +1,20 @@
 import mongoose from 'mongoose';
 
+const addressSubSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  address: { type: String, required: true, trim: true },
+  city: { type: String, required: true, trim: true },
+  state: { type: String, required: true, trim: true },
+  pincode: { type: String, required: true, match: /^\d{6}$/ },
+  country: { type: String, default: 'India', trim: true },
+  gstin: { type: String, trim: true, uppercase: true },
+  pan: { type: String, trim: true, uppercase: true },
+  series: { type: String, trim: true },
+  accountNo: { type: String, trim: true },
+  isPrimary: { type: Boolean, default: false },
+  isActive: { type: Boolean, default: true }
+});
+
 const organizationSettingsSchema = new mongoose.Schema({
   // Company Information
   companyName: { 
@@ -97,7 +112,47 @@ const organizationSettingsSchema = new mongoose.Schema({
     type: [String],
     default: ['bookings', 'customers', 'drivers', 'vehicles', 'payments']
   },
-  
+
+  // Master Tab Settings
+  noPodAttached: { type: Boolean, default: false },
+  noPodMarket: { type: Boolean, default: false },
+  serviceChargesEnabled: { type: Boolean, default: false },
+  partnerCode: { type: String, default: '', trim: true },
+  eximEnabled: { type: Boolean, default: false },
+  customerBudgetLimitEnabled: { type: Boolean, default: false },
+  additionPointCharge: { type: Number, default: 0, min: 0 },
+  bmAccess: { type: String, enum: ['none', 'read', 'full'], default: 'full' },
+  paymentMamul: { type: String, enum: ['none', 'custom', 'slab'], default: 'none' },
+  documentsMandatory: { type: Boolean, default: false },
+  documentsMandatoryFor: { type: [String], default: [] },
+  deleteTripTimeRoles: { type: [String], default: [] },
+  processSupplierAdvance: { type: Boolean, default: false },
+  tripConfirmationEnabled: { type: Boolean, default: false },
+  lrMandatory: {
+    lrNo: { type: Boolean, default: true },
+    lrImage: { type: Boolean, default: false },
+    ewayBill: { type: Boolean, default: false },
+  },
+  lrMandatoryFields: { type: [String], default: [] },
+  supplierAdvanceEditMode: { type: String, enum: ['price', 'percent'], default: 'price' },
+  deleteTripRoles: { type: [String], default: [] },
+  deleteLrRoles: { type: [String], default: [] },
+  kycDocsMandatoryEnabled: { type: Boolean, default: false },
+  kycDocsMandatoryFor: { type: [String], default: [] },
+
+  // Deletion Approval Policy
+  // Resources listed here will require internal/super-admin approval before staff can delete them
+  deletionPolicy: {
+    requireApprovalFor: {
+      type: [String],
+      enum: ['driver', 'vehicle', 'customer', 'staff', 'branch', 'supplier', 'master-data', 'account', 'route', 'document'],
+      default: []
+    }
+  },
+
+  // Addresses
+  addresses: [addressSubSchema],
+
   // Audit Tracking
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   

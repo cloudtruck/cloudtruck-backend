@@ -2,6 +2,7 @@ import express from 'express';
 import * as accountController from '../controllers/account.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
+import { requireDeleteApproval } from '../middlewares/requireDeleteApproval.js';
 
 const router = express.Router();
 
@@ -49,6 +50,7 @@ router.patch(
 router.delete(
   '/:id',
   requirePermission('staff', 'manage'),
+  requireDeleteApproval('account', 'Account'),
   accountController.deleteAccount
 );
 

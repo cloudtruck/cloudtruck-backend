@@ -109,11 +109,17 @@ const vehicleSchema = new mongoose.Schema(
       roadTax: Date
     },
 
-    // Ownership
+    // Ownership — polymorphic: can be Driver or Supplier (company)
+    ownerRef: {
+      kind: { type: String, enum: ['Driver', 'Supplier'], default: 'Driver', index: true },
+      item: { type: mongoose.Schema.Types.ObjectId, refPath: 'ownerRef.kind', index: true },
+    },
+
+    // Kept for backward compatibility with driver mobile app
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Driver',
-      required: [true, 'Vehicle owner is required'],
+      required: false,
       index: true
     },
 
@@ -122,6 +128,10 @@ const vehicleSchema = new mongoose.Schema(
       enum: ['own', 'leased', 'attached'],
       default: 'own'
     },
+
+    // Legal owner (Supplier company or individual supplier)
+    // owner (Driver) = current operator; supplierOwner (Supplier) = legal/business owner
+    supplierOwner: { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier', default: null, index: true },
 
     // Manufacturer Details
     manufacturer: {
@@ -402,6 +412,7 @@ vehicleSchema.plugin(paginationPlugin);
 // Indexes for performance
 vehicleSchema.index({ vehicleNumber: 1 }, {unique: true, partialFilterExpression: { vehicleNumber: { $exists: true, $ne: null } }});
 vehicleSchema.index({ owner: 1, status: 1, availability: 1 });
+vehicleSchema.index({ 'ownerRef.kind': 1, 'ownerRef.item': 1 });
 vehicleSchema.index({ truckType: 1, bodyType: 1, availability: 1 });
 vehicleSchema.index({ 'expiryDates.insurance': 1 }, { partialFilterExpression: { 'expiryDates.insurance': { $exists: true } } });
 vehicleSchema.index({ 'expiryDates.fitness': 1 });
@@ -440,6 +451,17 @@ vehicleSchema.virtual('needsMaintenance').get(function () {
   if (!lastMaintenance.nextDueDate) return false;
   
   return new Date() >= lastMaintenance.nextDueDate;
+});
+
+// Pre-save: keep owner and ownerRef in sync for backward compatibility
+vehicleSchema.pre('save', function (next) {
+  if (this.ownerRef?.item && this.ownerRef?.kind === 'Driver' && !this.owner) {
+    this.owner = this.ownerRef.item;
+  }
+  if (this.owner && !this.ownerRef?.item) {
+    this.ownerRef = { kind: 'Driver', item: this.owner };
+  }
+  next();
 });
 
 // Pre-save middleware to normalize vehicle number

@@ -2,6 +2,7 @@ import express from 'express';
 import * as customerController from '../controllers/customer.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validation.middleware.js';
+import { requireDeleteApproval } from '../middlewares/requireDeleteApproval.js';
 import {
   createCustomerSchema,
   getCustomersQuerySchema,
@@ -55,7 +56,7 @@ router.patch('/:id/credit-limit', verifyJWT, checkRole('internal', 'super-admin'
 router.post('/:id/verify', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(customerIdParamSchema), customerController.verifyCustomer);
 router.post('/:id/assign-manager', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(assignAccountManagerSchema), customerController.assignAccountManager);
 
-// Admin only - delete
-router.delete('/:id', verifyJWT, checkRole('super-admin'), validate(customerIdParamSchema), customerController.deleteCustomer);
+// Admin only - delete (staff role requires approval from internal/super-admin)
+router.delete('/:id', verifyJWT, checkRole('super-admin', 'internal', 'staff'), validate(customerIdParamSchema), requireDeleteApproval('customer', 'Customer'), customerController.deleteCustomer);
 
 export default router;

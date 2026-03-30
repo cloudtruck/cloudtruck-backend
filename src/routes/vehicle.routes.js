@@ -2,6 +2,7 @@ import express from 'express';
 import * as vehicleController from '../controllers/vehicle.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validation.middleware.js';
+import { requireDeleteApproval } from '../middlewares/requireDeleteApproval.js';
 import {
   createVehicleSchema,
   getVehiclesQuerySchema,
@@ -51,7 +52,7 @@ router.post('/:id/location', verifyJWT, checkRole('staff', 'driver', 'internal',
 router.patch('/:id/availability', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(updateAvailabilitySchema), vehicleController.updateAvailability);
 router.post('/:id/maintenance', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(addMaintenanceSchema), vehicleController.addMaintenance);
 
-// Admin only - delete
-router.delete('/:id', verifyJWT, checkRole('super-admin'), validate(vehicleIdParamSchema), vehicleController.deleteVehicle);
+// Admin only - delete (staff role requires approval from internal/super-admin)
+router.delete('/:id', verifyJWT, checkRole('super-admin', 'internal', 'staff'), validate(vehicleIdParamSchema), requireDeleteApproval('vehicle', 'Vehicle'), vehicleController.deleteVehicle);
 
 export default router;

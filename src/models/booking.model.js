@@ -153,6 +153,7 @@ const bookingSchema = new Schema(
         'loaded',
         'in-transit',
         'reached-destination',
+        'unloading',
         'delivered',
         'pod-received',
         'closed',
@@ -231,7 +232,10 @@ const bookingSchema = new Schema(
       receiverPhone: String,
       receiverSignatureDocument: { type: Schema.Types.ObjectId, ref: 'Document' },
       deliveredAt: Date,
-      remarks: String
+      remarks: String,
+      courier: String,
+      docketNo: String,
+      ackNo: String,
     },
 
     // LR (Lorry Receipt)
@@ -323,7 +327,8 @@ const bookingSchema = new Schema(
     // Digitify fields
     laneCode:         { type: String, trim: true, index: true },
     isAdhoc:          { type: Boolean, default: false },
-    indentType:       { type: String, enum: ['FTL', 'LTL', 'PTL'], default: null },
+    loadType:         { type: String, enum: ['FTL', 'LTL', 'PTL'], default: null },
+    indentType:       { type: String, enum: ['FTL', 'LTL', 'PTL'], default: null }, // legacy alias, kept for backward compat with existing documents
     exim:             { type: String, enum: ['domestic', 'import', 'export'], default: 'domestic' },
     supervisor:       { type: Schema.Types.ObjectId, ref: 'Staff', default: null },
     trafficController: { type: Schema.Types.ObjectId, ref: 'Staff', default: null },
@@ -331,11 +336,12 @@ const bookingSchema = new Schema(
     // PIN code of source and destination locations
     sourceCode:       { type: String, trim: true },
     destinationCode:  { type: String, trim: true },
-    supplier:         { type: String, trim: true },  // MasterData key from 'supplier' category
+    supplierEntity:   { type: Schema.Types.ObjectId, ref: 'Supplier', default: null, index: true },
 
     // Pricing
     supplierPrice:    { type: Number, default: 0 },  // What transporter gets paid (S Price)
     customerPrice:    { type: Number, default: 0 },  // What customer pays (C Price)
+    supplierTds:      { type: Number, default: null }, // % TDS deducted from supplier payment
     weightUnit:       { type: String, enum: ['kg', 'tons'], default: 'tons' },
     ratePerTon:       { type: Boolean, default: false },
 
@@ -348,6 +354,10 @@ const bookingSchema = new Schema(
     boeNumber:        { type: String, trim: true },  // Bill of Entry / customer booking ref
     jobNo:            { type: String, trim: true },  // Internal job/trip number
     hireChallan:      { type: String, trim: true },  // Transporter payment challan
+    invoiceNo:        { type: String, trim: true },  // Invoice number
+    shipmentNo:       { type: String, trim: true },  // Shipment number
+    containerNo:      { type: String, trim: true },  // Container number
+    poNumber:         { type: String, trim: true },  // Purchase order number
     actualKm:         { type: Number },              // Actual kilometers traveled
 
     // Audit
@@ -368,8 +378,14 @@ const bookingSchema = new Schema(
     tripKm:               { type: Number, default: null },
     bookingType:          { type: String, enum: ['indent', 'direct-load', 'direct-invoice'], default: 'indent' },
 
-    // Interested drivers (Fix 7)
-    interestedDrivers: [{ type: Schema.Types.ObjectId, ref: 'Driver' }],
+    // Interested drivers / suppliers with optional offered price
+    // driver: set for individual driver bids; supplier: set for company supplier bids
+    interestedDrivers: [{
+      driver:       { type: Schema.Types.ObjectId, ref: 'Driver', default: null },
+      supplier:     { type: Schema.Types.ObjectId, ref: 'Supplier', default: null },
+      offeredPrice: { type: Number, default: null },
+      submittedAt:  { type: Date, default: Date.now },
+    }],
 
     // Trip comments / notes
     notes: [{
@@ -400,9 +416,14 @@ bookingSchema.index({ 'drop.location': '2dsphere' });
 bookingSchema.index({ createdAt: -1 });
 bookingSchema.index({ loadDate: 1 });
 bookingSchema.index({ customer: 1, status: 1 });
+bookingSchema.index({ supplierEntity: 1, status: 1 });
 bookingSchema.index({ driver: 1, status: 1 });
 bookingSchema.index({ status: 1, loadDate: 1 });
 bookingSchema.index({ paymentStatus: 1 });
+// Dashboard aggregation indexes
+bookingSchema.index({ isDeleted: 1, status: 1 });
+bookingSchema.index({ isDeleted: 1, createdAt: -1 });
+bookingSchema.index({ isDeleted: 1, 'podDetails.deliveredAt': 1 });
 
 /* Virtuals */
 // totalPaid should be calculated by aggregating payments.

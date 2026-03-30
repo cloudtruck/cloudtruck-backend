@@ -178,6 +178,43 @@ class TrackingService {
   }
 
   /**
+   * Calculate distances traveled for multiple bookings in a single DB query.
+   * @param {String[]} bookingIds - Array of booking IDs
+   * @returns {Promise<Record<string, number>>} Map of bookingId -> km
+   */
+  static async calculateDistancesBatch(bookingIds) {
+    if (!bookingIds || bookingIds.length === 0) return {};
+
+    const allPoints = await Tracking.find({ booking: { $in: bookingIds } })
+      .sort({ booking: 1, ts: 1 })
+      .select('booking location')
+      .lean();
+
+    // Group points by booking
+    const grouped = {};
+    for (const pt of allPoints) {
+      const key = String(pt.booking);
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(pt.location.coordinates);
+    }
+
+    const result = {};
+    for (const id of bookingIds) {
+      const pts = grouped[String(id)];
+      if (!pts || pts.length < 2) {
+        result[String(id)] = 0;
+        continue;
+      }
+      let dist = 0;
+      for (let i = 1; i < pts.length; i++) {
+        dist += this.calculateHaversineDistance(pts[i - 1][1], pts[i - 1][0], pts[i][1], pts[i][0]);
+      }
+      result[String(id)] = Math.round(dist * 100) / 100;
+    }
+    return result;
+  }
+
+  /**
    * Calculate distance traveled
    * @param {String} bookingId - Booking ID
    * @returns {Promise<Number>} - Distance in kilometers

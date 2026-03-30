@@ -18,8 +18,8 @@ export const verifyOTPSchema = z.object({
   body: z.object({
     phone: z.string().min(10, 'Phone number must be at least 10 digits'),
     otp: z.string().min(4, 'OTP must be at least 4 digits').max(6, 'OTP must be at most 6 digits'),
-    role: z.enum(['customer', 'driver'], {
-      errorMap: () => ({ message: 'Role must be either customer or driver' })
+    role: z.enum(['customer', 'driver', 'supplier'], {
+      errorMap: () => ({ message: 'Role must be customer, driver, or supplier' })
     }),
     deviceInfo: z.object({
       fcmToken: z.string().optional(),

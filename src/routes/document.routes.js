@@ -3,6 +3,7 @@ import * as documentController from '../controllers/document.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validation.middleware.js';
 import { upload } from '../middlewares/upload.middleware.js';
+import { requireDeleteApproval } from '../middlewares/requireDeleteApproval.js';
 import {
   uploadDocumentSchema,
   getDocumentsByEntitySchema,
@@ -37,18 +38,19 @@ router.get(
 // Get document by ID
 router.get('/:id', validate(documentIdParamSchema), documentController.getDocumentById);
 
-// Delete document
+// Delete document (staff role requires approval)
 router.delete(
   '/:id',
   checkRole('staff', 'internal', 'super-admin'),
   validate(documentIdParamSchema),
+  requireDeleteApproval('document', 'Document'),
   documentController.deleteDocument
 );
 
 // Upload POD documents for booking (POD file, LR copy, weight slip, other documents)
 router.post(
   '/booking/:bookingId/pod',
-  checkRole('driver', 'staff', 'internal', 'super-admin'),
+  checkRole('driver', 'supplier', 'staff', 'internal', 'super-admin'),
   upload.fields([
     { name: 'pod', maxCount: 5 },
     { name: 'lrCopy', maxCount: 5 },
@@ -62,7 +64,7 @@ router.post(
 // Upload LR for booking (supports multiple images, Fix 5)
 router.post(
   '/booking/:bookingId/lr',
-  checkRole('driver', 'staff', 'internal', 'super-admin'),
+  checkRole('driver', 'supplier', 'staff', 'internal', 'super-admin'),
   upload.array('files', 5),
   validate(uploadLRSchema),
   documentController.uploadLR
@@ -79,7 +81,7 @@ router.delete(
 // Upload loading images for booking
 router.post(
   '/booking/:bookingId/loading-images',
-  checkRole('driver', 'staff', 'internal', 'super-admin'),
+  checkRole('driver', 'supplier', 'staff', 'internal', 'super-admin'),
   upload.array('files', 10),
   validate(bookingIdParamSchema),
   documentController.uploadLoadingImages

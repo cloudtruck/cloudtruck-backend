@@ -3,18 +3,35 @@ import { paginationPlugin } from '../utils/plugins/pagination.plugin.js';
 
 const driverSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+
+  // Supplier linkage
+  supplierOwner:        { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier', default: null, index: true },
+  driverRole:           { type: String, enum: ['individual', 'employee'], default: 'individual', index: true },
+  isApprovedBySupplier: { type: Boolean, default: true },
   name: { type: String, required: true },
   licenseNumber: { type: String, required: true },
   licenseImage: String,
   licenseExpiry: Date,
 
-  // Bank Details
+  // Bank Details (legacy single-account — kept for mobile app backward compat)
   bankDetails: {
     accountNumber: String,
     ifscCode: String,
     accountHolderName: String,
     bankName: String
   },
+
+  // Bank Accounts (multi-account support)
+  bankAccounts: [
+    {
+      accountNumber:     { type: String, select: false },
+      ifscCode:          String,
+      accountHolderName: String,
+      bankName:          String,
+      branchName:        String,
+      isPrimary:         { type: Boolean, default: false },
+    },
+  ],
 
   // Emergency Contact
   emergencyContact: {
@@ -145,6 +162,7 @@ driverSchema.index({ 'performance.averageRating': -1 });
 driverSchema.index({ 'lastKnownLocation': '2dsphere' }, { partialFilterExpression: { 'lastKnownLocation.coordinates': { $exists: true } } });
 // Explicit index on user for fast lookups and to enforce one-to-one relation (unique when user exists)
 driverSchema.index({ user: 1 }, { unique: true, partialFilterExpression: { user: { $exists: true } } });
+driverSchema.index({ supplierOwner: 1, isDeleted: 1 });
 
 /* Virtual Fields */
 

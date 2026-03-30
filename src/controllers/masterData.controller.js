@@ -217,7 +217,6 @@ export const getCategories = asyncHandler(async (req, res) => {
     { value: 'document-type', label: 'Document Types', icon: 'file' },
     { value: 'location', label: 'Locations', icon: 'map-pin' },
     { value: 'lane', label: 'Lanes', icon: 'route' },
-    { value: 'supplier', label: 'Suppliers', icon: 'building' },
     { value: 'cost-center', label: 'Cost Centers', icon: 'briefcase' }
   ];
   

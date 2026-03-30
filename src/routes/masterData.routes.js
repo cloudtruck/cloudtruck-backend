@@ -3,6 +3,7 @@ import * as masterDataController from '../controllers/masterData.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { upload } from '../middlewares/upload.middleware.js';
+import { requireDeleteApproval } from '../middlewares/requireDeleteApproval.js';
 
 const router = express.Router();
 
@@ -53,6 +54,7 @@ router.patch(
 router.delete(
   '/:id',
   requirePermission('staff', 'manage'),
+  requireDeleteApproval('master-data', 'MasterData'),
   masterDataController.deleteMasterData
 );
 

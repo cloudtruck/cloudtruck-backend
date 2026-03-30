@@ -3,6 +3,7 @@ import * as driverController from '../controllers/driver.controller.js';
 import * as walletController from '../controllers/wallet.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validation.middleware.js';
+import { requireDeleteApproval } from '../middlewares/requireDeleteApproval.js';
 import {
   createDriverSchema,
   submitDriverKycSchema,
@@ -79,7 +80,12 @@ router.post('/:id/remove-blacklist', verifyJWT, checkRole('internal', 'super-adm
 // Customer or Staff - add rating
 router.post('/:id/rating', verifyJWT, checkRole('customer', 'staff', 'internal', 'super-admin'), validate(addRatingSchema), driverController.addRating);
 
-// Admin only - delete
-router.delete('/:id', verifyJWT, checkRole('super-admin'), validate(driverIdParamSchema), driverController.deleteDriver);
+// Admin only - delete (staff role requires approval from internal/super-admin)
+router.delete('/:id', verifyJWT, checkRole('super-admin', 'internal', 'staff'), validate(driverIdParamSchema), requireDeleteApproval('driver', 'Driver'), driverController.deleteDriver);
+
+// Bank account CRUD (staff/admin)
+router.post('/:id/bank-accounts',                     verifyJWT, checkRole('staff', 'internal', 'super-admin'), driverController.addBankAccount);
+router.patch('/:id/bank-accounts/:accountId',         verifyJWT, checkRole('staff', 'internal', 'super-admin'), driverController.updateBankAccount);
+router.delete('/:id/bank-accounts/:accountId',        verifyJWT, checkRole('staff', 'internal', 'super-admin'), driverController.removeBankAccount);
 
 export default router;

@@ -14,6 +14,40 @@ import EwayBill from '../models/ewayBill.model.js';
 import MasterData from '../models/masterData.model.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
+import { getRedisClient } from '../config/redis.js';
+
+const DASHBOARD_CACHE_TTL = 60; // seconds
+const DASHBOARD_CACHE_KEYS = [
+  'dashboard:statusBreakdown',
+  'dashboard:branchKpi',
+  'dashboard:driverStats',
+  'dashboard:ringCounts',
+];
+
+async function cacheGet(key) {
+  try {
+    const val = await getRedisClient().get(key);
+    return val ? JSON.parse(val) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function cacheSet(key, value, ttl = DASHBOARD_CACHE_TTL) {
+  try {
+    await getRedisClient().set(key, JSON.stringify(value), { EX: ttl });
+  } catch {
+    // Redis unavailable — degrade gracefully, do not throw
+  }
+}
+
+async function cacheDel(...keys) {
+  try {
+    if (keys.length > 0) await getRedisClient().del(keys);
+  } catch {
+    // ignore
+  }
+}
 
 /**
  * Booking Service
@@ -62,8 +96,8 @@ class BookingService {
       laneCode,
       sourceCode,
       destinationCode,
-      supplier,
-      indentType,
+      supplierEntity,
+      loadType,
       exim,
       trafficController,
       supplierPrice,
@@ -227,8 +261,8 @@ class BookingService {
           laneCode: laneCode || undefined,
           sourceCode: sourceCode || undefined,
           destinationCode: destinationCode || undefined,
-          supplier: supplier || undefined,
-          indentType: indentType || null,
+          supplierEntity: supplierEntity || undefined,
+          loadType: loadType || null,
           exim: exim || 'domestic',
           trafficController: trafficController || undefined,
           supplierPrice: supplierPrice || 0,
@@ -374,6 +408,7 @@ class BookingService {
       }
     }).catch(err => logger.error('Failed to create audit log for booking:', err));
 
+    cacheDel(...DASHBOARD_CACHE_KEYS);
     return booking;
   }
 
@@ -480,8 +515,9 @@ class BookingService {
       sort: pagination.sort || { createdAt: -1 },
       populate: [
         { path: 'customer', select: customerSelect },
-        { path: 'driver', select: 'name phone' },
+        { path: 'driver', select: 'name user', populate: { path: 'user', select: 'phone' } },
         { path: 'vehicle', select: 'vehicleNumber truckType availability verificationStatus' },
+        { path: 'supplierEntity', select: 'displayName companyName phone city supplierType' },
         {
           path: 'assignedBy',
           select: 'name department',
@@ -492,27 +528,35 @@ class BookingService {
       ]
     });
 
-    // Enrich createdByStaff name (still a User ref on booking)
+    // Enrich populated fields for frontend consumption
     const docs = result.docs || [];
     if (docs.length) {
       const userIds = new Set();
       for (const b of docs) {
         if (b.createdByStaff) userIds.add(b.createdByStaff.toString());
       }
+      const staffByUser = {};
       if (userIds.size) {
         const ids = [...userIds];
         const staffList = await Staff.find({ user: { $in: ids }, isDeleted: false }).select('user name').lean();
-        const staffByUser = {};
         for (const s of staffList) staffByUser[s.user.toString()] = s.name;
-        result.docs = docs.map(b => {
-          const plain = b.toObject ? b.toObject() : { ...b };
-          if (plain.createdByStaff) {
-            const uid = plain.createdByStaff.toString();
-            plain.createdByStaff = { _id: plain.createdByStaff, name: staffByUser[uid] || null };
-          }
-          return plain;
-        });
       }
+      result.docs = docs.map(b => {
+        const plain = b.toObject ? b.toObject() : { ...b };
+        // Flatten createdByStaff (User ref) → { _id, name }
+        if (plain.createdByStaff) {
+          const uid = plain.createdByStaff.toString();
+          plain.createdByStaff = { _id: plain.createdByStaff, name: staffByUser[uid] || null };
+        }
+        // Flatten driver.phone from nested user populate
+        if (plain.driver && plain.driver.user) {
+          plain.driver = {
+            ...plain.driver,
+            phone: plain.driver.user?.phone || null,
+          };
+        }
+        return plain;
+      });
     }
 
     return result;
@@ -615,7 +659,8 @@ class BookingService {
       'reached-pickup': ['loaded'],
       loaded: ['in-transit'],
       'in-transit': ['reached-destination'],
-      'reached-destination': ['delivered'],
+      'reached-destination': ['unloading'],
+      'unloading': ['delivered'],
       delivered: ['pod-received'],
       'pod-received': ['closed']
     };
@@ -673,7 +718,7 @@ class BookingService {
 
     // Update driver and vehicle availability based on status
     const onTripStatuses = ['driver-en-route', 'reached-pickup', 'loaded', 'in-transit'];
-    const availableStatuses = ['reached-destination', 'delivered', 'pod-received'];
+    const availableStatuses = ['reached-destination', 'unloading', 'delivered', 'pod-received'];
 
     if (onTripStatuses.includes(newStatus)) {
       if (booking.driver) {
@@ -825,6 +870,7 @@ class BookingService {
       metadata: { note: metadata.note }
     });
 
+    cacheDel(...DASHBOARD_CACHE_KEYS);
     return booking;
   }
 
@@ -845,8 +891,16 @@ class BookingService {
       throw new ApiError(404, 'Booking not found');
     }
 
-    // Only allow updates for non-terminal statuses
-    if (['delivered', 'pod-received', 'cancelled', 'closed'].includes(booking.status)) {
+    // POD-received fields are allowed to be updated even after pod-received status
+    const podReceivedFields = new Set([
+      'podCourier', 'podDocketNo', 'podAckNo',
+      'customerDetentionCharge', 'supplierDetentionCharge',
+      'actualKm',
+    ]);
+    const isOnlyPodFields = Object.keys(updateData).every(k => podReceivedFields.has(k));
+
+    // Only allow updates for non-terminal statuses (unless only POD-received fields are being updated)
+    if (['delivered', 'pod-received', 'cancelled', 'closed'].includes(booking.status) && !isOnlyPodFields) {
       throw new ApiError(400, 'Cannot update booking in its current status');
     }
 
@@ -864,7 +918,15 @@ class BookingService {
       // Indent-specific fields
       'trafficController', 'numberOfTrucks', 'customerPrice', 'supplierPrice',
       'truckTypeNeeded', 'expiryTime', 'postToSupplier', 'supervisor',
-      'laneCode', 'indentType', 'remarks',
+      'laneCode', 'loadType', 'remarks', 'supplierEntity',
+      // Post-creation operational fields
+      'boeNumber', 'jobNo', 'hireChallan', 'invoiceNo', 'shipmentNo', 'containerNo', 'poNumber', 'actualKm',
+      // Supplier financial
+      'supplierTds',
+      // Detention charges
+      'customerDetentionCharge', 'supplierDetentionCharge',
+      // POD received fields (nested under podDetails)
+      'podCourier', 'podDocketNo', 'podAckNo',
     ];
 
     // Update only allowed fields
@@ -881,6 +943,15 @@ class BookingService {
           booking.drop.contactPerson.name = updateData[field];
         } else if (field === 'dropContactPhone') {
           booking.drop.contactPerson.phone = updateData[field];
+        } else if (field === 'podCourier') {
+          if (!booking.podDetails) booking.podDetails = {};
+          booking.podDetails.courier = updateData[field];
+        } else if (field === 'podDocketNo') {
+          if (!booking.podDetails) booking.podDetails = {};
+          booking.podDetails.docketNo = updateData[field];
+        } else if (field === 'podAckNo') {
+          if (!booking.podDetails) booking.podDetails = {};
+          booking.podDetails.ackNo = updateData[field];
         } else if (field === 'weight') {
           // weight may arrive as a number (validator coerces it) — preserve unit
           const incoming = updateData[field];
@@ -941,7 +1012,17 @@ class BookingService {
     }
 
     // Find staff profile
-    const staff = await Staff.findOne({ user: userId });
+    let staff = await Staff.findOne({ user: userId });
+    
+    // If no staff profile, check if user is admin/super-admin
+    if (!staff) {
+      const user = await User.findById(userId);
+      if (user && ['super-admin', 'internal'].includes(user.role)) {
+        // Create an ad-hoc staff object for validation if they are admin
+        staff = { user: userId, name: user.name || 'Admin' };
+      }
+    }
+
     if (!staff) {
       throw new ApiError(403, 'Only staff members can assign drivers');
     }
@@ -1001,9 +1082,13 @@ class BookingService {
       // Update booking
       booking.driver = driverId;
       booking.vehicle = vehicleId;
-      booking.assignedBy = staff._id;
+      booking.assignedBy = staff._id || userId;
       booking.assignedAt = new Date();
       booking.status = 'assigned';
+      // Auto-set supplierEntity from the driver's supplier if not already set
+      if (!booking.supplierEntity && driver.supplierOwner) {
+        booking.supplierEntity = driver.supplierOwner._id || driver.supplierOwner;
+      }
       booking.statusHistory.push({
         status: 'assigned',
         updatedBy: userId,
@@ -1032,10 +1117,24 @@ class BookingService {
       }
       await vehicle.save();
 
-      // Update staff metrics
-      staff.performance.bookingsAssigned += 1;
-      staff.assignedBookings.push(booking._id);
-      await staff.save();
+      // Update staff metrics only if staff profile exists (not an ad-hoc admin user)
+      if (staff && staff._id) {
+        if (!staff.performance) {
+          staff.performance = { 
+            bookingsAssigned: 0, 
+            bookingsCompleted: 0, 
+            avgResolutionTime: 0, 
+            customerSatisfaction: 0 
+          };
+        }
+        staff.performance.bookingsAssigned += 1;
+        
+        if (!staff.assignedBookings) {
+          staff.assignedBookings = [];
+        }
+        staff.assignedBookings.push(booking._id);
+        await staff.save();
+      }
 
       // Check if booking has linked E-way bill and auto-sync Part-B
       try {
@@ -1049,7 +1148,7 @@ class BookingService {
           logger.info(`Auto-syncing Part-B for E-way bill ${linkedEwayBill.ewayBillNumber} with vehicle ${vehicle.vehicleNumber}`);
           
           // Get transporter ID if staff has it in metadata
-          const transporterId = staff.metadata?.transporterId || null;
+          const transporterId = (staff && staff.metadata) ? staff.metadata.transporterId : null;
           
           await EwayBillService.autoSyncPartB(
             linkedEwayBill._id,
@@ -1111,7 +1210,8 @@ class BookingService {
 
     return booking.populate([
       { path: 'driver', select: 'name phone' },
-      { path: 'vehicle', select: 'vehicleNumber truckType' }
+      { path: 'vehicle', select: 'vehicleNumber truckType' },
+      { path: 'supplierEntity', select: 'displayName companyName phone city supplierType' },
     ]);
   }
 
@@ -1121,6 +1221,10 @@ class BookingService {
    */
   static async getDashboardActivities(opts = {}) {
     const { limit = 20 } = opts;
+    const cacheKey = `dashboard:activities:${limit}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return cached;
+
     // Relevant actions mapping
     const ACTIONS = [
       'CREATE_BOOKING',
@@ -1155,6 +1259,7 @@ class BookingService {
       };
     });
 
+    await cacheSet(cacheKey, activities, 30);
     return activities;
   }
 
@@ -1164,6 +1269,10 @@ class BookingService {
    */
   static async getBookingTrends(opts = {}) {
     const { days = 7 } = opts;
+    const cacheKey = `dashboard:trends:${days}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return cached;
+
     const end = new Date();
     const start = new Date();
     start.setDate(start.getDate() - (days - 1));
@@ -1208,13 +1317,19 @@ class BookingService {
       if (dayMap[d._id]) dayMap[d._id].delivered = d.delivered;
     });
 
-    return Object.values(dayMap);
+    const result = Object.values(dayMap);
+    await cacheSet(cacheKey, result);
+    return result;
   }
 
   /**
    * Status breakdown counts
    */
   static async getStatusBreakdown() {
+    const cacheKey = 'dashboard:statusBreakdown';
+    const cached = await cacheGet(cacheKey);
+    if (cached) return cached;
+
     const agg = await Booking.aggregate([
       { $match: { isDeleted: false } },
       {
@@ -1230,6 +1345,7 @@ class BookingService {
       result[r._id] = r.count;
     });
 
+    await cacheSet(cacheKey, result);
     return result;
   }
 
@@ -1349,6 +1465,7 @@ class BookingService {
       metadata: { reason }
     });
 
+    cacheDel(...DASHBOARD_CACHE_KEYS);
     return booking;
   }
 
@@ -1598,7 +1715,8 @@ class BookingService {
       populate: [
         { path: 'customer', select: 'companyName' },
         { path: 'driver', select: 'name phone' },
-        { path: 'vehicle', select: 'vehicleNumber truckType' }
+        { path: 'vehicle', select: 'vehicleNumber truckType' },
+        { path: 'supplierEntity', select: 'displayName companyName phone city supplierType' },
       ]
     });
 
@@ -1611,12 +1729,7 @@ class BookingService {
    * @param {string} driverId - Driver profile ID
    * @returns {Promise<Object>} Updated booking
    */
-  static async expressInterest(bookingId, driverId) {
-    const driver = await Driver.findById(driverId);
-    if (!driver || !driver.isVerified) {
-      throw new ApiError(403, 'Your profile must be verified by an admin before you can express interest');
-    }
-
+  static async expressInterest(bookingId, actorId, actorType = 'driver', offeredPrice = null) {
     const booking = await Booking.findById(bookingId);
     if (!booking) throw new ApiError(404, 'Booking not found');
 
@@ -1624,30 +1737,72 @@ class BookingService {
       throw new ApiError(400, 'This load is no longer available');
     }
 
-    // Check if driver has a verified vehicle matching the load's truckType
-    const matchingVehicles = await Vehicle.find({
-      owner: driverId,
-      truckType: booking.truckTypeNeeded,
-      isDeleted: false,
-      verificationStatus: 'verified'
-    });
+    if (actorType === 'driver') {
+      const driver = await Driver.findById(actorId);
+      if (!driver || !driver.isVerified) {
+        throw new ApiError(403, 'Your profile must be verified by an admin before you can express interest');
+      }
 
-    if (matchingVehicles.length === 0) {
-      throw new ApiError(400, `You do not have a verified ${booking.truckTypeNeeded} vehicle to carry this load`);
+      // Check if driver has a verified vehicle matching the load's truckType
+      const matchingVehicles = await Vehicle.find({
+        owner: actorId,
+        truckType: booking.truckTypeNeeded,
+        isDeleted: false,
+        verificationStatus: 'verified'
+      });
+
+      if (matchingVehicles.length === 0) {
+        throw new ApiError(400, `You do not have a verified ${booking.truckTypeNeeded} vehicle to carry this load`);
+      }
+
+      // Dedup check — use .equals() for ObjectId comparison
+      if (booking.interestedDrivers.some(e => e.driver && e.driver.equals(actorId))) {
+        throw new ApiError(409, 'You have already expressed interest in this load');
+      }
+
+      booking.interestedDrivers.push({
+        driver: actorId,
+        supplier: null,
+        offeredPrice: offeredPrice != null ? Number(offeredPrice) : null,
+        submittedAt: new Date(),
+      });
+    } else if (actorType === 'supplier') {
+      const Supplier = (await import('../models/supplier.model.js')).default;
+      const supplier = await Supplier.findOne({ _id: actorId, isDeleted: false, verificationStatus: 'verified' });
+      if (!supplier) {
+        throw new ApiError(403, 'Supplier must be verified before expressing interest');
+      }
+
+      // Check supplier has fleet vehicles matching truckType
+      const matchingVehicles = await Vehicle.find({
+        supplierOwner: actorId,
+        truckType: booking.truckTypeNeeded,
+        isDeleted: false,
+        verificationStatus: 'verified',
+      });
+
+      if (matchingVehicles.length === 0) {
+        throw new ApiError(400, `Your fleet does not have a verified ${booking.truckTypeNeeded} vehicle for this load`);
+      }
+
+      // Dedup check
+      if (booking.interestedDrivers.some(e => e.supplier && e.supplier.equals(actorId))) {
+        throw new ApiError(409, 'Your company has already expressed interest in this load');
+      }
+
+      booking.interestedDrivers.push({
+        driver: null,
+        supplier: actorId,
+        offeredPrice: offeredPrice != null ? Number(offeredPrice) : null,
+        submittedAt: new Date(),
+      });
+    } else {
+      throw new ApiError(400, 'Invalid actorType — must be driver or supplier');
     }
 
-    // Check if all matching vehicles are busy (optional strictness, but let's just check if they have at least one)
-    // Even if busy now, they might be free by load date. But if strict, we'd check availability: 'available'.
-
-    // Use .equals() for Mongoose ObjectId comparison
-    if (booking.interestedDrivers.some(id => id.equals(driverId))) {
-      throw new ApiError(409, 'You have already expressed interest in this load');
-    }
-
-    booking.interestedDrivers.push(driverId);
     await booking.save();
 
-    logger.info('Driver expressed interest:', { bookingId, driverId });
+    logger.info('Interest expressed:', { bookingId, actorId, actorType });
     return booking;
   }
 
@@ -1747,6 +1902,268 @@ class BookingService {
       requests,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     };
+  }
+
+  /**
+   * Dashboard: branch KPI aggregation — grouped by pickup city.
+   * Returns live rows (by branch) and history rows (by date).
+   */
+  static async getBranchKpi() {
+    const cacheKey = 'dashboard:branchKpi';
+    const cached = await cacheGet(cacheKey);
+    if (cached) return cached;
+
+    const DISPATCHED_STATUSES = [
+      'assigned', 'driver-en-route', 'reached-pickup',
+      'loaded', 'in-transit', 'reached-destination',
+    ];
+
+    const agg = await Booking.aggregate([
+      { $match: { isDeleted: false } },
+      {
+        $addFields: {
+          isClosed: { $in: ['$status', ['delivered', 'pod-received', 'closed']] },
+          isCancelled: { $eq: ['$status', 'cancelled'] },
+          isOnTime: {
+            $cond: {
+              if: { $and: [{ $ifNull: ['$expectedDeliveryDate', false] }] },
+              then: {
+                $let: {
+                  vars: {
+                    deliveredEntry: {
+                      $first: {
+                        $filter: {
+                          input: { $ifNull: ['$statusHistory', []] },
+                          as: 'h',
+                          cond: { $in: ['$$h.status', ['delivered', 'pod-received', 'closed']] },
+                        },
+                      },
+                    },
+                  },
+                  in: {
+                    $cond: {
+                      if: { $ifNull: ['$$deliveredEntry.timestamp', false] },
+                      then: { $lte: ['$$deliveredEntry.timestamp', '$expectedDeliveryDate'] },
+                      else: false,
+                    },
+                  },
+                },
+              },
+              else: false,
+            },
+          },
+          isFailed: {
+            $cond: {
+              if: { $eq: ['$status', 'cancelled'] },
+              then: {
+                $gt: [
+                  {
+                    $size: {
+                      $filter: {
+                        input: { $ifNull: ['$statusHistory', []] },
+                        as: 'h',
+                        cond: { $in: ['$$h.status', DISPATCHED_STATUSES] },
+                      },
+                    },
+                  },
+                  0,
+                ],
+              },
+              else: false,
+            },
+          },
+          dateKey: {
+            $dateToString: { format: '%Y-%m-%d', date: { $ifNull: ['$createdAt', new Date()] } },
+          },
+          branchKey: { $ifNull: ['$pickup.city', 'Unknown'] },
+        },
+      },
+      {
+        $facet: {
+          byBranch: [
+            {
+              $group: {
+                _id: '$branchKey',
+                total: { $sum: 1 },
+                closed: { $sum: { $cond: ['$isClosed', 1, 0] } },
+                ontime: { $sum: { $cond: [{ $and: ['$isClosed', '$isOnTime'] }, 1, 0] } },
+                failed: { $sum: { $cond: ['$isFailed', 1, 0] } },
+                cancelled: { $sum: { $cond: ['$isCancelled', 1, 0] } },
+              },
+            },
+            { $sort: { total: -1 } },
+          ],
+          byDate: [
+            {
+              $group: {
+                _id: '$dateKey',
+                total: { $sum: 1 },
+                closed: { $sum: { $cond: ['$isClosed', 1, 0] } },
+                ontime: { $sum: { $cond: [{ $and: ['$isClosed', '$isOnTime'] }, 1, 0] } },
+                failed: { $sum: { $cond: ['$isFailed', 1, 0] } },
+                cancelled: { $sum: { $cond: ['$isCancelled', 1, 0] } },
+              },
+            },
+            { $sort: { _id: -1 } },
+          ],
+        },
+      },
+    ]);
+
+    const calcPcts = (r) => ({
+      total: r.total,
+      closed: r.closed,
+      closedPct: r.total > 0 ? Math.round((r.closed / r.total) * 100) : 0,
+      ontime: r.ontime,
+      ontimePct: r.closed > 0 ? Math.round((r.ontime / r.closed) * 100) : 0,
+      failed: r.failed,
+      failedPct: r.total > 0 ? Math.round((r.failed / r.total) * 100) : 0,
+      cancelled: r.cancelled,
+      cancelledPct: r.total > 0 ? Math.round((r.cancelled / r.total) * 100) : 0,
+    });
+
+    const live = (agg[0]?.byBranch || []).map((r) => ({ branch: r._id, ...calcPcts(r) }));
+    const history = (agg[0]?.byDate || []).map((r) => ({ date: r._id, ...calcPcts(r) }));
+
+    const kpi = { live, history };
+    await cacheSet(cacheKey, kpi);
+    return kpi;
+  }
+
+  /**
+   * Dashboard: per-driver stats aggregated from bookings.
+   * Returns array of driver rows with trip counts, S/D checkpoint rates, and POD counts.
+   */
+  static async getDriverStats() {
+    const cacheKey = 'dashboard:driverStats';
+    const cached = await cacheGet(cacheKey);
+    if (cached) return cached;
+
+    const agg = await Booking.aggregate([
+      { $match: { isDeleted: false, driver: { $exists: true, $ne: null } } },
+      {
+        $addFields: {
+          hasSIn: {
+            $gt: [
+              { $size: { $filter: { input: { $ifNull: ['$statusHistory', []] }, as: 'h', cond: { $eq: ['$$h.status', 'reached-pickup'] } } } },
+              0,
+            ],
+          },
+          hasSOut: {
+            $gt: [
+              { $size: { $filter: { input: { $ifNull: ['$statusHistory', []] }, as: 'h', cond: { $in: ['$$h.status', ['loaded', 'in-transit']] } } } },
+              0,
+            ],
+          },
+          hasDIn: {
+            $gt: [
+              { $size: { $filter: { input: { $ifNull: ['$statusHistory', []] }, as: 'h', cond: { $eq: ['$$h.status', 'reached-destination'] } } } },
+              0,
+            ],
+          },
+          hasDOut: {
+            $gt: [
+              { $size: { $filter: { input: { $ifNull: ['$statusHistory', []] }, as: 'h', cond: { $in: ['$$h.status', ['delivered', 'pod-received', 'closed']] } } } },
+              0,
+            ],
+          },
+          isPodPending: { $eq: ['$status', 'delivered'] },
+          isPodReceived: { $in: ['$status', ['pod-received', 'closed']] },
+        },
+      },
+      {
+        $group: {
+          _id: '$driver',
+          trips: { $sum: 1 },
+          sIn: { $sum: { $cond: ['$hasSIn', 1, 0] } },
+          sOut: { $sum: { $cond: ['$hasSOut', 1, 0] } },
+          dIn: { $sum: { $cond: ['$hasDIn', 1, 0] } },
+          dOut: { $sum: { $cond: ['$hasDOut', 1, 0] } },
+          podPending: { $sum: { $cond: ['$isPodPending', 1, 0] } },
+          podReceived: { $sum: { $cond: ['$isPodReceived', 1, 0] } },
+        },
+      },
+      {
+        $lookup: {
+          from: 'drivers',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'driverDoc',
+        },
+      },
+      { $unwind: { path: '$driverDoc', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'vehicles',
+          localField: 'driverDoc.vehicles',
+          foreignField: '_id',
+          as: 'vehicles',
+          pipeline: [{ $project: { vehicleNumber: 1, truckType: 1 } }],
+        },
+      },
+      {
+        $project: {
+          _id: '$driverDoc._id',
+          name: '$driverDoc.name',
+          phone: '$driverDoc.phone',
+          status: '$driverDoc.status',
+          lastActive: '$driverDoc.lastActive',
+          preferredTruckTypes: '$driverDoc.preferredTruckTypes',
+          vehicles: 1,
+          trips: 1,
+          sIn: 1,
+          sOut: 1,
+          dIn: 1,
+          dOut: 1,
+          podPending: 1,
+          podReceived: 1,
+        },
+      },
+    ]);
+
+    const p = (n, total) => (total > 0 ? Math.round((n / total) * 100) : 0);
+
+    return agg.map((r) => ({
+      _id: r._id,
+      name: r.name,
+      phone: r.phone || '—',
+      vehicleNumber: r.vehicles?.[0]?.vehicleNumber,
+      truckType: r.vehicles?.[0]?.truckType || r.preferredTruckTypes?.[0],
+      appInstalled: !!r.lastActive,
+      availability: r.status,
+      trips: r.trips,
+      podPending: r.podPending,
+      podReceived: r.podReceived,
+      sIn: r.sIn,
+      sInPct: p(r.sIn, r.trips),
+      sOut: r.sOut,
+      sOutPct: p(r.sOut, r.trips),
+      dIn: r.dIn,
+      dInPct: p(r.dIn, r.trips),
+      dOut: r.dOut,
+      dOutPct: p(r.dOut, r.trips),
+    }));
+
+    await cacheSet(cacheKey, rows);
+    return rows;
+  }
+
+  /**
+   * Dashboard: single aggregation returning count per status (replaces N per-status getAll calls).
+   */
+  static async getRingCounts() {
+    const cacheKey = 'dashboard:ringCounts';
+    const cached = await cacheGet(cacheKey);
+    if (cached) return cached;
+
+    const agg = await Booking.aggregate([
+      { $match: { isDeleted: false } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]);
+    const result = {};
+    agg.forEach((r) => { result[r._id] = r.count; });
+    await cacheSet(cacheKey, result);
+    return result;
   }
 }
 

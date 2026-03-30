@@ -399,6 +399,69 @@ class DriverService {
     return driver;
   }
 
+  /** Add a bank account to the driver's bankAccounts array. */
+  static async addBankAccount(driverId, data) {
+    const driver = await Driver.findById(driverId).select('+bankAccounts.accountNumber');
+    if (!driver) throw new ApiError(404, 'Driver not found');
+
+    const isFirst = driver.bankAccounts.length === 0;
+    driver.bankAccounts.push({
+      accountNumber:     data.accountNumber,
+      ifscCode:          data.ifscCode,
+      accountHolderName: data.accountHolderName,
+      bankName:          data.bankName,
+      branchName:        data.branchName,
+      isPrimary:         isFirst || !!data.isPrimary,
+    });
+    // Ensure only one primary
+    if (data.isPrimary) {
+      driver.bankAccounts.forEach((a, i) => {
+        a.isPrimary = i === driver.bankAccounts.length - 1;
+      });
+    }
+    await driver.save();
+    return driver;
+  }
+
+  /** Update a bank account entry. */
+  static async updateBankAccount(driverId, accountId, data) {
+    const driver = await Driver.findById(driverId).select('+bankAccounts.accountNumber');
+    if (!driver) throw new ApiError(404, 'Driver not found');
+
+    const account = driver.bankAccounts.id(accountId);
+    if (!account) throw new ApiError(404, 'Bank account not found');
+
+    if (data.accountNumber !== undefined) account.accountNumber     = data.accountNumber;
+    if (data.ifscCode       !== undefined) account.ifscCode          = data.ifscCode;
+    if (data.accountHolderName !== undefined) account.accountHolderName = data.accountHolderName;
+    if (data.bankName       !== undefined) account.bankName          = data.bankName;
+    if (data.branchName     !== undefined) account.branchName        = data.branchName;
+    if (data.isPrimary) {
+      driver.bankAccounts.forEach((a) => { a.isPrimary = false; });
+      account.isPrimary = true;
+    }
+    await driver.save();
+    return driver;
+  }
+
+  /** Remove a bank account entry. */
+  static async removeBankAccount(driverId, accountId) {
+    const driver = await Driver.findById(driverId).select('+bankAccounts.accountNumber');
+    if (!driver) throw new ApiError(404, 'Driver not found');
+
+    const account = driver.bankAccounts.id(accountId);
+    if (!account) throw new ApiError(404, 'Bank account not found');
+
+    const wasPrimary = account.isPrimary;
+    account.deleteOne();
+    // If removed was primary, set first remaining as primary
+    if (wasPrimary && driver.bankAccounts.length > 0) {
+      driver.bankAccounts[0].isPrimary = true;
+    }
+    await driver.save();
+    return driver;
+  }
+
   /**
    * Update driver location
    * @param {string} driverId - Driver ID

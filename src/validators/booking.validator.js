@@ -50,8 +50,8 @@ export const createBookingSchema = z.object({
     laneCode:        z.string().optional(),
     sourceCode:      z.string().optional(),
     destinationCode: z.string().optional(),
-    supplier:        z.string().optional(),
-    indentType:      z.enum(['FTL', 'LTL', 'PTL']).nullable().optional().default(null),
+    supplierEntity:  z.string().optional(), // ObjectId ref to Supplier
+    loadType:        z.enum(['FTL', 'LTL', 'PTL']).nullable().optional().default(null),
     exim:            z.enum(['domestic', 'import', 'export']).optional().default('domestic'),
     trafficManager:  z.string().optional(),
     supplierPrice:   z.preprocess((v) => (v === undefined ? 0 : parseFloat(v)), z.number().nonnegative()).optional().default(0),
@@ -162,6 +162,7 @@ export const updateStatusSchema = z.object({
       'loaded',
       'in-transit',
       'reached-destination',
+      'unloading',
       'delivered',
       'pod-received',
       'closed',
@@ -215,8 +216,21 @@ export const updateBookingSchema = z.object({
     postToSupplier: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional(),
     supervisor: z.string().optional(),
     laneCode: z.string().optional(),
-    indentType: z.enum(['FTL', 'LTL', 'PTL']).nullable().optional(),
+    loadType: z.enum(['FTL', 'LTL', 'PTL']).nullable().optional(),
     remarks: z.string().optional(),
+    podCourier: z.string().optional(),
+    podDocketNo: z.string().optional(),
+    podAckNo: z.string().optional(),
+    supplierTds: z.preprocess(v => v === undefined || v === null ? null : parseFloat(v), z.number().min(0).max(100).nullable()).optional(),
+    actualKm: z.preprocess(v => v === undefined ? undefined : parseFloat(v), z.number().positive()).optional(),
+    // LR & Reference Number fields
+    boeNumber: z.string().trim().optional(),
+    jobNo: z.string().trim().optional(),
+    hireChallan: z.string().trim().optional(),
+    invoiceNo: z.string().trim().optional(),
+    shipmentNo: z.string().trim().optional(),
+    containerNo: z.string().trim().optional(),
+    poNumber: z.string().trim().optional(),
   })
 });
 

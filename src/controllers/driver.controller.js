@@ -27,6 +27,15 @@ const mapDriver = (drv) => {
     chequePhoto: d.documents?.chequeImage?.url || null,
     tdsDocument: d.documents?.tdsDocument?.url || null,
     bankDetails: d.bankDetails || null,
+    bankAccounts: (d.bankAccounts || []).map((a) => ({
+      _id:               a._id,
+      accountNumber:     a.accountNumber ? `****${String(a.accountNumber).slice(-4)}` : null,
+      ifscCode:          a.ifscCode || null,
+      accountHolderName: a.accountHolderName || null,
+      bankName:          a.bankName || null,
+      branchName:        a.branchName || null,
+      isPrimary:         !!a.isPrimary,
+    })),
     gstin: d.gstin || null,
     status: d.isBlacklisted ? 'blocked' : d.availability || (d.isBlacklisted ? 'blocked' : 'offline'),
     isVerified: d.isVerified,
@@ -582,4 +591,21 @@ export const submitAccountInfo = asyncHandler(async (req, res) => {
   return res.status(201).json(
     new ApiResponse(201, driver, 'Account information submitted successfully')
   );
+});
+
+// ── Bank Account CRUD ─────────────────────────────────────────────────────────
+
+export const addBankAccount = asyncHandler(async (req, res) => {
+  const driver = await DriverService.addBankAccount(req.params.id, req.body);
+  res.status(201).json(new ApiResponse(201, driver, 'Bank account added'));
+});
+
+export const updateBankAccount = asyncHandler(async (req, res) => {
+  const driver = await DriverService.updateBankAccount(req.params.id, req.params.accountId, req.body);
+  res.json(new ApiResponse(200, driver, 'Bank account updated'));
+});
+
+export const removeBankAccount = asyncHandler(async (req, res) => {
+  const driver = await DriverService.removeBankAccount(req.params.id, req.params.accountId);
+  res.json(new ApiResponse(200, driver, 'Bank account removed'));
 });

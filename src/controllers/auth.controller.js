@@ -38,15 +38,23 @@ export const resendOTP = asyncHandler(async (req, res) => {
  */
 export const verifyOTP = asyncHandler(async (req, res) => {
   const { phone, otp, role, deviceInfo } = req.body;
-  
+
+  console.log('[verifyOTP] raw body:', JSON.stringify(req.body));
+  console.log('[verifyOTP] phone:', phone, '| otp:', otp, '| role:', role);
+
   const verification = await otpService.verifyOTP(phone, otp);
-  
+
+  console.log('[verifyOTP] MSG91 result:', JSON.stringify(verification));
+
   if (!verification.success) {
+    console.log('[verifyOTP] OTP verification failed:', verification.message);
     throw new ApiError(401, verification.message || 'Invalid OTP');
   }
-  
+
+  console.log('[verifyOTP] OTP verified, calling mobileLogin...');
   // If verification successful, perform login
   const result = await AuthService.mobileLogin(phone, role, deviceInfo);
+  console.log('[verifyOTP] mobileLogin success, user id:', result?.user?._id);
 
   // Set tokens in cookies
   const cookieOptions = {

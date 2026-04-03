@@ -134,6 +134,11 @@ export const mapBooking = (b) => {
     loadType: bk.loadType || bk.indentType || null,
     exim: bk.exim || 'domestic',
     trafficManager: bk.trafficManager || null,
+    trafficController: bk.trafficController ? {
+      _id: bk.trafficController._id || bk.trafficController,
+      name: bk.trafficController.name || null,
+      phone: bk.trafficController.user?.phone || bk.trafficController.phone || null,
+    } : null,
     supervisor: bk.supervisor ? {
       _id: bk.supervisor._id || bk.supervisor,
       name: bk.supervisor.name,

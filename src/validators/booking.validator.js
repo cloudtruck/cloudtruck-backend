@@ -206,6 +206,7 @@ export const updateBookingSchema = z.object({
     requiresTemperatureControl: z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional(),
     // Indent-specific fields
     trafficManager: z.string().optional(),
+    trafficController: z.string().optional(),
     numberOfTrucks: z.preprocess((v) => (v === undefined ? v : parseInt(v)), z.number().int().min(1).max(10)).optional(),
     customerPrice: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(0)).optional(),
     supplierPrice: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(0)).optional(),

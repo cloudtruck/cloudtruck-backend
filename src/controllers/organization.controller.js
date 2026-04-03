@@ -14,19 +14,75 @@ export const getSettings = asyncHandler(async (req, res) => {
   );
 });
 
-// @desc    Update organization settings
+// Fields that may be updated via the general PATCH /settings endpoint (Master Tab settings).
+// All other fields must use their dedicated endpoints to prevent mass-assignment.
+const MASTER_TAB_ALLOWED_FIELDS = new Set([
+  'podMandatory',
+  'noPodAttached',
+  'noPodMarket',
+  'serviceChargesEnabled',
+  'partnerCode',
+  'eximEnabled',
+  'customerBudgetLimitEnabled',
+  'additionPointCharge',
+  'bmAccess',
+  'paymentMamul',
+  'documentsMandatory',
+  'documentsMandatoryFor',
+  'deleteTripTimeRoles',
+  'processSupplierAdvance',
+  'tripConfirmationEnabled',
+  'lrMandatory',
+  'lrMandatoryFields',
+  'supplierAdvanceEditMode',
+  'deleteTripRoles',
+  'deleteLrRoles',
+  'kycDocsMandatoryEnabled',
+  'kycDocsMandatoryFor',
+]);
+
+const VALID_BM_ACCESS = new Set(['none', 'read', 'full']);
+const VALID_PAYMENT_MAMUL = new Set(['none', 'custom', 'slab']);
+const VALID_SUPPLIER_ADVANCE_MODE = new Set(['price', 'percent']);
+
+// @desc    Update organization settings (Master Tab fields only)
 // @route   PATCH /api/v1/organization/settings
 // @access  Super-admin
 export const updateSettings = asyncHandler(async (req, res) => {
-  const updates = req.body;
-  
-  // Prevent updating certain fields directly
-  delete updates._id;
-  delete updates.createdAt;
-  delete updates.currentBookingNumber; // Use separate endpoint for this
-  
-  const settings = await OrganizationSettings.updateSettings(updates, req.user._id);
-  
+  // Strip to allowlist only — prevents mass-assignment of sensitive fields
+  // (addresses, deletionPolicy, enabledFeatures, bookingSeriesPrefix, etc.)
+  const updates = Object.fromEntries(
+    Object.entries(req.body).filter(([k]) => MASTER_TAB_ALLOWED_FIELDS.has(k))
+  );
+
+  // Enum validation
+  if (updates.bmAccess !== undefined && !VALID_BM_ACCESS.has(updates.bmAccess)) {
+    throw new ApiError(400, `Invalid bmAccess value. Must be one of: ${[...VALID_BM_ACCESS].join(', ')}`);
+  }
+  if (updates.paymentMamul !== undefined && !VALID_PAYMENT_MAMUL.has(updates.paymentMamul)) {
+    throw new ApiError(400, `Invalid paymentMamul value. Must be one of: ${[...VALID_PAYMENT_MAMUL].join(', ')}`);
+  }
+  if (updates.supplierAdvanceEditMode !== undefined && !VALID_SUPPLIER_ADVANCE_MODE.has(updates.supplierAdvanceEditMode)) {
+    throw new ApiError(400, `Invalid supplierAdvanceEditMode value. Must be one of: ${[...VALID_SUPPLIER_ADVANCE_MODE].join(', ')}`);
+  }
+  if (updates.additionPointCharge !== undefined) {
+    const n = Number(updates.additionPointCharge);
+    if (isNaN(n) || n < 0) throw new ApiError(400, 'additionPointCharge must be a non-negative number');
+    updates.additionPointCharge = n;
+  }
+
+  const settings = await OrganizationSettings.getInstance();
+
+  // Merge lrMandatory sub-document instead of overwriting it entirely
+  if (updates.lrMandatory) {
+    const existing = settings.lrMandatory?.toObject?.() ?? settings.lrMandatory ?? {};
+    updates.lrMandatory = { ...existing, ...updates.lrMandatory };
+  }
+
+  Object.assign(settings, updates);
+  settings.updatedBy = req.user._id;
+  await settings.save();
+
   res.json(
     new ApiResponse(200, settings, 'Organization settings updated successfully')
   );

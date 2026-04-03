@@ -655,12 +655,12 @@ class BookingService {
       created: ['under-review', 'cancelled'],
       'under-review': ['assigned', 'cancelled'],
       assigned: ['driver-en-route', 'cancelled'],
-      'driver-en-route': ['reached-pickup'],
-      'reached-pickup': ['loaded'],
-      loaded: ['in-transit'],
-      'in-transit': ['reached-destination'],
-      'reached-destination': ['unloading'],
-      'unloading': ['delivered'],
+      'driver-en-route': ['reached-pickup', 'cancelled'],
+      'reached-pickup': ['loaded', 'cancelled'],
+      loaded: ['in-transit', 'cancelled'],
+      'in-transit': ['reached-destination', 'cancelled'],
+      'reached-destination': ['unloading', 'cancelled'],
+      unloading: ['delivered', 'cancelled'],
       delivered: ['pod-received'],
       'pod-received': ['closed']
     };

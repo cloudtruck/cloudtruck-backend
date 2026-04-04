@@ -54,6 +54,7 @@ export const createBookingSchema = z.object({
     loadType:        z.enum(['FTL', 'LTL', 'PTL']).nullable().optional().default(null),
     exim:            z.enum(['domestic', 'import', 'export']).optional().default('domestic'),
     trafficManager:  z.string().optional(),
+    trafficController: z.string().optional(),
     supplierPrice:   z.preprocess((v) => (v === undefined ? 0 : parseFloat(v)), z.number().nonnegative()).optional().default(0),
     customerPrice:   z.preprocess((v) => (v === undefined ? 0 : parseFloat(v)), z.number().nonnegative()).optional().default(0),
     ratePerTon:      z.preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean()).optional().default(false),

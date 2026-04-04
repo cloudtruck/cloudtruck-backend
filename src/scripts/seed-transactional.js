@@ -331,8 +331,10 @@ const seedDriversAndVehicles = async () => {
       licenseNumber: 'MH0120230012345',
       city: 'Mumbai',
       preferredTruckTypes: ['container-20ft', 'container-32ft'],
+      // own — Cloudtruck owns this truck, driver operates it
       vehicle: {
         vehicleNumber: 'MH12AB1001',
+        ownershipType: 'own',
         truckType: 'container-20ft',
         bodyType: 'container',
         length: { value: 20, unit: 'ft' },
@@ -347,8 +349,10 @@ const seedDriversAndVehicles = async () => {
       licenseNumber: 'DL0120220054321',
       city: 'Delhi',
       preferredTruckTypes: ['32ft-sxl', '32ft-mxl'],
+      // own — Cloudtruck owns this truck
       vehicle: {
         vehicleNumber: 'DL08AB2002',
+        ownershipType: 'own',
         truckType: '32ft-sxl',
         bodyType: 'closed',
         length: { value: 32, unit: 'ft' },
@@ -363,8 +367,10 @@ const seedDriversAndVehicles = async () => {
       licenseNumber: 'GJ0120230078901',
       city: 'Ahmedabad',
       preferredTruckTypes: ['taurus-25', '32ft-mxl'],
+      // leased — financed truck, Cloudtruck operates it
       vehicle: {
         vehicleNumber: 'GJ01BZ3003',
+        ownershipType: 'leased',
         truckType: 'taurus-25',
         bodyType: 'open',
         length: { value: 32, unit: 'ft' },
@@ -379,8 +385,10 @@ const seedDriversAndVehicles = async () => {
       licenseNumber: 'KA0120210098765',
       city: 'Bangalore',
       preferredTruckTypes: ['eicher-19ft', 'eicher-17ft'],
+      // attached — driver owns this truck (market)
       vehicle: {
         vehicleNumber: 'KA03CD4004',
+        ownershipType: 'attached',
         truckType: 'eicher-19ft',
         bodyType: 'closed',
         length: { value: 19, unit: 'ft' },
@@ -395,8 +403,10 @@ const seedDriversAndVehicles = async () => {
       licenseNumber: 'TN0120220043210',
       city: 'Chennai',
       preferredTruckTypes: ['container-32ft', 'container-40ft'],
+      // attached — driver owns this truck (market)
       vehicle: {
         vehicleNumber: 'TN09EF5005',
+        ownershipType: 'attached',
         truckType: 'container-32ft',
         bodyType: 'container',
         length: { value: 32, unit: 'ft' },
@@ -449,6 +459,7 @@ const seedDriversAndVehicles = async () => {
     });
 
     const futureExpiry = daysFromNow(365);
+    const isAttached = d.vehicle.ownershipType === 'attached';
     const vehicle = await Vehicle.create({
       vehicleNumber:      d.vehicle.vehicleNumber,
       truckType:          d.vehicle.truckType,
@@ -457,8 +468,12 @@ const seedDriversAndVehicles = async () => {
       capacity:           d.vehicle.capacity,
       height:             { value: 8, unit: 'ft' },
       manufacturer:       d.vehicle.manufacturer,
-      owner:              driver._id,
-      ownershipType:      'own',
+      ownershipType:      d.vehicle.ownershipType,
+      // For attached trucks: driver is the RC owner; for own/leased: no external owner
+      ...(isAttached ? {
+        owner:    driver._id,
+        ownerRef: { kind: 'Driver', item: driver._id },
+      } : {}),
       registrationCity:   d.vehicle.registrationCity,
       availability:       'available',
       status:             'active',

@@ -540,6 +540,12 @@ class BookingService {
         const ids = [...userIds];
         const staffList = await Staff.find({ user: { $in: ids }, isDeleted: false }).select('user name').lean();
         for (const s of staffList) staffByUser[s.user.toString()] = s.name;
+        // For user IDs with no Staff record (super-admin/internal), fall back to User email
+        const missingIds = ids.filter(id => !staffByUser[id.toString()]);
+        if (missingIds.length) {
+          const userList = await User.find({ _id: { $in: missingIds } }).select('_id email').lean();
+          for (const u of userList) staffByUser[u._id.toString()] = u.email || null;
+        }
       }
       result.docs = docs.map(b => {
         const plain = b.toObject ? b.toObject() : { ...b };

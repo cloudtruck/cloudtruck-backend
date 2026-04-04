@@ -133,7 +133,6 @@ export const mapBooking = (b) => {
     isAdhoc: bk.isAdhoc || false,
     loadType: bk.loadType || bk.indentType || null,
     exim: bk.exim || 'domestic',
-    trafficManager: bk.trafficManager || null,
     trafficController: bk.trafficController ? {
       _id: bk.trafficController._id || bk.trafficController,
       name: bk.trafficController.name || null,

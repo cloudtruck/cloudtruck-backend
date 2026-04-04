@@ -74,6 +74,7 @@ export const getVehiclesQuerySchema = z.object({
     search: z.string().optional(),
     status: z.string().optional(),
     verificationStatus: z.string().optional(),
+    ownershipType: z.string().optional(),
     page: z.string().optional(),
     limit: z.string().optional(),
     sort: z.string().optional()

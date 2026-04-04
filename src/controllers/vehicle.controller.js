@@ -1,6 +1,9 @@
 import VehicleService from '../services/vehicle.service.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
+import ApiError from '../utils/ApiError.js';
+import AuditLog from '../models/auditLog.model.js';
+import Vehicle from '../models/vehicle.model.js';
 
 /**
  * Create Vehicle
@@ -51,6 +54,7 @@ export const getAllVehicles = asyncHandler(async (req, res) => {
     search,
     status,
     verificationStatus,
+    ownershipType,
     page,
     limit,
     sort
@@ -69,7 +73,10 @@ export const getAllVehicles = asyncHandler(async (req, res) => {
     hasFASTag: hasFASTag === 'true' ? true : hasFASTag === 'false' ? false : undefined,
     search,
     status,
-    verificationStatus
+    verificationStatus,
+    ownershipType: ownershipType
+      ? Array.isArray(ownershipType) ? ownershipType : ownershipType.split(',')
+      : undefined,
   };
 
   const pagination = { page, limit, sort };
@@ -311,3 +318,37 @@ export const deleteVehicle = asyncHandler(async (req, res) => {
     new ApiResponse(200, vehicle, 'Vehicle deleted successfully')
   );
 });
+
+/**
+ * Add Note to Vehicle
+ * POST /api/v1/vehicles/:id/notes
+ */
+export const addVehicleNote = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { text } = req.body;
+  if (!text?.trim()) throw new ApiError(400, 'Note text is required');
+  const vehicle = await Vehicle.findById(id);
+  if (!vehicle) throw new ApiError(404, 'Vehicle not found');
+  await AuditLog.create({
+    user: req.user._id,
+    action: 'ADD_VEHICLE_NOTE',
+    entityType: 'vehicle',
+    entityId: vehicle._id,
+    context: { module: 'vehicle-management', description: text.trim(), severity: 'low' }
+  });
+  return res.status(201).json(new ApiResponse(201, {}, 'Note added'));
+});
+
+/**
+ * Get Vehicle Audit Logs (comments)
+ * GET /api/v1/vehicles/:id/notes
+ */
+export const getVehicleNotes = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const logs = await AuditLog.find({ entityType: 'vehicle', entityId: id })
+    .sort({ timestamp: -1 })
+    .limit(50)
+    .populate('user', 'name email phone');
+  return res.status(200).json(new ApiResponse(200, logs, 'Notes fetched'));
+});
+

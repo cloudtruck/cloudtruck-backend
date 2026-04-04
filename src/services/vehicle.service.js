@@ -27,6 +27,7 @@ class VehicleService {
       year,
       owner,
       ownerRef: ownerRefInput,
+      ownershipType,
       registrationState,
       permitType,
       expiryDates,
@@ -41,8 +42,10 @@ class VehicleService {
         ? { kind: 'Driver', item: owner }
         : null;
 
-    if (!resolvedOwnerRef) {
-      throw new ApiError(400, 'Vehicle owner is required (provide ownerRef or owner)');
+    // Owner is required only for market (attached) trucks; own/leased belong to Cloudtruck
+    const effectiveOwnershipType = ownershipType || 'own';
+    if (!resolvedOwnerRef && effectiveOwnershipType === 'attached') {
+      throw new ApiError(400, 'Market trucks require an owner (driver or supplier)');
     }
 
     // Check if vehicle number already exists
@@ -55,16 +58,18 @@ class VehicleService {
       throw new ApiError(400, 'Vehicle number already registered');
     }
 
-    // Verify owner exists
-    if (resolvedOwnerRef.kind === 'Driver') {
-      const driver = await Driver.findById(resolvedOwnerRef.item);
-      if (!driver || driver.isDeleted) {
-        throw new ApiError(404, 'Vehicle owner (driver) not found');
+    // Verify owner exists (only when ownerRef is provided)
+    if (resolvedOwnerRef) {
+      if (resolvedOwnerRef.kind === 'Driver') {
+        const driver = await Driver.findById(resolvedOwnerRef.item);
+        if (!driver || driver.isDeleted) {
+          throw new ApiError(404, 'Vehicle owner (driver) not found');
+        }
+      } else if (resolvedOwnerRef.kind === 'Supplier') {
+        const Supplier = (await import('../models/supplier.model.js')).default;
+        const supplier = await Supplier.findOne({ _id: resolvedOwnerRef.item, isDeleted: false });
+        if (!supplier) throw new ApiError(404, 'Vehicle owner (supplier) not found');
       }
-    } else if (resolvedOwnerRef.kind === 'Supplier') {
-      const Supplier = (await import('../models/supplier.model.js')).default;
-      const supplier = await Supplier.findOne({ _id: resolvedOwnerRef.item, isDeleted: false });
-      if (!supplier) throw new ApiError(404, 'Vehicle owner (supplier) not found');
     }
 
     // Create vehicle
@@ -77,8 +82,11 @@ class VehicleService {
       manufacturer,
       model,
       year,
-      ownerRef: resolvedOwnerRef,
-      owner: resolvedOwnerRef.kind === 'Driver' ? resolvedOwnerRef.item : undefined,
+      ownershipType: effectiveOwnershipType,
+      ...(resolvedOwnerRef && {
+        ownerRef: resolvedOwnerRef,
+        owner: resolvedOwnerRef.kind === 'Driver' ? resolvedOwnerRef.item : undefined,
+      }),
       registrationState,
       permitType,
       expiryDates,
@@ -314,7 +322,8 @@ class VehicleService {
       hasFASTag,
       search,
       status,
-      verificationStatus
+      verificationStatus,
+      ownershipType,
     } = filters;
 
     const query = { isDeleted: false };
@@ -346,6 +355,9 @@ class VehicleService {
       }
     }
     if (verificationStatus) query.verificationStatus = verificationStatus;
+    if (ownershipType) {
+      query.ownershipType = Array.isArray(ownershipType) ? { $in: ownershipType } : ownershipType;
+    }
 
     // Search by vehicle number or registration state
     if (search) {

@@ -52,6 +52,10 @@ router.post('/:id/location', verifyJWT, checkRole('staff', 'driver', 'internal',
 router.patch('/:id/availability', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(updateAvailabilitySchema), vehicleController.updateAvailability);
 router.post('/:id/maintenance', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(addMaintenanceSchema), vehicleController.addMaintenance);
 
+// Notes / comments
+router.post('/:id/notes', verifyJWT, checkRole('staff', 'internal', 'super-admin'), vehicleController.addVehicleNote);
+router.get('/:id/notes', verifyJWT, checkRole('staff', 'internal', 'super-admin'), vehicleController.getVehicleNotes);
+
 // Admin only - delete (staff role requires approval from internal/super-admin)
 router.delete('/:id', verifyJWT, checkRole('super-admin', 'internal', 'staff'), validate(vehicleIdParamSchema), requireDeleteApproval('vehicle', 'Vehicle'), vehicleController.deleteVehicle);
 

@@ -2,6 +2,8 @@ import axios from 'axios';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
 
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+
 class LocationService {
   /**
    * Geocode address to coordinates

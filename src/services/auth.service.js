@@ -95,6 +95,19 @@ class AuthService {
           throw new ApiError(403, 'Account locked due to multiple failed login attempts');
         }
 
+        // Ensure profile exists for existing users (guards against orphaned User records)
+        if (role === 'customer') {
+          const existingCustomer = await Customer.findOne({ user: user._id });
+          if (!existingCustomer) {
+            await Customer.create({ user: user._id, companyName: 'New Customer', createdBy: user._id });
+          }
+        } else if (role === 'driver' || role === 'supplier') {
+          const existingDriver = await Driver.findOne({ user: user._id });
+          if (!existingDriver) {
+            await Driver.create({ user: user._id, name: 'New Driver', licenseNumber: 'PENDING', createdBy: user._id });
+          }
+        }
+
         // Update FCM token if provided
         if (deviceInfo.fcmToken && user.fcmToken !== deviceInfo.fcmToken) {
           user.fcmToken = deviceInfo.fcmToken;

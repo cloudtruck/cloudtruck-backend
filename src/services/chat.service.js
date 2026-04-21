@@ -71,7 +71,8 @@ class ChatService {
       throw new ApiError(404, 'Conversation not found');
     }
 
-    const isParticipant = conversation.participants.some(p => p.toString() === senderId.toString());
+    const isStaff = ['staff', 'internal', 'super-admin'].includes(senderRole);
+    const isParticipant = isStaff || conversation.participants.some(p => p.toString() === senderId.toString());
     if (!isParticipant) {
       throw new ApiError(403, 'You are not a participant in this conversation');
     }

@@ -48,7 +48,8 @@ export default function chatSocketHandler(io) {
           return socket.emit('error', { message: 'Conversation not found' });
         }
 
-        const isParticipant = conversation.participants.some(
+        const isStaff = ['staff', 'internal', 'super-admin'].includes(role);
+        const isParticipant = isStaff || conversation.participants.some(
           p => p.toString() === userId
         );
 

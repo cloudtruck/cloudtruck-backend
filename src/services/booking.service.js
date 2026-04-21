@@ -659,7 +659,7 @@ class BookingService {
     // Validate status transition
     const validTransitions = {
       created: ['under-review', 'cancelled'],
-      'under-review': ['assigned', 'cancelled'],
+      'under-review': ['cancelled'],
       assigned: ['driver-en-route', 'cancelled'],
       'driver-en-route': ['reached-pickup', 'cancelled'],
       'reached-pickup': ['loaded', 'cancelled'],
@@ -673,6 +673,10 @@ class BookingService {
 
     if (!validTransitions[booking.status]?.includes(newStatus)) {
       throw new ApiError(400, `Invalid status transition from ${booking.status} to ${newStatus}`);
+    }
+
+    if (newStatus === 'assigned' && (!booking.driver || !booking.vehicle)) {
+      throw new ApiError(400, 'Cannot set status to assigned: driver and vehicle must be assigned first');
     }
 
     // Store old status for audit

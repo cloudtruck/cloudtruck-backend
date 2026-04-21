@@ -54,6 +54,7 @@ router.patch('/:id/credit-limit', verifyJWT, checkRole('internal', 'super-admin'
 
 // Staff/Admin routes - management
 router.post('/:id/verify', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(customerIdParamSchema), customerController.verifyCustomer);
+router.patch('/:id/approve', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(customerIdParamSchema), customerController.verifyCustomer);
 router.post('/:id/assign-manager', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(assignAccountManagerSchema), customerController.assignAccountManager);
 
 // Admin only - delete (staff role requires approval from internal/super-admin)

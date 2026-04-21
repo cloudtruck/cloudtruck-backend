@@ -589,7 +589,7 @@ class CustomerService {
     if (filters.status) {
       // Map customer-facing status labels to internal DB statuses
       const CUSTOMER_STATUS_MAP = {
-        'in-transit': ['assigned', 'driver-en-route', 'reached-pickup', 'loaded', 'in-transit', 'reached-destination'],
+        'in-transit': ['driver-en-route', 'reached-pickup', 'loaded', 'in-transit', 'reached-destination'],
         'delivered':  ['delivered', 'pod-received', 'closed']
       };
       const rawStatuses = Array.isArray(filters.status) ? filters.status : [filters.status];

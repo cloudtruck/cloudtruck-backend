@@ -152,6 +152,33 @@ class SupportTicketService {
   }
 
   /**
+   * Update ticket status, priority, assignee, or resolution notes (Staff/Admin)
+   */
+  static async updateTicket(id, data) {
+    const ticket = await SupportTicket.findOne({ _id: id, isDeleted: false });
+    if (!ticket) throw new ApiError(404, 'Ticket not found');
+
+    const { status, priority, assignedTo, resolutionNotes } = data;
+
+    if (status) ticket.status = status;
+    if (priority) ticket.priority = priority;
+    if (assignedTo !== undefined) ticket.assignedTo = assignedTo;
+    if (resolutionNotes !== undefined) ticket.resolutionNotes = resolutionNotes;
+
+    if ((status === 'resolved' || status === 'closed') && !ticket.resolvedAt) {
+      ticket.resolvedAt = new Date();
+    }
+
+    await ticket.save();
+
+    return SupportTicket.findById(ticket._id)
+      .populate('user', 'name phone email role')
+      .populate('booking', 'bookingId status')
+      .populate('assignedTo', 'name department')
+      .populate('replies.user', 'name phone email role');
+  }
+
+  /**
    * Get single ticket by ID
    */
   static async getTicketById(id, requesterId, requesterRole) {

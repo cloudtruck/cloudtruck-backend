@@ -51,3 +51,19 @@ export const ticketIdParamSchema = z.object({
     id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ticket ID')
   })
 });
+
+/**
+ * Update Ticket Validator (Staff/Admin)
+ * PATCH /api/v1/support-tickets/:id
+ */
+export const updateTicketSchema = z.object({
+  params: z.object({
+    id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ticket ID')
+  }),
+  body: z.object({
+    status: z.enum(['open', 'in-progress', 'resolved', 'closed']).optional(),
+    priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+    assignedTo: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid staff ID').optional(),
+    resolutionNotes: z.string().max(1000).optional()
+  }).refine(data => Object.keys(data).length > 0, { message: 'At least one field must be provided' })
+});

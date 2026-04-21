@@ -6,7 +6,8 @@ import { validate } from '../middlewares/validation.middleware.js';
 import {
   createTicketSchema,
   getSupportTicketsQuerySchema,
-  ticketIdParamSchema
+  ticketIdParamSchema,
+  updateTicketSchema
 } from '../validators/supportTicket.validator.js';
 
 const router = express.Router();
@@ -42,6 +43,18 @@ router.get(
   checkRole('driver', 'customer', 'staff', 'internal', 'super-admin'), 
   validate(getSupportTicketsQuerySchema), 
   supportTicketController.getAllTickets
+);
+
+/**
+ * Update Ticket (Staff/Admin)
+ * PATCH /api/v1/support-tickets/:id
+ */
+router.patch(
+  '/:id',
+  verifyJWT,
+  checkRole('staff', 'internal', 'super-admin'),
+  validate(updateTicketSchema),
+  supportTicketController.updateTicket
 );
 
 /**

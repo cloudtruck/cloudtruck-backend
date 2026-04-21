@@ -79,6 +79,16 @@ export const addReply = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Update Ticket (Staff/Admin)
+ * PATCH /api/v1/support-tickets/:id
+ */
+export const updateTicket = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const ticket = await SupportTicketService.updateTicket(id, req.body);
+  return res.status(200).json(new ApiResponse(200, ticket, 'Ticket updated successfully'));
+});
+
+/**
  * Get Ticket By ID
  * GET /api/v1/support-tickets/:id
  */

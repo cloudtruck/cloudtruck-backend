@@ -55,6 +55,15 @@ router.get('/:id', verifyJWT, bookingController.getBookingById);
 // Driver invoice — after /:id so it matches /:id/driver-invoice correctly
 router.get('/:id/driver-invoice', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), bookingController.getDriverInvoice);
 
+// LR (Loading Memo) PDF — generate (cached), download stream
+router.get('/:id/generate-lr', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.generateLR);
+router.get('/:id/download-lr', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.downloadLR);
+
+// Invoice PDF — download as stream for staff/admin
+router.get('/:id/download-invoice', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.downloadBookingInvoicePdf);
+router.get('/:id/generate-invoice', verifyJWT, checkRole('staff', 'internal', 'super-admin'), bookingController.generateCustomerInvoice);
+
+
 // Staff only - booking updates
 router.patch(
   '/:id',

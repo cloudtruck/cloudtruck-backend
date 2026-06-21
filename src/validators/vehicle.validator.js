@@ -43,13 +43,20 @@ export const createVehicleSchema = z.object({
       roadTax: z.string().datetime().optional()
     }),
     registrationState: z.string().min(2).optional(),
+    registrationCity: z.string().min(2).optional(),
     permitType: z.enum(['national', 'state', 'city']).optional(),
+    ownershipType: z.enum(['own', 'leased', 'attached']).default('own'),
     hasGPS: z.boolean().optional(),
     hasFASTag: z.boolean().optional(),
     status: z.string().optional()
   }).superRefine((data, ctx) => {
-    if (!data.owner && !data.ownerRef) {
-      ctx.addIssue({ code: 'custom', path: ['ownerRef'], message: 'Either owner or ownerRef is required' });
+    // Owner is required only for 'attached' (market) trucks
+    if (data.ownershipType === 'attached' && !data.owner && !data.ownerRef) {
+      ctx.addIssue({ 
+        code: 'custom', 
+        path: ['ownerRef'], 
+        message: 'Either owner or ownerRef is required for attached vehicles' 
+      });
     }
   })
 });

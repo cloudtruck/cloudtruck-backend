@@ -6,6 +6,7 @@ import MasterData from '../models/masterData.model.js';
 import AuditLog from '../models/auditLog.model.js';
 import TrackingService from '../services/tracking.service.js';
 import PDFService from '../services/pdf.service.js';
+import OrganizationSettings from '../models/organizationSettings.model.js';
 import cloudinary from '../config/cloudinary.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
@@ -239,6 +240,7 @@ export const getAllBookings = asyncHandler(async (req, res) => {
     podPending,
     city,
     search,
+    bookingType,
     page,
     limit,
     sort
@@ -254,7 +256,8 @@ export const getAllBookings = asyncHandler(async (req, res) => {
     truckType: truckType ? truckType.split(',') : undefined,
     podPending: podPending === 'true' ? true : podPending === 'false' ? false : undefined,
     city,
-    search
+    search,
+    bookingType
   };
 
   const pagination = { page, limit, sort };
@@ -689,6 +692,125 @@ export const getDriverBookings = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Generate and upload LR (Lorry Receipt / Loading Memo) PDF to Cloudinary, return URL
+ * GET /api/v1/bookings/:id/generate-lr
+ */
+export const generateLR = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const booking = await Booking.findOne({
+    $or: [
+      ...(id.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: id }] : []),
+      { bookingId: id }
+    ],
+    isDeleted: false
+  })
+    .populate('driver', 'name phone')
+    .populate('vehicle', 'vehicleNumber truckType')
+    .populate('customer', 'companyName gst contactPerson billingAddress address pan')
+    .lean();
+
+  if (!booking) throw new ApiError(404, 'Booking not found');
+
+  // Return cached URL if already generated
+  if (booking.lrPdf?.url) {
+    return res.status(200).json(
+      new ApiResponse(200, { url: booking.lrPdf.url, bookingId: booking.bookingId, lrNumber: booking.lrDetails?.lrNumber }, 'LR generated successfully')
+    );
+  }
+
+  const orgSettings = await OrganizationSettings.getInstance();
+  const pdfBuffer = await PDFService.generateLoadingMemo(booking, orgSettings);
+  const publicId = `cloudtruck/lrs/${randomUUID()}`;
+
+  const uploadResult = await new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { resource_type: 'raw', public_id: publicId, format: 'pdf' },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    stream.end(pdfBuffer);
+  });
+
+  // Persist permanent URL so future requests return it instantly
+  await Booking.updateOne(
+    { _id: booking._id },
+    { lrPdf: { cloudinaryId: uploadResult.public_id, url: uploadResult.secure_url, generatedAt: new Date() } }
+  );
+
+  return res.status(200).json(
+    new ApiResponse(200, { url: uploadResult.secure_url, bookingId: booking.bookingId, lrNumber: booking.lrDetails?.lrNumber }, 'LR generated successfully')
+  );
+});
+
+/**
+ * Download LR (Lorry Receipt / Loading Memo) PDF as binary stream
+ * GET /api/v1/bookings/:id/download-lr
+ */
+export const downloadLR = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const booking = await Booking.findOne({
+    $or: [
+      ...(id.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: id }] : []),
+      { bookingId: id }
+    ],
+    isDeleted: false
+  })
+    .populate('driver', 'name phone')
+    .populate('vehicle', 'vehicleNumber truckType')
+    .populate('customer', 'companyName gst contactPerson billingAddress address pan')
+    .lean();
+
+  if (!booking) throw new ApiError(404, 'Booking not found');
+
+  const orgSettings = await OrganizationSettings.getInstance();
+  const pdfBuffer = await PDFService.generateLoadingMemo(booking, orgSettings);
+
+  const lrNum = booking.lrDetails?.lrNumber || booking.bookingId || id;
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=LR-${lrNum}.pdf`);
+  return res.send(pdfBuffer);
+});
+
+/**
+ * Download customer-facing booking invoice PDF as binary stream
+ * GET /api/v1/bookings/:id/download-invoice
+ */
+export const downloadBookingInvoicePdf = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const booking = await Booking.findOne({
+    $or: [
+      ...(id.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: id }] : []),
+      { bookingId: id }
+    ],
+    isDeleted: false
+  })
+    .populate('customer', 'companyName gst contactPerson billingAddress address pan')
+    .lean();
+
+  if (!booking) throw new ApiError(404, 'Booking not found');
+
+  const PaymentService = (await import('../services/payment.service.js')).default;
+  const summary = await PaymentService.getBookingPaymentSummary(
+    booking.bookingId,
+    req.user._id,
+    req.user.role === 'customer'
+  );
+
+  const orgSettings = await OrganizationSettings.getInstance();
+  const pdfBuffer = await PDFService.generateBookingInvoice(booking, summary, orgSettings);
+
+  const invNo = booking.invoiceNo || booking.bookingId || id;
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=Invoice-${invNo}.pdf`);
+  return res.send(pdfBuffer);
+});
+
+/**
  * Generate and upload driver trip invoice PDF to Cloudinary, return URL
  * GET /api/v1/bookings/:id/driver-invoice
  */
@@ -704,7 +826,7 @@ export const getDriverInvoice = asyncHandler(async (req, res) => {
   })
     .populate('driver', 'name phone')
     .populate('vehicle', 'vehicleNumber truckType')
-    .populate('customer', 'companyName gst contactPerson')
+    .populate('customer', 'companyName gst contactPerson billingAddress address pan')
     .lean();
 
   if (!booking) throw new ApiError(404, 'Booking not found');
@@ -725,7 +847,8 @@ export const getDriverInvoice = asyncHandler(async (req, res) => {
   }
 
   // Generate PDF and upload with UUID public_id (non-guessable, permanent)
-  const pdfBuffer = await PDFService.generateDriverInvoice(booking);
+  const orgSettings = await OrganizationSettings.getInstance();
+  const pdfBuffer = await PDFService.generateDriverInvoice(booking, orgSettings);
   const publicId = `cloudtruck/invoices/${randomUUID()}`;
 
   const uploadResult = await new Promise((resolve, reject) => {
@@ -799,3 +922,63 @@ export const getBookingAuditLogs = asyncHandler(async (req, res) => {
     .populate('user', 'name email');
   return res.status(200).json(new ApiResponse(200, logs, 'Audit logs fetched'));
 });
+
+/**
+ * Generate and upload customer booking invoice PDF to Cloudinary, return URL
+ * GET /api/v1/bookings/:id/generate-invoice
+ */
+export const generateCustomerInvoice = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const booking = await Booking.findOne({
+    $or: [
+      ...(id.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: id }] : []),
+      { bookingId: id }
+    ],
+    isDeleted: false
+  })
+    .populate('customer', 'companyName gst contactPerson billingAddress address pan')
+    .lean();
+
+  if (!booking) throw new ApiError(404, 'Booking not found');
+
+  // Return cached URL if already generated
+  if (booking.customerInvoicePdf?.url) {
+    return res.status(200).json(
+      new ApiResponse(200, { url: booking.customerInvoicePdf.url, bookingId: booking.bookingId, invoiceNo: booking.invoiceNo }, 'Invoice generated successfully')
+    );
+  }
+
+  const PaymentService = (await import('../services/payment.service.js')).default;
+  const summary = await PaymentService.getBookingPaymentSummary(
+    booking.bookingId,
+    req.user._id,
+    req.user.role === 'customer'
+  );
+
+  const orgSettings = await OrganizationSettings.getInstance();
+  const pdfBuffer = await PDFService.generateBookingInvoice(booking, summary, orgSettings);
+  const publicId = `cloudtruck/invoices/${randomUUID()}`;
+
+  const uploadResult = await new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { resource_type: 'raw', public_id: publicId, format: 'pdf' },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    stream.end(pdfBuffer);
+  });
+
+  // Persist permanent URL so future requests return it instantly
+  await Booking.updateOne(
+    { _id: booking._id },
+    { customerInvoicePdf: { cloudinaryId: uploadResult.public_id, url: uploadResult.secure_url, generatedAt: new Date() } }
+  );
+
+  return res.status(200).json(
+    new ApiResponse(200, { url: uploadResult.secure_url, bookingId: booking.bookingId, invoiceNo: booking.invoiceNo }, 'Invoice generated successfully')
+  );
+});
+

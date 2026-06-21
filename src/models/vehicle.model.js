@@ -224,7 +224,7 @@ const vehicleSchema = new mongoose.Schema(
 
     availability: {
       type: String,
-      enum: ['available', 'on-trip', 'maintenance', 'offline'],
+      enum: ['available', 'on-trip', 'maintenance', 'offline', 'unavailable'],
       default: 'available',
       index: true
     },

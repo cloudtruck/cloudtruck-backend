@@ -419,6 +419,43 @@ export const removeLocation = asyncHandler(async (req, res) => {
   );
 });
 
+// ── Customer self-service location (address book) ─────────────────────────────
+
+/**
+ * GET /api/v1/customers/my-locations
+ */
+export const getMyLocations = asyncHandler(async (req, res) => {
+  const customer = await CustomerService.getCustomerById(req.user._id);
+  return res.status(200).json(
+    new ApiResponse(200, customer.locations || [], 'Locations fetched successfully')
+  );
+});
+
+/**
+ * POST /api/v1/customers/my-locations
+ * Body: { locationName, address, pincode, loadingPoint?, source?, supervisor? }
+ */
+export const addMyLocation = asyncHandler(async (req, res) => {
+  const customer = await CustomerService.getCustomerById(req.user._id);
+  customer.locations.push(req.body);
+  await customer.save();
+  return res.status(201).json(
+    new ApiResponse(201, customer.locations, 'Location added successfully')
+  );
+});
+
+/**
+ * DELETE /api/v1/customers/my-locations/:locId
+ */
+export const removeMyLocation = asyncHandler(async (req, res) => {
+  const customer = await CustomerService.getCustomerById(req.user._id);
+  customer.locations.pull(req.params.locId);
+  await customer.save();
+  return res.status(200).json(
+    new ApiResponse(200, customer.locations, 'Location removed successfully')
+  );
+});
+
 /**
  * Add Charge
  * POST /api/v1/customers/:id/charges

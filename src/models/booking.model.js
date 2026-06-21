@@ -209,6 +209,16 @@ const bookingSchema = new Schema(
       url: String,
       generatedAt: Date,
     },
+    customerInvoicePdf: {
+      cloudinaryId: String,
+      url: String,
+      generatedAt: Date,
+    },
+    lrPdf: {
+      cloudinaryId: String,
+      url: String,
+      generatedAt: Date,
+    },
 
     // Payment Requests (driver requests payment for completed trip)
     paymentRequests: [{
@@ -376,7 +386,7 @@ const bookingSchema = new Schema(
     accountNo:            { type: String, default: null },
     podType:              { type: String, enum: ['Hard', 'Soft'], default: null },
     tripKm:               { type: Number, default: null },
-    bookingType:          { type: String, enum: ['indent', 'direct-load', 'direct-invoice'], default: 'indent' },
+    bookingType:          { type: String, enum: ['indent', 'direct-load', 'direct-invoice', 'direct-lr'], default: 'indent' },
 
     // Interested drivers / suppliers with optional offered price
     // driver: set for individual driver bids; supplier: set for company supplier bids
@@ -393,6 +403,14 @@ const bookingSchema = new Schema(
       addedBy: { type: Schema.Types.ObjectId, ref: 'User' },
       addedAt: { type: Date, default: Date.now }
     }],
+
+    // FreightTiger GPS tracking integration
+    ftIntegration: {
+      tripId:       { type: Number, default: null },
+      feedUniqueId: { type: String, default: null },
+      shareUrl:     { type: String, default: null },
+      syncedAt:     { type: Date,   default: null }
+    },
 
     // Soft delete
     isDeleted: { type: Boolean, default: false, index: true },
@@ -457,6 +475,38 @@ bookingSchema.pre('save', async function (next) {
   try {
     if (!this.bookingId) {
       this.bookingId = await generateBookingId();
+    }
+    // Auto-generate LR number and date if not present
+    if (!this.lrDetails || !this.lrDetails.lrNumber) {
+      this.lrDetails = this.lrDetails || {};
+      this.lrDetails.lrNumber = this.bookingId;
+      this.lrDetails.lrDate = this.createdAt || new Date();
+    }
+    // Sync customerPrice to expectedAmount to ensure compatibility with payment summary and invoicing
+    if (this.customerPrice && (!this.expectedAmount || this.isModified('customerPrice'))) {
+      this.expectedAmount = this.customerPrice;
+    }
+    // Clear cached PDFs on modification of critical fields
+    if (
+      !this.isNew &&
+      (this.isModified('driver') ||
+       this.isModified('vehicle') ||
+       this.isModified('customerPrice') ||
+       this.isModified('supplierPrice') ||
+       this.isModified('expectedAmount') ||
+       this.isModified('bookingType') ||
+       this.isModified('invoiceNo') ||
+       this.isModified('status') ||
+       this.isModified('pickup') ||
+       this.isModified('drop') ||
+       this.isModified('weight') ||
+       this.isModified('weightUnit') ||
+       this.isModified('materialType') ||
+       this.isModified('lrDetails'))
+    ) {
+      this.lrPdf = undefined;
+      this.invoicePdf = undefined;
+      this.customerInvoicePdf = undefined;
     }
     next();
   } catch (err) {

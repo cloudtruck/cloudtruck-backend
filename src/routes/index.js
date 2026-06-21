@@ -27,6 +27,7 @@ import walletRoutes from './wallet.routes.js';
 import supplierRoutes from './supplier.routes.js';
 import supplierPaymentRoutes from './supplierPayment.routes.js';
 import deleteRequestRoutes from './deleteRequest.routes.js';
+import freighttigerRoutes from './freighttiger.routes.js';
 
 const router = express.Router();
 
@@ -68,6 +69,7 @@ router.use('/wallet', walletRoutes);
 router.use('/suppliers', supplierRoutes);
 router.use('/supplier-payments', supplierPaymentRoutes);
 router.use('/delete-requests', deleteRequestRoutes);
+router.use('/webhooks/ft', freighttigerRoutes);
 
 // 404 handler for undefined routes
 router.use('*', (req, res) => {

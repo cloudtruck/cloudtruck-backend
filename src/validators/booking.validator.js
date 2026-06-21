@@ -28,14 +28,20 @@ export const createBookingSchema = z.object({
     dropContactName: z.string().optional(),
     dropContactPhone: z.string().optional(),
     materialType: z.enum(MATERIAL_TYPES, { errorMap: () => ({ message: `Material type must be one of: ${MATERIAL_TYPES.join(', ')}` }) }),
-    weight: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().positive('Weight must be positive')),
+    weight: z.preprocess((v) => {
+      if (typeof v === 'number' || typeof v === 'string') {
+        const parsed = parseFloat(v);
+        return { value: isNaN(parsed) ? undefined : parsed };
+      }
+      return v;
+    }, z.object({
+      value: z.preprocess((v) => parseFloat(v), z.number().positive('Weight value must be positive')),
+      unit: z.enum(['kg', 'tons', 'quintal']).optional()
+    })),
     weightUnit: z.enum(['kg', 'tons', 'quintal']).optional().default('tons'),
     truckType: z.string().min(1, 'Truck type is required'),
     bodyType: z.enum(['open', 'closed', 'container', 'tanker', 'flatbed']).optional().default('open'),
-    loadDate: z.string().datetime('Invalid date format').refine(
-      (val) => new Date(val) > new Date(),
-      'Load date must be in the future'
-    ).optional(),
+    loadDate: z.string().datetime('Invalid date format').optional(),
     expectedDeliveryDate: z.string().datetime('Invalid date format').optional(),
     advanceRequired: z.preprocess((v) => (v === undefined ? 0 : parseFloat(v)), z.number().nonnegative('Advance amount cannot be negative')).default(0),
     additionalInstructions: z.string().optional(),
@@ -77,7 +83,7 @@ export const createBookingSchema = z.object({
     accountNo:            z.string().optional(),
     podType:              z.enum(['Hard', 'Soft']).optional(),
     tripKm:               z.preprocess(v => v === undefined ? undefined : parseFloat(v), z.number().positive()).optional(),
-    bookingType:          z.enum(['indent', 'direct-load', 'direct-invoice']).optional().default('indent'),
+    bookingType:          z.enum(['indent', 'direct-load', 'direct-invoice', 'direct-lr']).optional().default('indent'),
   })
 });
 
@@ -99,6 +105,7 @@ export const getBookingsQuerySchema = z.object({
     podPending: z.enum(['true', 'false']).optional(),
     city: z.string().optional(),
     search: z.string().optional(),
+    bookingType: z.string().optional(),
     page: z.string().optional(),
     limit: z.string().optional(),
     sort: z.string().optional()
@@ -197,7 +204,17 @@ export const updateBookingSchema = z.object({
     dropContactName: z.string().optional(),
     dropContactPhone: z.string().optional(),
     materialType: z.string().min(1, 'Material type is required').optional(),
-    weight: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().positive('Weight must be positive').optional()),
+    weight: z.preprocess((v) => {
+      if (typeof v === 'number' || typeof v === 'string') {
+        const parsed = parseFloat(v);
+        return { value: isNaN(parsed) ? undefined : parsed };
+      }
+      return v;
+    }, z.object({
+      value: z.preprocess((v) => parseFloat(v), z.number().positive('Weight value must be positive')),
+      unit: z.enum(['kg', 'tons', 'quintal']).optional()
+    })).optional(),
+    weightUnit: z.enum(['kg', 'tons', 'quintal']).optional(),
     truckType: z.string().min(1, 'Truck type is required').optional(),
     bodyType: z.enum(['open', 'closed', 'container', 'tanker', 'flatbed']).optional(),
     expectedDeliveryDate: z.string().datetime('Invalid date format').optional(),
@@ -233,6 +250,7 @@ export const updateBookingSchema = z.object({
     shipmentNo: z.string().trim().optional(),
     containerNo: z.string().trim().optional(),
     poNumber: z.string().trim().optional(),
+    bookingType: z.enum(['indent', 'direct-load', 'direct-invoice', 'direct-lr']).optional(),
   })
 });
 

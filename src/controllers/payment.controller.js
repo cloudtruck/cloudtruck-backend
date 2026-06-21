@@ -5,6 +5,7 @@ import ApiResponse from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
 import AuditLog from '../models/auditLog.model.js';
 import Customer from '../models/customer.model.js';
+import OrganizationSettings from '../models/organizationSettings.model.js';
 import logger from '../utils/logger.js';
 
 const getRequestAuditMetadata = (req) => ({
@@ -299,8 +300,9 @@ export const downloadInvoice = asyncHandler(async (req, res) => {
 
   const payment = await PaymentService.getPaymentById(id);
   logger.info('Payment found for invoice:', { paymentId: payment._id });
-  
-  const pdfBuffer = await PDFService.generateInvoice(payment);
+
+  const orgSettings = await OrganizationSettings.getInstance();
+  const pdfBuffer = await PDFService.generateInvoice(payment, orgSettings);
   logger.info('PDF generated, size:', { size: pdfBuffer.length });
 
   res.setHeader('Content-Type', 'application/pdf');
@@ -332,12 +334,13 @@ export const downloadBookingInvoice = asyncHandler(async (req, res) => {
     ],
     isDeleted: false
   })
-    .populate('customer', 'companyName gst contactPerson')
+    .populate('customer', 'companyName gst contactPerson billingAddress address pan')
     .lean();
 
   if (!booking) throw new ApiError(404, 'Booking not found');
 
-  const pdfBuffer = await PDFService.generateBookingInvoice(booking, summary);
+  const orgSettings = await OrganizationSettings.getInstance();
+  const pdfBuffer = await PDFService.generateBookingInvoice(booking, summary, orgSettings);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename=invoice-${summary.bookingId || bookingId}.pdf`);
   return res.send(pdfBuffer);

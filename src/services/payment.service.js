@@ -456,18 +456,22 @@ class PaymentService {
    * @param {String} userId - Authenticated customer user _id
    * @returns {Promise<Object>}
    */
-  static async getBookingPaymentSummary(bookingId, userId) {
-    const customer = await Customer.findOne({ user: userId, isDeleted: false });
-    if (!customer) throw new ApiError(404, 'Customer not found');
-
-    const booking = await Booking.findOne({
+  static async getBookingPaymentSummary(bookingId, userId, checkCustomer = true) {
+    let bookingQuery = {
       $or: [
         ...(bookingId.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: bookingId }] : []),
         { bookingId }
       ],
-      customer: customer._id,
       isDeleted: false
-    }).select('bookingId finalAmount expectedAmount advanceRequired paymentStatus payments');
+    };
+
+    if (checkCustomer) {
+      const customer = await Customer.findOne({ user: userId, isDeleted: false });
+      if (!customer) throw new ApiError(404, 'Customer not found');
+      bookingQuery.customer = customer._id;
+    }
+
+    const booking = await Booking.findOne(bookingQuery).select('bookingId finalAmount expectedAmount advanceRequired paymentStatus payments');
 
     if (!booking) throw new ApiError(404, 'Booking not found');
 
@@ -510,7 +514,7 @@ class PaymentService {
    */
   static async getPaymentById(paymentId) {
     const payment = await Payment.findById(paymentId)
-      .populate('customer', 'companyName gst contactPerson')
+      .populate('customer', 'companyName gst contactPerson billingAddress address pan')
       .populate({
         path: 'booking',
         select: 'bookingId pickup drop materialType truckTypeNeeded expectedAmount advanceRequired customer',

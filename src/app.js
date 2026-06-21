@@ -7,6 +7,7 @@ import morgan from 'morgan';
 import routes from './routes/index.js';
 import errorHandler from './middlewares/errorHandler.middleware.js';
 import { globalLimiter } from './middlewares/rateLimiter.middleware.js';
+import config from './config/environment.js';
 
 const app = express();
 
@@ -16,7 +17,7 @@ app.use(mongoSanitize()); // Prevent NoSQL injection
 
 // CORS configuration
 const corsOptions = {
-  origin: true, // Allow all origins in development
+  origin: config.env === 'development' ? true : (config.allowedOrigins || []),
   credentials: true,
   optionsSuccessStatus: 200
 };

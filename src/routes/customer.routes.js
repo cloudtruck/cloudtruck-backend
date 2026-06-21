@@ -1,5 +1,6 @@
 import express from 'express';
 import * as customerController from '../controllers/customer.controller.js';
+
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validation.middleware.js';
 import { requireDeleteApproval } from '../middlewares/requireDeleteApproval.js';
@@ -25,6 +26,11 @@ router.get('/my-profile', verifyJWT, checkRole('customer'), customerController.g
 router.get('/my-dashboard', verifyJWT, checkRole('customer'), customerController.getMyDashboard);
 router.get('/my-bookings', verifyJWT, checkRole('customer'), validate(getBookingHistoryQuerySchema), customerController.getMyBookingHistory);
 router.patch('/my-gst', verifyJWT, checkRole('customer'), validate(updateMyGstSchema), customerController.updateMyGst);
+
+// Customer self-service address book
+router.get('/my-locations', verifyJWT, checkRole('customer'), customerController.getMyLocations);
+router.post('/my-locations', verifyJWT, checkRole('customer'), customerController.addMyLocation);
+router.delete('/my-locations/:locId', verifyJWT, checkRole('customer'), customerController.removeMyLocation);
 
 // Customer bank account routes
 router.get('/my-bank-accounts', verifyJWT, checkRole('customer'), customerController.getMyBankAccounts);

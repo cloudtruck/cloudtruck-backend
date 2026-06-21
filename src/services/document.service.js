@@ -7,6 +7,7 @@ import Vehicle from '../models/vehicle.model.js';
 import Driver from '../models/driver.model.js';
 import User from '../models/user.model.js';
 import Supplier from '../models/supplier.model.js';
+import OrganizationSettings from '../models/organizationSettings.model.js';
 import PDFService from './pdf.service.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
@@ -543,7 +544,8 @@ class DocumentService {
     if (!booking) throw new ApiError(404, 'Booking not found');
     await this.#assertBookingAccess(booking, userId, userRole);
 
-    const buffer = await PDFService.generateLoadingMemo(booking);
+    const orgSettings = await OrganizationSettings.getInstance();
+    const buffer = await PDFService.generateLoadingMemo(booking, orgSettings);
     return { buffer, bookingId: booking.bookingId };
   }
 

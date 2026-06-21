@@ -15,6 +15,7 @@ import MasterData from '../models/masterData.model.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
 import { getRedisClient } from '../config/redis.js';
+import { addTrip as ftAddTrip } from './freighttiger.service.js';
 
 const DASHBOARD_CACHE_TTL = 60; // seconds
 const DASHBOARD_CACHE_KEYS = [
@@ -239,8 +240,8 @@ class BookingService {
           },
           materialType,
           weight: {
-            value: weight,
-            unit: weightUnit || 'tons'
+            value: (weight && typeof weight === 'object') ? weight.value : weight,
+            unit: (weight && typeof weight === 'object' && weight.unit) ? weight.unit : (weightUnit || 'tons')
           },
           truckTypeNeeded: truckType,
           bodyType: bodyType || 'open',
@@ -431,12 +432,18 @@ class BookingService {
       podPending,
       lrPending,
       city,
-      search
+      search,
+      bookingType
     } = filters;
 
     const { maskCustomer = false } = options;
 
     const query = { isDeleted: false };
+
+    if (bookingType) {
+      const types = bookingType.split(',').map(t => t.trim()).filter(Boolean);
+      query.bookingType = types.length === 1 ? types[0] : { $in: types };
+    }
 
     if (customerId) query.customer = customerId;
     if (driverId) query.driver = driverId;
@@ -491,18 +498,47 @@ class BookingService {
     }
 
     if (search) {
-      // Find customers matching search to include in booking search
+      const searchRegex = new RegExp(search, 'i');
+
+      // Pre-lookup: customers matching search term
       const matchingCustomers = await Customer.find({
-        companyName: new RegExp(search, 'i')
+        companyName: searchRegex
       }).select('_id');
       const customerIds = matchingCustomers.map((c) => c._id);
+
+      // Pre-lookup: staff (trafficController / createdByStaff) matching search term
+      const matchingStaff = await Staff.find({
+        name: searchRegex,
+        isDeleted: false
+      }).select('_id user');
+      const staffIds = matchingStaff.map((s) => s._id);
+      const staffUserIds = matchingStaff.map((s) => s.user).filter(Boolean);
 
       query.$and = query.$and || [];
       query.$and.push({
         $or: [
-          { bookingId: new RegExp(search, 'i') },
-          { materialType: new RegExp(search, 'i') },
-          { customer: { $in: customerIds } }
+          // ID & reference numbers
+          { bookingId: searchRegex },
+          { invoiceNo: searchRegex },
+          { shipmentNo: searchRegex },
+          { laneCode: searchRegex },
+          { sourceCode: searchRegex },
+          { destinationCode: searchRegex },
+          { 'lrDetails.lrNumber': searchRegex },
+
+          // Cargo & logistics
+          { materialType: searchRegex },
+          { truckTypeNeeded: searchRegex },
+          { remarks: searchRegex },
+
+          // Locations (pickup/drop city)
+          { 'pickup.city': searchRegex },
+          { 'drop.city': searchRegex },
+
+          // Related entities
+          { customer: { $in: customerIds } },
+          { trafficController: { $in: staffIds } },
+          { createdByStaff: { $in: staffUserIds } },
         ]
       });
     }
@@ -726,6 +762,26 @@ class BookingService {
       }
     }
 
+    // Register trip on FreightTiger when driver departs (first active GPS status)
+    if (newStatus === 'driver-en-route' && !booking.ftIntegration?.tripId) {
+      try {
+        const populatedBooking = await Booking.findById(booking._id)
+          .populate('driver', 'name phone')
+          .populate('vehicle', 'registrationNumber vehicleNumber')
+          .lean();
+        const ftResult = await ftAddTrip(populatedBooking);
+        booking.ftIntegration = {
+          tripId:       ftResult.tripId,
+          feedUniqueId: ftResult.feedUniqueId,
+          shareUrl:     ftResult.shareUrl,
+          syncedAt:     new Date()
+        };
+      } catch (ftErr) {
+        // FT failure must not block the booking status update
+        logger.error('FreightTiger addTrip failed', { bookingId: booking._id, error: ftErr.message });
+      }
+    }
+
     // Update driver and vehicle availability based on status
     const onTripStatuses = ['driver-en-route', 'reached-pickup', 'loaded', 'in-transit'];
     const availableStatuses = ['reached-destination', 'unloading', 'delivered', 'pod-received'];
@@ -927,6 +983,7 @@ class BookingService {
       'additionalInstructions', 'isHazardous', 'isFragile', 'requiresTemperatureControl',
       // Indent-specific fields
       'trafficController', 'numberOfTrucks', 'customerPrice', 'supplierPrice',
+      'bookingType',
       'truckTypeNeeded', 'expiryTime', 'postToSupplier', 'supervisor',
       'laneCode', 'loadType', 'remarks', 'supplierEntity',
       // Post-creation operational fields
@@ -963,12 +1020,15 @@ class BookingService {
           if (!booking.podDetails) booking.podDetails = {};
           booking.podDetails.ackNo = updateData[field];
         } else if (field === 'weight') {
-          // weight may arrive as a number (validator coerces it) — preserve unit
+          // weight may arrive as a number or object — preserve unit
           const incoming = updateData[field];
           if (typeof incoming === 'number') {
-            booking.weight = { value: incoming, unit: booking.weight?.unit || 'tons' };
+            booking.weight = { value: incoming, unit: updateData.weightUnit || booking.weight?.unit || 'tons' };
           } else if (incoming && typeof incoming === 'object') {
-            booking.weight = incoming;
+            booking.weight = {
+              value: incoming.value,
+              unit: incoming.unit || updateData.weightUnit || booking.weight?.unit || 'tons'
+            };
           }
         } else {
           booking[field] = updateData[field];

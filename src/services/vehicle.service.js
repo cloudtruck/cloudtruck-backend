@@ -97,7 +97,7 @@ class VehicleService {
     });
 
     // Update driver's vehicle list if Driver-owned
-    if (resolvedOwnerRef.kind === 'Driver') {
+    if (resolvedOwnerRef?.kind === 'Driver') {
       await Driver.findByIdAndUpdate(resolvedOwnerRef.item, {
         $addToSet: { vehicles: vehicle._id }
       });

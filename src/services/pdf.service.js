@@ -18,26 +18,30 @@ const TERMS_AND_CONDITIONS = [
 ];
 
 const PAGE_W = 595.28; // A4 width in points
+const PAGE_H = 841.89; // A4 height in points
 const MARGIN = 50;
 const COL_RIGHT = 370;
+
+const NAVY = '#1e3a8a';
+const NAVY_TINT = '#eef2ff';
 
 const colX = {
   sno: 50,
   desc: 80,
   hsn: 270,
   qty: 325,
-  rate: 350,
-  tax: 415,
-  amount: 470
+  rate: 355,
+  tax: 405,
+  amount: 460
 };
 const colW = {
   sno: 30,
   desc: 190,
   hsn: 55,
-  qty: 25,
-  rate: 50,
-  tax: 50,
-  amount: 75
+  qty: colX.rate - 5 - 325,
+  rate: colX.tax - 5 - colX.rate,
+  tax: colX.amount - 5 - colX.tax,
+  amount: PAGE_W - MARGIN - 5 - colX.amount
 };
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -168,33 +172,40 @@ function drawInvoiceHeader(doc, orgSettings, invNo, totalAmount) {
     company.panNumber ? `PAN: ${company.panNumber}` : null,
   ].filter(Boolean);
 
-  let y = companyNameY + 14;
+  let y = companyNameY + 16;
   for (const line of addrLines) {
     doc.fontSize(8.5).font('Helvetica').fillColor('#4b5563').text(line, MARGIN, y);
-    y += 11;
+    y += 12;
   }
 
-  // Right Side: Tax Invoice + Invoice No + Amount Info (No Box)
-  doc.fontSize(12).font('Helvetica-Bold').fillColor('#1f2937')
-    .text('TAX INVOICE', 0, 40, { align: 'right', width: PAGE_W - MARGIN });
+  // Right Side: Tax Invoice title with navy underline
+  const titleW = 160;
+  const titleX = PAGE_W - MARGIN - titleW;
+  doc.fontSize(13).font('Helvetica-Bold').fillColor(NAVY);
+  const titleTextW = doc.widthOfString('TAX INVOICE');
+  doc.text('TAX INVOICE', titleX, 40, { align: 'right', width: titleW });
+  doc.strokeColor(NAVY).lineWidth(1.2)
+    .moveTo(titleX + titleW - titleTextW, 56).lineTo(titleX + titleW, 56).stroke();
 
-  doc.fontSize(12).font('Helvetica-Bold').fillColor('#4b5563')
-    .text(`# ${invNo}`, 0, 56, { align: 'right', width: PAGE_W - MARGIN });
+  doc.fontSize(10.5).font('Helvetica-Bold').fillColor('#4b5563')
+    .text(`# ${invNo}`, 0, 62, { align: 'right', width: PAGE_W - MARGIN });
 
-  // Amount Info (No Box)
-  const boxW = 140;
+  // Invoice Amount callout box
+  const boxW = 150;
   const boxX = PAGE_W - MARGIN - boxW;
-  const boxY = 75;
+  const boxY = 82;
+  const boxH = 38;
 
-  // Label
-  doc.fillColor('#6b7280').fontSize(7.5).font('Helvetica-Bold')
-    .text('INVOICE AMOUNT', boxX, boxY, { align: 'right', width: boxW });
+  doc.save();
+  doc.roundedRect(boxX, boxY, boxW, boxH, 3).fillAndStroke(NAVY_TINT, NAVY);
+  doc.restore();
 
-  // Value
+  doc.fillColor(NAVY).fontSize(7.5).font('Helvetica-Bold')
+    .text('INVOICE AMOUNT', boxX, boxY + 7, { align: 'center', width: boxW });
   doc.fillColor('#1f2937').fontSize(14).font('Helvetica-Bold')
-    .text(rupees(totalAmount), boxX, boxY + 12, { align: 'right', width: boxW });
+    .text(rupees(totalAmount), boxX, boxY + 18, { align: 'center', width: boxW });
 
-  return Math.max(y + 12, boxY + 36);
+  return Math.max(y + 14, boxY + boxH + 10);
 }
 
 function drawInvoiceMeta(doc, yStart, invNo, invDate, dueDate, extraFields = []) {
@@ -223,8 +234,8 @@ function drawInvoiceBillToAndMeta(doc, yStart, customer, invDate, dueDate, billi
   const customerState = addr.state || '';
 
   // --- Left Column: Bill To ---
-  doc.fontSize(9).font('Helvetica-Bold').fillColor('#1f2937').text('Bill To', MARGIN, yStart);
-  doc.strokeColor('#e5e7eb').lineWidth(0.5).moveTo(MARGIN, yStart + 11).lineTo(MARGIN + 200, yStart + 11).stroke();
+  doc.fontSize(9).font('Helvetica-Bold').fillColor(NAVY).text('Bill To', MARGIN, yStart);
+  doc.strokeColor(NAVY).lineWidth(1).moveTo(MARGIN, yStart + 11).lineTo(MARGIN + 200, yStart + 11).stroke();
 
   let yLeft = yStart + 18;
   doc.fontSize(9.5).font('Helvetica-Bold').fillColor('#374151')
@@ -261,187 +272,127 @@ function drawInvoiceBillToAndMeta(doc, yStart, customer, invDate, dueDate, billi
   }
 
   // --- Right Column: Invoice Meta ---
-  const keyX = 300;
-  const labelW = 110;
-  const valueX = 425;
-  const valW = 120;
-  let yRight = yStart + 5;
+  const labelX = 300;
+  const labelW = 100;
+  const valueX = labelX + labelW + 10;
+  const valW = PAGE_W - MARGIN - valueX;
+
+  doc.fontSize(9).font('Helvetica-Bold').fillColor(NAVY).text('Invoice Details', labelX, yStart);
+  doc.strokeColor(NAVY).lineWidth(1).moveTo(labelX, yStart + 11).lineTo(PAGE_W - MARGIN, yStart + 11).stroke();
+
+  let yRight = yStart + 18;
 
   const rows = [
-    ['Invoice Date :', invDate],
-    ['Terms :', 'Net 30'],
-    ['Due Date :', dueDate],
-    ['P.O.# :', booking?.poNo || booking?.poNumber || '-'],
-    ['Billing Month :', billingMonth],
-    ['Anchor Customer :', customer.companyName || 'N/A'],
-    ['Number of Trips :', booking ? '1' : '0']
+    ['Invoice Date', invDate],
+    ['Terms', 'Net 30'],
+    ['Due Date', dueDate],
+    ['P.O.#', booking?.poNo || booking?.poNumber || '-'],
+    ['Billing Month', billingMonth],
   ];
 
   for (const [key, value] of rows) {
-    doc.fontSize(8.5).font('Helvetica').fillColor('#6b7280').text(key, keyX, yRight, { width: labelW, align: 'right' });
+    doc.fontSize(8.5).font('Helvetica').fillColor('#6b7280').text(key, labelX, yRight, { width: labelW, align: 'left' });
     doc.font('Helvetica-Bold').fillColor('#374151').text(String(value), valueX, yRight, { width: valW, align: 'right' });
-    yRight += 18;
+    yRight += 15;
   }
 
   const bottomY = Math.max(yLeft, yRight);
   return { bottomY };
 }
 
-function drawBillTo(doc, yStart, customer) {
-  const addr = customer.billingAddress || customer.address || {};
-  const customerState = addr.state || '';
-
-  doc.fontSize(9).font('Helvetica').fillColor('#888888').text('BILL TO', MARGIN, yStart);
-  doc.fontSize(10).font('Helvetica-Bold').fillColor('#1a1a1a')
-    .text(customer.companyName || na(null), MARGIN, yStart + 13);
-
-  let y = yStart + 27;
-  const lines = [
-    addr.street,
-    addr.city && addr.state
-      ? `${addr.city}, ${addr.state}${addr.pincode ? ' - ' + addr.pincode : ''}`
-      : addr.city || addr.state,
-    addr.country || 'India',
-    customer.gst ? `GSTIN: ${customer.gst}` : null,
-    customer.pan ? `PAN: ${customer.pan}` : null,
-  ].filter(Boolean);
-
-  for (const line of lines) {
-    doc.fontSize(8.5).font('Helvetica').fillColor('#444444').text(line, MARGIN, y);
-    y += 12;
-  }
-
-  if (customerState) {
-    doc.fontSize(8.5).font('Helvetica').fillColor('#666666')
-      .text(`Place of Supply: ${customerState}`, MARGIN, y);
-    y += 12;
-  }
-
-  return { bottomY: y + 4, customerState };
-}
+const COL_DIVIDERS = [colX.desc, colX.hsn, colX.qty, colX.rate, colX.tax, colX.amount];
 
 function drawLineItemsHeader(doc, y, taxType = 'IGST') {
-  doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, 20).fill('#374151');
+  doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, 20).fill(NAVY);
   doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold');
   doc.text('S. No.', colX.sno, y + 6, { width: colW.sno, align: 'center' });
   doc.text('Item & Description', colX.desc, y + 6, { width: colW.desc });
   doc.text('HSN/SAC', colX.hsn, y + 6, { width: colW.hsn, align: 'center' });
   doc.text('Qty', colX.qty, y + 6, { width: colW.qty, align: 'right' });
   doc.text('Rate', colX.rate, y + 6, { width: colW.rate, align: 'right' });
-  doc.text(taxType, colX.tax, y + 6, { width: colW.tax, align: 'right' });
-  doc.text('Amount', colX.amount, y + 6, { width: colW.amount - 5, align: 'right' });
+  doc.fontSize(taxType.length > 5 ? 6.5 : 8.5)
+    .text(taxType, colX.tax, y + 6.5, { width: colW.tax, align: 'right' });
+  doc.fontSize(8.5).text('Amount', colX.amount, y + 6, { width: colW.amount, align: 'right' });
   return y + 20;
 }
 
 function drawLineItem(doc, y, sno, description, hsn, qty, rate, taxRateStr, amount) {
-  doc.fillColor('#374151').fontSize(8.5).font('Helvetica');
-  doc.text(String(sno), colX.sno, y + 6, { width: colW.sno, align: 'center' });
-  
   const descHeight = doc.heightOfString(description, { width: colW.desc });
   const rowH = Math.max(28, descHeight + 12);
-  
+
+  if (sno % 2 === 0) {
+    doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, rowH).fill('#f9fafb');
+  }
+
+  doc.fillColor('#374151').fontSize(8.5).font('Helvetica');
+  doc.text(String(sno), colX.sno, y + 6, { width: colW.sno, align: 'center' });
+
   doc.text(description, colX.desc, y + 6, { width: colW.desc });
   doc.text(hsn, colX.hsn, y + 6, { width: colW.hsn, align: 'center' });
   doc.text(String(qty), colX.qty, y + 6, { width: colW.qty, align: 'right' });
   doc.text(rupees(rate), colX.rate, y + 6, { width: colW.rate, align: 'right' });
   doc.text(taxRateStr, colX.tax, y + 6, { width: colW.tax, align: 'right' });
-  doc.text(rupees(amount), colX.amount, y + 6, { width: colW.amount - 5, align: 'right' });
-  
-  doc.strokeColor('#e5e7eb').lineWidth(0.5).moveTo(MARGIN, y + rowH).lineTo(PAGE_W - MARGIN, y + rowH).stroke();
-  
+  doc.text(rupees(amount), colX.amount, y + 6, { width: colW.amount, align: 'right' });
+
+  doc.save();
+  doc.strokeColor('#e5e7eb').lineWidth(0.5);
+  for (const dx of COL_DIVIDERS) {
+    doc.moveTo(dx - 5, y).lineTo(dx - 5, y + rowH).stroke();
+  }
+  doc.moveTo(MARGIN, y + rowH).lineTo(PAGE_W - MARGIN, y + rowH).stroke();
+  doc.restore();
+
   return y + rowH;
 }
 
 function drawInvoiceTotalsAndWords(doc, y, subTotal, taxAmount, taxLabel, rounding, total) {
   const lx = 325;
   const rx = PAGE_W - MARGIN;
-  const vx = rx - 5;
+  const vx = rx - 10;
+  const cardW = rx - lx;
 
-  // Sub Total
-  doc.fontSize(8.5).font('Helvetica').fillColor('#6b7280').text('Sub Total', lx, y);
-  doc.font('Helvetica-Bold').fillColor('#374151').text(rupees(subTotal), 0, y, { align: 'right', width: vx });
-  doc.strokeColor('#f3f4f6').lineWidth(0.5).moveTo(lx, y + 12).lineTo(rx, y + 12).stroke();
-  y += 16;
+  const rows = [['Sub Total', subTotal], [taxLabel, taxAmount], ['Rounding', rounding]];
+  const rowH = 16;
+  const grandH = 24;
+  const wordsH = 30;
+  const cardH = rows.length * rowH + grandH + wordsH + 10;
 
-  // Tax
-  doc.fontSize(8.5).font('Helvetica').fillColor('#6b7280').text(taxLabel, lx, y);
-  doc.font('Helvetica-Bold').fillColor('#374151').text(rupees(taxAmount), 0, y, { align: 'right', width: vx });
-  doc.strokeColor('#f3f4f6').lineWidth(0.5).moveTo(lx, y + 12).lineTo(rx, y + 12).stroke();
-  y += 16;
-
-  // Rounding
-  doc.fontSize(8.5).font('Helvetica').fillColor('#6b7280').text('Rounding', lx, y);
-  doc.font('Helvetica-Bold').fillColor('#374151').text(rupees(rounding), 0, y, { align: 'right', width: vx });
-  doc.strokeColor('#f3f4f6').lineWidth(0.5).moveTo(lx, y + 12).lineTo(rx, y + 12).stroke();
-  y += 16;
-
-  // Total bg box
-  doc.rect(lx, y, rx - lx, 20).fill('#f9fafb');
-  doc.fillColor('#1f2937').fontSize(9).font('Helvetica-Bold')
-     .text('TOTAL', lx + 5, y + 5)
-     .text(rupees(total), 0, y + 5, { align: 'right', width: vx });
-  y += 24;
-
-  // Invoice Amount thick border box
-  doc.strokeColor('#1f2937').lineWidth(1.5).moveTo(lx, y).lineTo(rx, y).stroke();
-  doc.fillColor('#1f2937').fontSize(9.5).font('Helvetica-Bold')
-     .text('Invoice Amount', lx + 5, y + 6)
-     .text(rupees(total), 0, y + 6, { align: 'right', width: vx });
-  y += 22;
-
-  // Total in words
-  doc.fontSize(7.5).font('Helvetica-Bold').fillColor('#6b7280').text('TOTAL IN WORDS', 0, y + 8, { align: 'right', width: rx });
-  doc.fontSize(8.5).font('Helvetica-Oblique').fillColor('#1f2937').text(amountInWords(total), 0, y + 18, { align: 'right', width: rx });
-  
-  return y + 32;
-}
-
-function drawTotals(doc, y, subTotal, tax, taxLabel, rounding, total) {
-  const lx = COL_RIGHT + 10;
-  const vx = PAGE_W - MARGIN - 2;
-
-  const rows = [
-    ['Sub Total', rupees(subTotal), false],
-    [taxLabel, rupees(tax), false],
-  ];
-  if (rounding !== 0) rows.push(['Rounding', rupees(rounding), false]);
-  rows.push(['Total', rupees(total), true]);
+  doc.save();
+  doc.lineWidth(1).roundedRect(lx, y, cardW, cardH, 3).fillAndStroke(NAVY_TINT, NAVY);
+  doc.restore();
 
   let ty = y + 8;
-  for (const [label, value, bold] of rows) {
-    doc.fontSize(9)
-      .font(bold ? 'Helvetica-Bold' : 'Helvetica')
-      .fillColor(bold ? '#1a1a1a' : '#444444')
-      .text(label + ':', lx, ty)
-      .text(value, 0, ty, { align: 'right', width: vx });
-    ty += 16;
+  for (const [label, value] of rows) {
+    doc.fontSize(8.5).font('Helvetica').fillColor('#4b5563').text(label, lx + 10, ty);
+    doc.font('Helvetica-Bold').fillColor('#374151').text(rupees(value), 0, ty, { align: 'right', width: vx });
+    ty += rowH;
   }
 
-  // Invoice Amount box
-  ty += 4;
-  doc.rect(lx - 4, ty, PAGE_W - MARGIN - lx + 4, 22).fill('#1a1a1a');
-  doc.fillColor('#ffffff').fontSize(10).font('Helvetica-Bold')
-    .text('Invoice Amount', lx, ty + 6)
-    .text(rupees(total), 0, ty + 6, { align: 'right', width: vx });
+  // Invoice Amount row (bold, navy)
+  doc.strokeColor(NAVY).lineWidth(1).moveTo(lx + 8, ty).lineTo(rx - 8, ty).stroke();
+  ty += 6;
+  doc.fillColor(NAVY).fontSize(10.5).font('Helvetica-Bold')
+     .text('Invoice Amount', lx + 10, ty)
+     .text(rupees(total), 0, ty, { align: 'right', width: vx });
+  ty += grandH - 6;
 
-  return ty + 28;
-}
+  // Amount in words caption
+  doc.fontSize(7).font('Helvetica-Bold').fillColor('#6b7280')
+     .text('AMOUNT IN WORDS', lx + 10, ty, { width: cardW - 20 });
+  doc.fontSize(7.5).font('Helvetica-Oblique').fillColor('#374151')
+     .text(amountInWords(total), lx + 10, ty + 10, { width: cardW - 20 });
 
-function drawAmountInWords(doc, y, total) {
-  doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#1a1a1a')
-    .text('Amount in Words: ', MARGIN, y, { continued: true })
-    .font('Helvetica').text(amountInWords(total));
-  return y + 18;
+  return y + cardH + 12;
 }
 
 function drawBankDetails(doc, y, orgSettings) {
   const bankAddr = orgSettings?.bank || orgSettings?.addresses?.find(a => a.accountNo) || {};
   if (!bankAddr.accountNo && !bankAddr.bankName && !bankAddr.name) return y;
 
-  doc.strokeColor('#e5e7eb').lineWidth(0.5).moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).stroke();
+  doc.strokeColor(NAVY).lineWidth(1).moveTo(MARGIN, y).lineTo(MARGIN + 150, y).stroke();
   y += 12;
-  
-  doc.fontSize(9.5).font('Helvetica-Bold').fillColor('#1f2937').text('Bank Details', MARGIN, y);
+
+  doc.fontSize(9.5).font('Helvetica-Bold').fillColor(NAVY).text('Bank Details', MARGIN, y);
   y += 16;
 
   const rows = [
@@ -463,28 +414,95 @@ function drawBankDetails(doc, y, orgSettings) {
 }
 
 function drawTerms(doc, y) {
-  doc.strokeColor('#e5e7eb').lineWidth(0.5).moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).stroke();
+  doc.strokeColor(NAVY).lineWidth(1).moveTo(MARGIN, y).lineTo(MARGIN + 150, y).stroke();
   y += 12;
-  
-  doc.fontSize(9.5).font('Helvetica-Bold').fillColor('#1f2937').text('Terms & Conditions', MARGIN, y);
+
+  doc.fontSize(9.5).font('Helvetica-Bold').fillColor(NAVY).text('Terms & Conditions', MARGIN, y);
   y += 16;
-  
+
+  const lineH = 14;
+  const panelH = TERMS_AND_CONDITIONS.length * lineH + 10;
+  doc.rect(MARGIN, y - 4, PAGE_W - MARGIN * 2, panelH).fill('#f9fafb');
+
   for (const line of TERMS_AND_CONDITIONS) {
     doc.fontSize(8.5).font('Helvetica').fillColor('#4b5563')
-      .text(`•  ${line}`, MARGIN + 8, y, { width: PAGE_W - MARGIN * 2 - 8 });
-    y += 14;
+      .text(`•  ${line}`, MARGIN + 8, y, { width: PAGE_W - MARGIN * 2 - 16 });
+    y += lineH;
   }
-  return y + 8;
+  return y + 12;
 }
 
 function drawNotes(doc, y, note) {
   if (!note) return y;
-  doc.strokeColor('#e5e7eb').lineWidth(0.5).moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).stroke();
+  doc.strokeColor(NAVY).lineWidth(1).moveTo(MARGIN, y).lineTo(MARGIN + 150, y).stroke();
   y += 12;
-  doc.fontSize(9.5).font('Helvetica-Bold').fillColor('#1f2937').text('Notes', MARGIN, y);
+  doc.fontSize(9.5).font('Helvetica-Bold').fillColor(NAVY).text('Notes', MARGIN, y);
   y += 16;
   doc.fontSize(8.5).font('Helvetica').fillColor('#4b5563').text(note, MARGIN, y, { width: PAGE_W - MARGIN * 2 });
   return y + 20;
+}
+
+const CAPABILITIES = [
+  { label: 'Booking', icon: 'box' },
+  { label: 'Tracking', icon: 'pin' },
+  { label: 'E-Way Bill', icon: 'doc' },
+  { label: 'POD', icon: 'check' },
+  { label: 'Payments', icon: 'rupee' },
+  { label: 'Analytics', icon: 'bars' },
+];
+
+function drawCapabilityIcon(doc, type, cx, cy) {
+  doc.save();
+  doc.strokeColor(NAVY).fillColor(NAVY).lineWidth(1);
+  const r = 7;
+  switch (type) {
+    case 'box':
+      doc.rect(cx - r, cy - r, r * 2, r * 2).stroke();
+      doc.moveTo(cx - r, cy - r / 3).lineTo(cx + r, cy - r / 3).stroke();
+      break;
+    case 'pin':
+      doc.circle(cx, cy - 2, r * 0.65).stroke();
+      doc.moveTo(cx, cy + 2).lineTo(cx, cy + r).stroke();
+      break;
+    case 'doc':
+      doc.rect(cx - r * 0.7, cy - r, r * 1.4, r * 2).stroke();
+      doc.moveTo(cx - r * 0.35, cy - r * 0.3).lineTo(cx + r * 0.35, cy - r * 0.3).stroke();
+      doc.moveTo(cx - r * 0.35, cy + r * 0.2).lineTo(cx + r * 0.35, cy + r * 0.2).stroke();
+      break;
+    case 'check':
+      doc.circle(cx, cy, r).stroke();
+      doc.moveTo(cx - r * 0.45, cy).lineTo(cx - r * 0.1, cy + r * 0.4).lineTo(cx + r * 0.5, cy - r * 0.4).stroke();
+      break;
+    case 'rupee':
+      doc.circle(cx, cy, r).stroke();
+      doc.fontSize(8).font('Helvetica-Bold').text('Rs', cx - r * 0.55, cy - r * 0.55);
+      break;
+    case 'bars':
+      doc.rect(cx - r, cy + r * 0.2, r * 0.5, r * 0.8).fillAndStroke(NAVY, NAVY);
+      doc.rect(cx - r * 0.2, cy - r * 0.3, r * 0.5, r * 1.3).fillAndStroke(NAVY, NAVY);
+      doc.rect(cx + r * 0.6, cy - r, r * 0.5, r * 2).fillAndStroke(NAVY, NAVY);
+      break;
+  }
+  doc.restore();
+}
+
+function drawCapabilityStrip(doc, y) {
+  const stripH = 36;
+  const innerW = PAGE_W - MARGIN * 2;
+  const colW2 = innerW / CAPABILITIES.length;
+
+  doc.save();
+  doc.lineWidth(1).roundedRect(MARGIN, y, innerW, stripH, 3).fillAndStroke(NAVY_TINT, NAVY);
+  doc.restore();
+
+  CAPABILITIES.forEach((cap, i) => {
+    const cx = MARGIN + colW2 * i + colW2 / 2;
+    drawCapabilityIcon(doc, cap.icon, cx, y + 13);
+    doc.fillColor(NAVY).fontSize(6.5).font('Helvetica-Bold')
+      .text(cap.label, MARGIN + colW2 * i, y + 24, { width: colW2, align: 'center' });
+  });
+
+  return y + stripH + 10;
 }
 
 function drawFooter(doc) {
@@ -493,7 +511,7 @@ function drawFooter(doc) {
   if (doc.page && doc.page.margins) {
     doc.page.margins.bottom = 0;
   }
-  
+
   doc.strokeColor('#e5e7eb').lineWidth(0.5).moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).stroke();
   doc.fontSize(8).font('Helvetica').fillColor('#9ca3af')
     .text('This is a computer-generated document. No physical signature required.', MARGIN, y + 8, {
@@ -505,15 +523,31 @@ function drawFooter(doc) {
   }
 }
 
+// Stamps "Page X of Y" on every buffered page; call once, right before doc.end().
+function drawPageNumbers(doc) {
+  const range = doc.bufferedPageRange();
+  for (let i = 0; i < range.count; i++) {
+    doc.switchToPage(range.start + i);
+    const oldBottom = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
+    doc.fontSize(7.5).font('Helvetica').fillColor('#9ca3af')
+      .text(`Page ${i + 1} of ${range.count}`, MARGIN, PAGE_H - 30, {
+        align: 'right', width: PAGE_W - MARGIN * 2,
+      });
+    doc.page.margins.bottom = oldBottom;
+  }
+}
+
 function buildDoc(renderFn) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: MARGIN, size: 'A4' });
+    const doc = new PDFDocument({ margin: MARGIN, size: 'A4', bufferPages: true });
     const buffers = [];
     doc.on('data', b => buffers.push(b));
     doc.on('end', () => resolve(Buffer.concat(buffers)));
     doc.on('error', reject);
     try {
       renderFn(doc);
+      drawPageNumbers(doc);
       doc.end();
     } catch (err) {
       reject(err);
@@ -571,12 +605,18 @@ class PDFService {
         : `CGST (${tax.cgst}%) + SGST (${tax.sgst}%)`;
       y = drawInvoiceTotalsAndWords(doc, y, subTotal, taxAmount, taxLabel, rounding, finalTotal);
 
+      if (y < 660) {
+        drawCapabilityStrip(doc, 700);
+      }
+      drawFooter(doc);
+
       // Page 2
       doc.addPage();
       y = MARGIN;
       y = drawBankDetails(doc, y, orgSettings);
       y = drawTerms(doc, y);
-      drawNotes(doc, y, 'Pay before the due date to enjoy uninterrupted services.');
+      y = drawNotes(doc, y, 'Pay before the due date to enjoy uninterrupted services.');
+      drawCapabilityStrip(doc, 700);
       drawFooter(doc);
     });
   }
@@ -634,43 +674,53 @@ class PDFService {
       // Payment history
       if (summary.payments?.length) {
         y += 15;
-        doc.fontSize(9.5).font('Helvetica-Bold').fillColor('#1f2937').text('Payment History', MARGIN, y);
-        doc.strokeColor('#e5e7eb').lineWidth(0.5).moveTo(MARGIN, y + 12).lineTo(MARGIN + 200, y + 12).stroke();
+        doc.fontSize(9.5).font('Helvetica-Bold').fillColor(NAVY).text('Payment History', MARGIN, y);
+        doc.strokeColor(NAVY).lineWidth(1).moveTo(MARGIN, y + 12).lineTo(MARGIN + 200, y + 12).stroke();
         y += 18;
 
         // Table Header
-        doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, 18).fill('#374151');
+        doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, 18).fill(NAVY);
         doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff')
           .text('Date', MARGIN + 8, y + 5)
           .text('Method / Reference', MARGIN + 100, y + 5)
           .text('Amount', 0, y + 5, { align: 'right', width: PAGE_W - MARGIN - 8 });
         y += 18;
 
-        for (const p of summary.payments) {
+        for (const [i, p] of summary.payments.entries()) {
+          const rowH = 16;
+          if (i % 2 === 0) {
+            doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, rowH).fill('#f9fafb');
+          }
           const date = p.paidAt ? format(new Date(p.paidAt), 'dd-MMM-yy') : '-';
           const ref = [p.paymentMethod, p.referenceNumber || p.transactionId].filter(Boolean).join(' / ');
           doc.fontSize(8).font('Helvetica').fillColor('#4b5563')
             .text(date, MARGIN + 8, y + 4)
             .text(ref || '-', MARGIN + 100, y + 4)
             .text(rupees(p.amount), 0, y + 4, { align: 'right', width: PAGE_W - MARGIN - 8 });
-          y += 16;
+          y += rowH;
           doc.strokeColor('#e5e7eb').lineWidth(0.5).moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).stroke();
         }
 
         y += 10;
-        doc.strokeColor('#1f2937').lineWidth(1).moveTo(325, y).lineTo(PAGE_W - MARGIN, y).stroke();
-        doc.fontSize(9.5).font('Helvetica-Bold').fillColor('#1f2937')
+        doc.strokeColor(NAVY).lineWidth(1).moveTo(325, y).lineTo(PAGE_W - MARGIN, y).stroke();
+        doc.fontSize(9.5).font('Helvetica-Bold').fillColor(NAVY)
           .text('Balance Due:', 330, y + 5)
           .text(rupees(summary.balance || 0), 0, y + 5, { align: 'right', width: PAGE_W - MARGIN - 5 });
         y += 25;
       }
+
+      if (y < 660) {
+        drawCapabilityStrip(doc, 700);
+      }
+      drawFooter(doc);
 
       // Page 2
       doc.addPage();
       y = MARGIN;
       y = drawBankDetails(doc, y, orgSettings);
       y = drawTerms(doc, y);
-      drawNotes(doc, y, 'Pay before the due date to enjoy uninterrupted services.');
+      y = drawNotes(doc, y, 'Pay before the due date to enjoy uninterrupted services.');
+      drawCapabilityStrip(doc, 700);
       drawFooter(doc);
     });
   }

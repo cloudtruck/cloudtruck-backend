@@ -195,6 +195,7 @@ class VehicleService {
   static async getVehicleById(vehicleId) {
     const vehicle = await Vehicle.findOne({ _id: vehicleId, isDeleted: false })
       .populate({ path: 'ownerRef.item', select: 'name phone licenseNumber displayName companyName' })
+      .populate('currentDriver', 'name phone')
       .populate('currentBooking', 'bookingId status pickup drop')
       .populate('nextBooking', 'bookingId status pickup drop')
       .populate('documents.rcDocument', 'type status url');
@@ -386,6 +387,7 @@ class VehicleService {
       sort: pagination.sort || { createdAt: -1 },
       populate: [
         { path: 'ownerRef.item', select: 'name phone displayName companyName' },
+        { path: 'currentDriver', select: 'name phone' },
         { path: 'currentBooking', select: 'bookingId status' }
       ]
     });
@@ -421,11 +423,16 @@ class VehicleService {
       'year',
       'owner',
       'ownerRef',
+      'supplierOwner',
+      'currentDriver',
+      'ownershipType',
       'registrationState',
+      'registrationCity',
       'permitType',
       'expiryDates',
       'hasGPS',
       'hasFASTag',
+      'availability',
       'status'
     ];
 
@@ -450,6 +457,20 @@ class VehicleService {
       await Driver.findByIdAndUpdate(updateData.owner, {
         $addToSet: { vehicles: vehicle._id }
       });
+    }
+
+    // Update driver's vehicle list if the operating driver changed (own/leased trucks)
+    if ('currentDriver' in updateData && updateData.currentDriver !== oldData.currentDriver?.toString()) {
+      if (oldData.currentDriver) {
+        await Driver.findByIdAndUpdate(oldData.currentDriver, {
+          $pull: { vehicles: vehicle._id }
+        });
+      }
+      if (updateData.currentDriver) {
+        await Driver.findByIdAndUpdate(updateData.currentDriver, {
+          $addToSet: { vehicles: vehicle._id }
+        });
+      }
     }
 
     // Audit log
@@ -620,7 +641,17 @@ class VehicleService {
       throw new ApiError(404, 'Driver not found');
     }
 
-    const vehicles = await Vehicle.find({ $or: [{ 'ownerRef.item': driverId, 'ownerRef.kind': 'Driver' }, { owner: driverId }], isDeleted: false })
+    // Match vehicles the driver owns (market/attached trucks) OR is currently
+    // assigned to operate (own/leased trucks, which belong to Cloudtruck/financier
+    // rather than the driver). Ownership alone excludes drivers without their own truck.
+    const vehicles = await Vehicle.find({
+      $or: [
+        { 'ownerRef.item': driverId, 'ownerRef.kind': 'Driver' },
+        { owner: driverId },
+        { currentDriver: driverId }
+      ],
+      isDeleted: false
+    })
       .populate({ path: 'ownerRef.item', select: 'name phone displayName companyName' })
       .lean();
 

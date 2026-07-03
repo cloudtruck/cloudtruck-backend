@@ -20,6 +20,7 @@ export const createBookingSchema = z.object({
     pickupAddress: z.string().min(1, 'Pickup address is required'),
     pickupContactName: z.string().optional(),
     pickupContactPhone: z.string().optional(),
+    pickupContactGst: z.string().optional(),
     dropCity: z.string().min(1, 'Drop city is required'),
     dropState: z.string().min(1, 'Drop state is required').optional(),
     dropLat: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-90).max(90, 'Invalid drop latitude')),
@@ -27,6 +28,7 @@ export const createBookingSchema = z.object({
     dropAddress: z.string().min(1, 'Drop address is required'),
     dropContactName: z.string().optional(),
     dropContactPhone: z.string().optional(),
+    dropContactGst: z.string().optional(),
     materialType: z.enum(MATERIAL_TYPES, { errorMap: () => ({ message: `Material type must be one of: ${MATERIAL_TYPES.join(', ')}` }) }),
     weight: z.preprocess((v) => {
       if (typeof v === 'number' || typeof v === 'string') {
@@ -84,6 +86,9 @@ export const createBookingSchema = z.object({
     podType:              z.enum(['Hard', 'Soft']).optional(),
     tripKm:               z.preprocess(v => v === undefined ? undefined : parseFloat(v), z.number().positive()).optional(),
     bookingType:          z.enum(['indent', 'direct-load', 'direct-invoice', 'direct-lr']).optional().default('indent'),
+    // LR reference fields
+    invoiceNo:            z.string().trim().optional(),
+    ewayBillNo:           z.string().trim().optional(),
   })
 });
 
@@ -196,6 +201,7 @@ export const updateBookingSchema = z.object({
     pickupAddress: z.string().min(1, 'Pickup address is required').optional(),
     pickupContactName: z.string().optional(),
     pickupContactPhone: z.string().optional(),
+    pickupContactGst: z.string().optional(),
     dropCity: z.string().min(1, 'Drop city is required').optional(),
     dropState: z.string().optional(),
     dropLat: z.preprocess((v) => (v === undefined ? v : parseFloat(v)), z.number().min(-90).max(90, 'Invalid drop latitude').optional()),
@@ -203,6 +209,7 @@ export const updateBookingSchema = z.object({
     dropAddress: z.string().min(1, 'Drop address is required').optional(),
     dropContactName: z.string().optional(),
     dropContactPhone: z.string().optional(),
+    dropContactGst: z.string().optional(),
     materialType: z.string().min(1, 'Material type is required').optional(),
     weight: z.preprocess((v) => {
       if (typeof v === 'number' || typeof v === 'string') {
@@ -247,6 +254,7 @@ export const updateBookingSchema = z.object({
     jobNo: z.string().trim().optional(),
     hireChallan: z.string().trim().optional(),
     invoiceNo: z.string().trim().optional(),
+    ewayBillNo: z.string().trim().optional(),
     shipmentNo: z.string().trim().optional(),
     containerNo: z.string().trim().optional(),
     poNumber: z.string().trim().optional(),

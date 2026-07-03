@@ -104,13 +104,14 @@ export const getNextBookingNumber = asyncHandler(async (req, res) => {
 // @route   PATCH /api/v1/organization/settings/company
 // @access  Super-admin
 export const updateCompanyInfo = asyncHandler(async (req, res) => {
-  const { companyName, gstNumber, panNumber, companyAddress, contactDetails } = req.body;
-  
+  const { companyName, gstNumber, panNumber, cinNumber, companyAddress, contactDetails } = req.body;
+
   const settings = await OrganizationSettings.getInstance();
-  
+
   if (companyName) settings.companyName = companyName;
   if (gstNumber !== undefined) settings.gstNumber = gstNumber;
   if (panNumber !== undefined) settings.panNumber = panNumber;
+  if (cinNumber !== undefined) settings.cinNumber = cinNumber;
   if (companyAddress) settings.companyAddress = { ...settings.companyAddress, ...companyAddress };
   if (contactDetails) settings.contactDetails = { ...settings.contactDetails, ...contactDetails };
   settings.updatedBy = req.user._id;
@@ -119,6 +120,31 @@ export const updateCompanyInfo = asyncHandler(async (req, res) => {
   
   res.json(
     new ApiResponse(200, settings, 'Company information updated successfully')
+  );
+});
+
+// @desc    Update bank details (used in LR/Invoice PDF footer)
+// @route   PATCH /api/v1/organization/settings/bank
+// @access  Super-admin
+export const updateBankDetails = asyncHandler(async (req, res) => {
+  const { accountName, accountNo, name, ifsc, branch } = req.body;
+
+  const settings = await OrganizationSettings.getInstance();
+
+  settings.bank = {
+    ...(settings.bank?.toObject?.() ?? settings.bank ?? {}),
+    ...(accountName !== undefined && { accountName }),
+    ...(accountNo !== undefined && { accountNo }),
+    ...(name !== undefined && { name }),
+    ...(ifsc !== undefined && { ifsc }),
+    ...(branch !== undefined && { branch }),
+  };
+  settings.updatedBy = req.user._id;
+
+  await settings.save();
+
+  res.json(
+    new ApiResponse(200, settings.bank, 'Bank details updated successfully')
   );
 });
 

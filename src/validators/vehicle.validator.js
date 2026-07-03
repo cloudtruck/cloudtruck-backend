@@ -35,6 +35,7 @@ export const createVehicleSchema = z.object({
       item: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid owner ID'),
     }).optional(),
     owner: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid owner ID').optional(),
+    currentDriver: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid driver ID').nullable().optional(),
     expiryDates: z.object({
       insurance: z.string().datetime('Invalid insurance expiry date'),
       fitness: z.string().datetime().optional(),
@@ -178,9 +179,23 @@ export const updateVehicleSchema = z.object({
       item: z.string().regex(/^[0-9a-fA-F]{24}$/),
     }).optional(),
     owner: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+    supplierOwner: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid supplier ID').nullable().optional(),
+    currentDriver: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid driver ID').nullable().optional(),
+    ownershipType: z.enum(['own', 'leased', 'attached']).optional(),
+    registrationState: z.string().min(2).optional(),
+    registrationCity: z.string().min(2).optional(),
+    expiryDates: z.object({
+      insurance: z.string().optional(),
+      fitness: z.string().optional(),
+      permit: z.string().optional(),
+      puc: z.string().optional(),
+      roadTax: z.string().optional()
+    }).optional(),
     permitType: z.enum(['national', 'state', 'city']).optional(),
     hasGPS: z.boolean().optional(),
-    hasFASTag: z.boolean().optional()
+    hasFASTag: z.boolean().optional(),
+    availability: z.enum(['available', 'on-trip', 'maintenance', 'offline', 'unavailable']).optional(),
+    status: z.enum(['active', 'inactive', 'under-maintenance', 'retired']).optional()
   })
 });
 

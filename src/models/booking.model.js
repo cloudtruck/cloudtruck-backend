@@ -34,7 +34,8 @@ const pointSchema = new Schema(
 const contactPersonSchema = new Schema(
   {
     name: String,
-    phone: String
+    phone: String,
+    gstNumber: { type: String, trim: true }
   },
   { _id: false }
 );
@@ -365,6 +366,7 @@ const bookingSchema = new Schema(
     jobNo:            { type: String, trim: true },  // Internal job/trip number
     hireChallan:      { type: String, trim: true },  // Transporter payment challan
     invoiceNo:        { type: String, trim: true },  // Invoice number
+    ewayBillNo:       { type: String, trim: true },  // E-way bill number (for LR printing)
     shipmentNo:       { type: String, trim: true },  // Shipment number
     containerNo:      { type: String, trim: true },  // Container number
     poNumber:         { type: String, trim: true },  // Purchase order number

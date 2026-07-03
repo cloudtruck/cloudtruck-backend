@@ -133,6 +133,11 @@ const vehicleSchema = new mongoose.Schema(
     // owner (Driver) = current operator; supplierOwner (Supplier) = legal/business owner
     supplierOwner: { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier', default: null, index: true },
 
+    // Driver currently operating this truck — independent of legal ownership.
+    // Required for 'own'/'leased' trucks (owned by Cloudtruck/financier) so a driver
+    // with no truck of their own can still be matched to one during indent assignment.
+    currentDriver: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver', default: null, index: true },
+
     // Manufacturer Details
     manufacturer: {
       brand: {

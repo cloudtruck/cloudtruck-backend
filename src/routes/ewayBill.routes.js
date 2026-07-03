@@ -3,6 +3,7 @@ import * as ewayBillController from '../controllers/ewayBill.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validation.middleware.js';
+import { upload } from '../middlewares/upload.middleware.js';
 import {
   createEwayBillSchema,
   getEwayBillsQuerySchema,
@@ -35,6 +36,15 @@ router.get(
   checkRole('staff', 'internal', 'super-admin'),
   validate(getEwayBillsQuerySchema),
   ewayBillController.getAllEwayBills
+);
+
+// Parse an uploaded e-way bill PDF into Create Indent prefill fields
+router.post(
+  '/parse-pdf',
+  verifyJWT,
+  checkRole('staff', 'internal', 'super-admin'),
+  upload.single('file'),
+  ewayBillController.parseEwayBillPdf
 );
 
 // Sync/Find E-way bill by number from portal

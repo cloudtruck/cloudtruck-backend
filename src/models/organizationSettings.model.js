@@ -32,6 +32,11 @@ const organizationSettingsSchema = new mongoose.Schema({
     trim: true,
     uppercase: true
   },
+  cinNumber: {
+    type: String,
+    trim: true,
+    uppercase: true
+  },
   companyAddress: {
     street: String,
     city: String,
@@ -44,7 +49,16 @@ const organizationSettingsSchema = new mongoose.Schema({
     email: String,
     website: String
   },
-  
+
+  // Bank Details (used in LR/Invoice PDF footer)
+  bank: {
+    accountName: { type: String, trim: true },
+    accountNo: { type: String, trim: true },
+    name: { type: String, trim: true },
+    ifsc: { type: String, trim: true, uppercase: true },
+    branch: { type: String, trim: true }
+  },
+
   // Booking Configuration
   bookingSeriesPrefix: { 
     type: String,
@@ -187,6 +201,26 @@ organizationSettingsSchema.methods.getNextBookingNumber = async function() {
   this.currentBookingNumber += 1;
   await this.save();
   return `${this.bookingSeriesPrefix}${String(currentNumber).padStart(6, '0')}`;
+};
+
+// Method to get next LR number for the primary (or given) address series, e.g. "CTPL/07/000001"
+// Uses the counters collection for atomic increments, keyed per series so each branch has its own sequence.
+organizationSettingsSchema.methods.getNextLrNumber = async function(series) {
+  const resolvedSeries = series
+    || this.addresses.find((a) => a.isPrimary && a.series)?.series
+    || this.addresses.find((a) => a.series)?.series;
+
+  if (!resolvedSeries) return null;
+
+  const counters = this.collection.conn.collection('counters');
+  const counterKey = `lr:${resolvedSeries}`;
+  const result = await counters.findOneAndUpdate(
+    { _id: counterKey },
+    { $inc: { seq: 1 } },
+    { upsert: true, returnDocument: 'after' }
+  );
+  const seq = result ? result.seq : 1;
+  return `${resolvedSeries}/${String(seq).padStart(2, '0')}`;
 };
 
 export default mongoose.model('OrganizationSettings', organizationSettingsSchema);

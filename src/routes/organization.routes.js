@@ -38,6 +38,12 @@ router.patch(
 );
 
 router.patch(
+  '/settings/bank',
+  requirePermission('staff', 'manage'),
+  organizationController.updateBankDetails
+);
+
+router.patch(
   '/settings/booking-config',
   requirePermission('staff', 'manage'),
   organizationController.updateBookingConfig

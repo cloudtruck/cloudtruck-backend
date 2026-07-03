@@ -12,6 +12,7 @@ import LocationService from './location.service.js';
 import EwayBillService from './ewayBill.service.js';
 import EwayBill from '../models/ewayBill.model.js';
 import MasterData from '../models/masterData.model.js';
+import OrganizationSettings from '../models/organizationSettings.model.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
 import { getRedisClient } from '../config/redis.js';
@@ -71,6 +72,7 @@ class BookingService {
       pickupAddress,
       pickupContactName,
       pickupContactPhone,
+      pickupContactGst,
       dropCity,
       dropState,
       dropLat,
@@ -78,6 +80,7 @@ class BookingService {
       dropAddress,
       dropContactName,
       dropContactPhone,
+      dropContactGst,
       materialType,
       weight,
       weightUnit,
@@ -124,6 +127,8 @@ class BookingService {
       podType,
       tripKm,
       bookingType,
+      invoiceNo,
+      ewayBillNo,
     } = data;
 
     // Verify customer exists
@@ -202,6 +207,16 @@ class BookingService {
 
     const loadDateObj = loadDate ? new Date(loadDate) : null;
 
+    // Generate LR number from the org's branch series (e.g. "CTPL/07/01") ahead of the
+    // transaction — it's backed by its own atomic counter, independent of the booking transaction.
+    let lrNumber = null;
+    try {
+      const orgSettings = await OrganizationSettings.getInstance();
+      lrNumber = await orgSettings.getNextLrNumber();
+    } catch (err) {
+      logger.warn(`Failed to generate LR number from org series: ${err.message}`);
+    }
+
     // Create booking + update customer metrics in a transaction
     const session = await mongoose.startSession();
     let booking;
@@ -210,6 +225,7 @@ class BookingService {
         // bookingId is generated atomically by the model's pre-save hook
         const [created] = await Booking.create([{
           customer: customer._id,
+          ...(lrNumber && { lrDetails: { lrNumber, lrDate: new Date() } }),
           pickup: {
             city: pickupCity,
             state: pickupState,
@@ -221,7 +237,8 @@ class BookingService {
             placeId: pickupPlaceId,
             contactPerson: {
               name: pickupContactName,
-              phone: pickupContactPhone
+              phone: pickupContactPhone,
+              gstNumber: pickupContactGst
             }
           },
           drop: {
@@ -235,7 +252,8 @@ class BookingService {
             placeId: dropPlaceId,
             contactPerson: {
               name: dropContactName,
-              phone: dropContactPhone
+              phone: dropContactPhone,
+              gstNumber: dropContactGst
             }
           },
           materialType,
@@ -287,6 +305,8 @@ class BookingService {
           podType: podType || undefined,
           tripKm: tripKm || undefined,
           bookingType: bookingType || 'indent',
+          invoiceNo: invoiceNo || undefined,
+          ewayBillNo: ewayBillNo || undefined,
           status: 'created',
           statusHistory: [
             {
@@ -976,9 +996,9 @@ class BookingService {
     // Define allowed fields for update
     const allowedFields = [
       'pickupCity', 'pickupState', 'pickupLat', 'pickupLng', 'pickupAddress',
-      'pickupContactName', 'pickupContactPhone',
+      'pickupContactName', 'pickupContactPhone', 'pickupContactGst',
       'dropCity', 'dropState', 'dropLat', 'dropLng', 'dropAddress',
-      'dropContactName', 'dropContactPhone',
+      'dropContactName', 'dropContactPhone', 'dropContactGst',
       'materialType', 'weight', 'truckType', 'bodyType', 'expectedDeliveryDate',
       'additionalInstructions', 'isHazardous', 'isFragile', 'requiresTemperatureControl',
       // Indent-specific fields
@@ -987,7 +1007,7 @@ class BookingService {
       'truckTypeNeeded', 'expiryTime', 'postToSupplier', 'supervisor',
       'laneCode', 'loadType', 'remarks', 'supplierEntity',
       // Post-creation operational fields
-      'boeNumber', 'jobNo', 'hireChallan', 'invoiceNo', 'shipmentNo', 'containerNo', 'poNumber', 'actualKm',
+      'boeNumber', 'jobNo', 'hireChallan', 'invoiceNo', 'ewayBillNo', 'shipmentNo', 'containerNo', 'poNumber', 'actualKm',
       // Supplier financial
       'supplierTds',
       // Detention charges
@@ -1006,10 +1026,34 @@ class BookingService {
           booking.pickup.contactPerson.name = updateData[field];
         } else if (field === 'pickupContactPhone') {
           booking.pickup.contactPerson.phone = updateData[field];
+        } else if (field === 'pickupContactGst') {
+          booking.pickup.contactPerson.gstNumber = updateData[field];
         } else if (field === 'dropContactName') {
           booking.drop.contactPerson.name = updateData[field];
         } else if (field === 'dropContactPhone') {
           booking.drop.contactPerson.phone = updateData[field];
+        } else if (field === 'dropContactGst') {
+          booking.drop.contactPerson.gstNumber = updateData[field];
+        } else if (field === 'pickupCity') {
+          booking.pickup.city = updateData[field];
+        } else if (field === 'pickupState') {
+          booking.pickup.state = updateData[field];
+        } else if (field === 'pickupAddress') {
+          booking.pickup.address = updateData[field];
+        } else if (field === 'dropCity') {
+          booking.drop.city = updateData[field];
+        } else if (field === 'dropState') {
+          booking.drop.state = updateData[field];
+        } else if (field === 'dropAddress') {
+          booking.drop.address = updateData[field];
+        } else if (field === 'pickupLat' || field === 'pickupLng') {
+          const lng = field === 'pickupLng' ? updateData[field] : (updateData.pickupLng ?? booking.pickup.location?.coordinates?.[0]);
+          const lat = field === 'pickupLat' ? updateData[field] : (updateData.pickupLat ?? booking.pickup.location?.coordinates?.[1]);
+          booking.pickup.location = { type: 'Point', coordinates: [lng, lat] };
+        } else if (field === 'dropLat' || field === 'dropLng') {
+          const lng = field === 'dropLng' ? updateData[field] : (updateData.dropLng ?? booking.drop.location?.coordinates?.[0]);
+          const lat = field === 'dropLat' ? updateData[field] : (updateData.dropLat ?? booking.drop.location?.coordinates?.[1]);
+          booking.drop.location = { type: 'Point', coordinates: [lng, lat] };
         } else if (field === 'podCourier') {
           if (!booking.podDetails) booking.podDetails = {};
           booking.podDetails.courier = updateData[field];

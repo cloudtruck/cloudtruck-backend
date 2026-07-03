@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const LOGO_PATH = path.resolve(__dirname, '../../../cloudtruck-customer/public/Logo.jpeg');
+const LOGO_PATH = path.resolve(__dirname, '../assets/pdf-logo.png');
 
 const HSN_SAC = '996812'; // Road freight transport services
 const TERMS_AND_CONDITIONS = [
@@ -127,9 +127,10 @@ function drawHeader(doc, orgSettings, title = 'TAX INVOICE') {
     addr.street,
     addr.city && addr.state ? `${addr.city}, ${addr.state} - ${addr.pincode || ''}` : addr.city,
     addr.country || 'India',
+    contact.phone ? `Phone: ${contact.phone}` : null,
+    contact.email ? `Email: ${contact.email}` : null,
     company.gstNumber ? `GSTIN: ${company.gstNumber}` : null,
     company.panNumber ? `PAN: ${company.panNumber}` : null,
-    contact.phone || null,
   ].filter(Boolean);
 
   let y = companyNameY + 16;
@@ -148,6 +149,7 @@ function drawHeader(doc, orgSettings, title = 'TAX INVOICE') {
 function drawInvoiceHeader(doc, orgSettings, invNo, totalAmount) {
   const company = orgSettings || {};
   const addr = company.companyAddress || {};
+  const contact = company.contactDetails || {};
 
   // Check if logo exists and draw it
   let logoDrawn = false;
@@ -168,6 +170,8 @@ function drawInvoiceHeader(doc, orgSettings, invNo, totalAmount) {
     addr.street,
     addr.city && addr.state ? `${addr.city}, ${addr.state} - ${addr.pincode || ''}` : addr.city,
     addr.country || 'India',
+    contact.phone ? `Phone: ${contact.phone}` : null,
+    contact.email ? `Email: ${contact.email}` : null,
     company.gstNumber ? `GSTIN: ${company.gstNumber}` : null,
     company.panNumber ? `PAN: ${company.panNumber}` : null,
   ].filter(Boolean);
@@ -884,29 +888,54 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
   const contact = company.contactDetails || {};
 
   // --- 1. Header (Left & Right) ---
+  const logoBoxW = 80;
+  const logoBoxH = 32;
   let logoDrawn = false;
+  let logoRenderH = 0;
+  const logoTop = yStart + 12;
   try {
     if (fs.existsSync(LOGO_PATH)) {
-      doc.image(LOGO_PATH, 40, yStart + 8, { fit: [80, 26] });
+      const { width: srcW, height: srcH } = doc.openImage(LOGO_PATH);
+      logoRenderH = Math.min(logoBoxH, logoBoxW * (srcH / srcW));
+      doc.image(LOGO_PATH, 40, logoTop, { fit: [logoBoxW, logoBoxH] });
       logoDrawn = true;
     }
   } catch (err) {}
 
   const companyX = logoDrawn ? 130 : 40;
+
+  // Align the company name with the top of the right-side header block (CIN etc.), which starts at yStart + 15
+  const companyNameY = yStart + 15;
   doc.fillColor('#1e3a8a').fontSize(12).font('Helvetica-Bold')
-    .text(company.companyName || 'Cloud Truck Private Limited', companyX, yStart + 15);
+    .text(company.companyName || 'Cloud Truck Private Limited', companyX, companyNameY);
 
   const headerAddr = [
     addr.street,
     addr.city && addr.state ? `${addr.city}, ${addr.state} - ${addr.pincode || ''}` : addr.city,
-    [contact.phone ? `Phone: ${contact.phone}` : null, company.email ? `Email: ${company.email}` : null].filter(Boolean).join(', '),
-    [company.gstNumber ? `GST NO: ${company.gstNumber}` : null, company.panNumber ? `PAN NO: ${company.panNumber}` : null].filter(Boolean).join(', ')
   ].filter(Boolean);
 
-  let yHeader = yStart + 28;
+  let yHeader = companyNameY + 16;
   for (const line of headerAddr) {
     doc.fontSize(6.5).font('Helvetica').fillColor('#4b5563').text(line, companyX, yHeader);
     yHeader += 8;
+  }
+
+  // Right side of header: CIN, GST No., Phone, Email — right-aligned with padding from the border
+  const headerRightPad = 8;
+  const headerRightW = 230;
+  const headerRightX = PAGE_W - 30 - headerRightPad - headerRightW;
+  const headerRight = [
+    company.cinNumber ? `CIN: ${company.cinNumber}` : null,
+    company.gstNumber ? `GST No: ${company.gstNumber}` : null,
+    contact.phone ? `Phone: ${contact.phone}` : null,
+    contact.email ? `Email: ${contact.email}` : null,
+  ].filter(Boolean);
+
+  let yHeaderRight = yStart + 15;
+  for (const line of headerRight) {
+    doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
+      .text(line, headerRightX, yHeaderRight, { align: 'right', width: headerRightW });
+    yHeaderRight += 9;
   }
 
   // --- 2. Consignment Note Blue Bar ---
@@ -976,35 +1005,41 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
 
   // --- 4. Address block grid (Consignor / Consignee / Shipping Address) ---
   const addrY = gridY + 40;
+  const addrBlockH = 88;
   const colWidth = (PAGE_W - 60) / 3;
   doc.save();
   doc.strokeColor('#9ca3af').lineWidth(0.5);
   // Bounding box
-  doc.rect(30, addrY, PAGE_W - 60, 64).stroke();
+  doc.rect(30, addrY, PAGE_W - 60, addrBlockH).stroke();
   // Dividers
-  doc.moveTo(30 + colWidth, addrY).lineTo(30 + colWidth, addrY + 64).stroke();
-  doc.moveTo(30 + colWidth * 2, addrY).lineTo(30 + colWidth * 2, addrY + 64).stroke();
+  doc.moveTo(30 + colWidth, addrY).lineTo(30 + colWidth, addrY + addrBlockH).stroke();
+  doc.moveTo(30 + colWidth * 2, addrY).lineTo(30 + colWidth * 2, addrY + addrBlockH).stroke();
   doc.restore();
 
   // Consignor info
   const consignor = booking.customer || {};
+  const pickupContact = booking.pickup?.contactPerson || {};
   const cAddr = consignor.billingAddress || consignor.address || booking.pickup || {};
+  const consignorName = consignor.companyName || pickupContact.name || 'N/A';
+  const consignorGst = consignor.gst || pickupContact.gstNumber || 'N/A';
   doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#1e3a8a')
      .text('CONSIGNOR:', 35, addrY + 4);
   doc.fontSize(7.5).font('Helvetica-Bold').fillColor('#1f2937')
-     .text(consignor.companyName || 'N/A', 35, addrY + 13, { width: colWidth - 10, height: 11, ellipsis: true });
-  
+     .text(consignorName, 35, addrY + 13, { width: colWidth - 10, height: 20 });
+
   const consignorAddress = [
     cAddr.address || cAddr.street,
     [cAddr.city, cAddr.state].filter(Boolean).join(', ') + (cAddr.pincode ? ` - ${cAddr.pincode}` : '')
   ].filter(Boolean).join('\n');
   doc.fontSize(6.5).font('Helvetica').fillColor('#4b5563')
-     .text(consignorAddress || 'N/A', 35, addrY + 24, { width: colWidth - 10, height: 20 });
+     .text(consignorAddress || 'N/A', 35, addrY + 32, { width: colWidth - 10, height: 40 });
   doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
-     .text(`GST: ${consignor.gst || 'N/A'}  PAN: ${consignor.pan || 'N/A'}`, 35, addrY + 45, { width: colWidth - 10 });
+     .text(`GST: ${consignorGst}  PAN: ${consignor.pan || 'N/A'}`, 35, addrY + 74, { width: colWidth - 10 });
 
   // Consignee info
-  const consigneeName = booking.drop?.contactPerson?.name || 'N/A';
+  const dropContact = booking.drop?.contactPerson || {};
+  const consigneeName = dropContact.name || 'N/A';
+  const consigneeGst = dropContact.gstNumber || 'N/A';
   const dropAddr = booking.drop || {};
   const consigneeAddress = [
     dropAddr.address,
@@ -1013,24 +1048,24 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
   doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#1e3a8a')
      .text('CONSIGNEE:', 35 + colWidth, addrY + 4);
   doc.fontSize(7.5).font('Helvetica-Bold').fillColor('#1f2937')
-     .text(consigneeName, 35 + colWidth, addrY + 13, { width: colWidth - 10, height: 11, ellipsis: true });
+     .text(consigneeName, 35 + colWidth, addrY + 13, { width: colWidth - 10, height: 20 });
   doc.fontSize(6.5).font('Helvetica').fillColor('#4b5563')
-     .text(consigneeAddress || 'N/A', 35 + colWidth, addrY + 24, { width: colWidth - 10, height: 20 });
+     .text(consigneeAddress || 'N/A', 35 + colWidth, addrY + 32, { width: colWidth - 10, height: 40 });
   doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
-     .text(`GST: N/A  PAN: N/A`, 35 + colWidth, addrY + 45, { width: colWidth - 10 });
+     .text(`GST: ${consigneeGst}  PAN: N/A`, 35 + colWidth, addrY + 74, { width: colWidth - 10 });
 
   // Shipping Address
   doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#1e3a8a')
      .text('SHIPPING ADDRESS:', 35 + colWidth * 2, addrY + 4);
   doc.fontSize(7.5).font('Helvetica-Bold').fillColor('#1f2937')
-     .text(consigneeName, 35 + colWidth * 2, addrY + 13, { width: colWidth - 10, height: 11, ellipsis: true });
+     .text(consigneeName, 35 + colWidth * 2, addrY + 13, { width: colWidth - 10, height: 20 });
   doc.fontSize(6.5).font('Helvetica').fillColor('#4b5563')
-     .text(consigneeAddress || 'N/A', 35 + colWidth * 2, addrY + 24, { width: colWidth - 10, height: 20 });
+     .text(consigneeAddress || 'N/A', 35 + colWidth * 2, addrY + 32, { width: colWidth - 10, height: 40 });
   doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
-     .text(`GST: N/A  PAN: N/A`, 35 + colWidth * 2, addrY + 45, { width: colWidth - 10 });
+     .text(`GST: ${consigneeGst}  PAN: N/A`, 35 + colWidth * 2, addrY + 74, { width: colWidth - 10 });
 
   // --- 5. Item details and Charges Sidebar ---
-  const itemY = addrY + 64;
+  const itemY = addrY + addrBlockH;
   const leftW = 360;
   const rightW = PAGE_W - 60 - leftW;
 
@@ -1206,7 +1241,7 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
 
   // Bank Info
   const bank = orgSettings.bank || {};
-  const bankDetailsText = `A/C NAME: ${company.companyName?.toUpperCase() || 'HIRA SINGH TRANSPORT'} , ACCOUNT NO: ${bank.accountNo || '300002000003951'} , BANK: ${bank.name || 'S.V.C CO-OPERATIVE BANK LTD.'} , IFSC: ${bank.ifsc || 'SVCB0000039'} , BRANCH: ${bank.branch || 'BHAYANDAR (W)'}`;
+  const bankDetailsText = `A/C NAME: ${(bank.accountName || company.companyName)?.toUpperCase() || 'HIRA SINGH TRANSPORT'} , ACCOUNT NO: ${bank.accountNo || '300002000003951'} , BANK: ${bank.name || 'S.V.C CO-OPERATIVE BANK LTD.'} , IFSC: ${bank.ifsc || 'SVCB0000039'} , BRANCH: ${bank.branch || 'BHAYANDAR (W)'}`;
   doc.fontSize(5).font('Helvetica-Bold').fillColor('#4b5563')
      .text(bankDetailsText, 35, footY + 23, { width: 330 });
 

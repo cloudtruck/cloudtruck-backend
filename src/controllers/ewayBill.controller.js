@@ -1,4 +1,5 @@
 import EwayBillService from '../services/ewayBill.service.js';
+import EwayBillParserService from '../services/ewayBillParser.service.js';
 import Staff from '../models/staff.model.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
@@ -135,6 +136,26 @@ export const cancelEwayBill = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, ewayBill, 'E-way bill cancelled successfully')
+  );
+});
+
+/**
+ * Parse an uploaded e-way bill PDF into prefill fields for the Create Indent form
+ * POST /api/v1/eway-bills/parse-pdf
+ */
+export const parseEwayBillPdf = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new ApiError(400, 'E-way bill PDF file is required');
+  }
+
+  if (req.file.mimetype !== 'application/pdf') {
+    throw new ApiError(400, 'Only PDF files are supported');
+  }
+
+  const fields = await EwayBillParserService.parsePdf(req.file.buffer);
+
+  return res.status(200).json(
+    new ApiResponse(200, fields, 'E-way bill PDF parsed successfully')
   );
 });
 

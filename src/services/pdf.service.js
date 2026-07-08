@@ -545,9 +545,9 @@ function drawPageNumbers(doc) {
   }
 }
 
-function buildDoc(renderFn) {
+function buildDoc(renderFn, options = {}) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: MARGIN, size: 'A4', bufferPages: true });
+    const doc = new PDFDocument({ margin: MARGIN, size: 'A4', bufferPages: true, ...options });
     const buffers = [];
     doc.on('data', b => buffers.push(b));
     doc.on('end', () => resolve(Buffer.concat(buffers)));
@@ -881,7 +881,7 @@ class PDFService {
         // Draw Copy 2
         drawSingleCopy(doc, cutY + 10, booking, orgSettings, 'CONSIGNEE');
       }
-    });
+    }, { margin: { top: 20, bottom: 20, left: 30, right: 30 } });
   }
 }
 

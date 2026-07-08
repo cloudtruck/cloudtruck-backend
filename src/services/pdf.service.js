@@ -390,8 +390,11 @@ function drawInvoiceTotalsAndWords(doc, y, subTotal, taxAmount, taxLabel, roundi
 }
 
 function drawBankDetails(doc, y, orgSettings) {
-  const bankAddr = orgSettings?.bank || orgSettings?.addresses?.find(a => a.accountNo) || {};
-  if (!bankAddr.accountNo && !bankAddr.bankName && !bankAddr.name) return y;
+  const bank = orgSettings?.bank || {};
+  const accountNo = bank.accountNo || '771305000395';
+  const bankName = bank.name || bank.bankName || 'ICICI Bank';
+  const ifsc = bank.ifsc || 'ICIC0004611';
+  const beneficiaryName = bank.accountName || orgSettings?.companyName || 'CLOUD TRUCK PVT LTD';
 
   doc.strokeColor(NAVY).lineWidth(1).moveTo(MARGIN, y).lineTo(MARGIN + 150, y).stroke();
   y += 12;
@@ -400,10 +403,10 @@ function drawBankDetails(doc, y, orgSettings) {
   y += 16;
 
   const rows = [
-    ['Beneficiary Name', orgSettings?.companyName || 'Cloud Truck Private Limited'],
-    ['Bank Name', bankAddr.bankName || bankAddr.name || 'N/A'],
-    ['Account No.', bankAddr.accountNo || 'N/A'],
-    ['IFSC Code', bankAddr.ifsc || 'N/A'],
+    ['Beneficiary Name', beneficiaryName],
+    ['Bank Name', bankName],
+    ['Account No.', accountNo],
+    ['IFSC Code', ifsc],
   ];
 
   for (const [label, value] of rows) {
@@ -1236,14 +1239,7 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
 
   // --- 7. Notes and Signature Footer ---
   const footY = refY + 48;
-  doc.fontSize(5).font('Helvetica').fillColor('#6b7280')
-     .text('NOTE:- 1) Luggage is transported at owner\'s risk. (2) In the case of non-insured goods, management will not entertain any claim exceeding Rs. 1000/-. (3) SUBJECT TO (MUMBAI) JURISDICTION.', 35, footY + 5, { width: 330 });
 
-  // Bank Info
-  const bank = orgSettings.bank || {};
-  const bankDetailsText = `A/C NAME: ${(bank.accountName || company.companyName)?.toUpperCase() || 'HIRA SINGH TRANSPORT'} , ACCOUNT NO: ${bank.accountNo || '300002000003951'} , BANK: ${bank.name || 'S.V.C CO-OPERATIVE BANK LTD.'} , IFSC: ${bank.ifsc || 'SVCB0000039'} , BRANCH: ${bank.branch || 'BHAYANDAR (W)'}`;
-  doc.fontSize(5).font('Helvetica-Bold').fillColor('#4b5563')
-     .text(bankDetailsText, 35, footY + 23, { width: 330 });
 
   // Stamp and signature
   doc.fontSize(7).font('Helvetica-Bold').fillColor('#1f2937')

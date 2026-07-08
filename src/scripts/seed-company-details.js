@@ -25,6 +25,13 @@ const seedCompanyDetails = async () => {
     phone: '+91 91655 96666',
     email: 'supply@cloudtruck.in',
   };
+  settings.bank = {
+    accountName: 'CLOUD TRUCK PVT LTD',
+    accountNo: '771305000395',
+    name: 'ICICI Bank',
+    ifsc: 'ICIC0004611',
+    branch: 'Motera Road'
+  };
 
   const primaryAddress = {
     name: 'Head Office',

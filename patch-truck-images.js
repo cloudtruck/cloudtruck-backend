@@ -19,6 +19,7 @@ const TRUCK_IMAGES = {
   'container-20ft': 'https://images.unsplash.com/photo-1494412519320-aa613dfb7738?q=80\&w=600',
   'container-32ft': 'https://images.unsplash.com/photo-1586191712102-141e6e4f9712?q=80\&w=600',
   'container-40ft': 'https://images.unsplash.com/photo-1506306850422-920406692985?q=80\&w=600',
+  '22ft-odc': 'https://images.unsplash.com/photo-1592838064575-70ed626d3a0e?q=80\&w=600',
 };
 
 const patchTruckImages = async () => {

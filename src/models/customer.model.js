@@ -217,6 +217,17 @@ customerSchema.methods.updateRating = function(newRating) {
   return this.save();
 };
 
+// Pre-save hook to extract PAN from GST if not explicitly provided
+customerSchema.pre('save', function (next) {
+  if (this.gst && (!this.pan || (this.isModified('gst') && !this.isModified('pan')))) {
+    const cleanGst = this.gst.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (cleanGst.length === 15) {
+      this.pan = cleanGst.substring(2, 12);
+    }
+  }
+  next();
+});
+
 // Adds Customer.paginate()
 customerSchema.plugin(paginationPlugin);
 

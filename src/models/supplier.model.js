@@ -205,6 +205,17 @@ supplierSchema.methods.removeFromBlacklist = function () {
   return this.save();
 };
 
+// Pre-save hook to extract PAN from GSTIN if not explicitly provided
+supplierSchema.pre('save', function (next) {
+  if (this.gstin && (!this.panNumber || (this.isModified('gstin') && !this.isModified('panNumber')))) {
+    const cleanGst = this.gstin.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (cleanGst.length === 15) {
+      this.panNumber = cleanGst.substring(2, 12);
+    }
+  }
+  next();
+});
+
 /* Plugin */
 supplierSchema.plugin(paginationPlugin);
 

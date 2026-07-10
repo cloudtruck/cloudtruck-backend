@@ -498,6 +498,7 @@ bookingSchema.pre('save', async function (next) {
        this.isModified('expectedAmount') ||
        this.isModified('bookingType') ||
        this.isModified('invoiceNo') ||
+       this.isModified('ewayBillNo') ||
        this.isModified('status') ||
        this.isModified('pickup') ||
        this.isModified('drop') ||

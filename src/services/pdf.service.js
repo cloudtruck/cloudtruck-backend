@@ -1022,9 +1022,20 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
   // Consignor info
   const consignor = booking.customer || {};
   const pickupContact = booking.pickup?.contactPerson || {};
-  const cAddr = consignor.billingAddress || consignor.address || booking.pickup || {};
-  const consignorName = consignor.companyName || pickupContact.name || 'N/A';
-  const consignorGst = consignor.gst || pickupContact.gstNumber || 'N/A';
+  const cAddr = (booking.pickup?.address || booking.pickup?.city) 
+    ? booking.pickup 
+    : (consignor.billingAddress || consignor.address || {});
+  const consignorName = pickupContact.name || consignor.companyName || 'N/A';
+  const consignorGst = pickupContact.gstNumber || consignor.gst || 'N/A';
+  
+  const extractPan = (gst) => {
+    if (!gst || gst === 'N/A') return 'N/A';
+    const clean = gst.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    return clean.length === 15 ? clean.substring(2, 12) : 'N/A';
+  };
+  
+  const consignorPan = consignor.pan || extractPan(consignorGst);
+
   doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#1e3a8a')
      .text('CONSIGNOR:', 35, addrY + 4);
   doc.fontSize(7.5).font('Helvetica-Bold').fillColor('#1f2937')
@@ -1037,12 +1048,13 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
   doc.fontSize(6.5).font('Helvetica').fillColor('#4b5563')
      .text(consignorAddress || 'N/A', 35, addrY + 32, { width: colWidth - 10, height: 40 });
   doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
-     .text(`GST: ${consignorGst}  PAN: ${consignor.pan || 'N/A'}`, 35, addrY + 74, { width: colWidth - 10 });
+     .text(`GST: ${consignorGst}  PAN: ${consignorPan}`, 35, addrY + 74, { width: colWidth - 10 });
 
   // Consignee info
   const dropContact = booking.drop?.contactPerson || {};
   const consigneeName = dropContact.name || 'N/A';
   const consigneeGst = dropContact.gstNumber || 'N/A';
+  const consigneePan = extractPan(consigneeGst);
   const dropAddr = booking.drop || {};
   const consigneeAddress = [
     dropAddr.address,
@@ -1055,7 +1067,7 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
   doc.fontSize(6.5).font('Helvetica').fillColor('#4b5563')
      .text(consigneeAddress || 'N/A', 35 + colWidth, addrY + 32, { width: colWidth - 10, height: 40 });
   doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
-     .text(`GST: ${consigneeGst}  PAN: N/A`, 35 + colWidth, addrY + 74, { width: colWidth - 10 });
+     .text(`GST: ${consigneeGst}  PAN: ${consigneePan}`, 35 + colWidth, addrY + 74, { width: colWidth - 10 });
 
   // Shipping Address
   doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#1e3a8a')
@@ -1065,7 +1077,7 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
   doc.fontSize(6.5).font('Helvetica').fillColor('#4b5563')
      .text(consigneeAddress || 'N/A', 35 + colWidth * 2, addrY + 32, { width: colWidth - 10, height: 40 });
   doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
-     .text(`GST: ${consigneeGst}  PAN: N/A`, 35 + colWidth * 2, addrY + 74, { width: colWidth - 10 });
+     .text(`GST: ${consigneeGst}  PAN: ${consigneePan}`, 35 + colWidth * 2, addrY + 74, { width: colWidth - 10 });
 
   // --- 5. Item details and Charges Sidebar ---
   const itemY = addrY + addrBlockH;

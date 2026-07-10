@@ -1023,16 +1023,28 @@ class BookingService {
         
         // Handle mapped fields for contactPerson
         if (field === 'pickupContactName') {
+          booking.pickup = booking.pickup || {};
+          booking.pickup.contactPerson = booking.pickup.contactPerson || {};
           booking.pickup.contactPerson.name = updateData[field];
         } else if (field === 'pickupContactPhone') {
+          booking.pickup = booking.pickup || {};
+          booking.pickup.contactPerson = booking.pickup.contactPerson || {};
           booking.pickup.contactPerson.phone = updateData[field];
         } else if (field === 'pickupContactGst') {
+          booking.pickup = booking.pickup || {};
+          booking.pickup.contactPerson = booking.pickup.contactPerson || {};
           booking.pickup.contactPerson.gstNumber = updateData[field];
         } else if (field === 'dropContactName') {
+          booking.drop = booking.drop || {};
+          booking.drop.contactPerson = booking.drop.contactPerson || {};
           booking.drop.contactPerson.name = updateData[field];
         } else if (field === 'dropContactPhone') {
+          booking.drop = booking.drop || {};
+          booking.drop.contactPerson = booking.drop.contactPerson || {};
           booking.drop.contactPerson.phone = updateData[field];
         } else if (field === 'dropContactGst') {
+          booking.drop = booking.drop || {};
+          booking.drop.contactPerson = booking.drop.contactPerson || {};
           booking.drop.contactPerson.gstNumber = updateData[field];
         } else if (field === 'pickupCity') {
           booking.pickup.city = updateData[field];

@@ -70,13 +70,15 @@ export const mapBooking = (b) => {
       city: bk.pickup?.city,
       state: bk.pickup?.state,
       address: bk.pickup?.address,
-      latLng: bk.pickup?.location || bk.pickup?.latLng
+      latLng: bk.pickup?.location || bk.pickup?.latLng,
+      contactPerson: bk.pickup?.contactPerson
     },
     drop: {
       city: bk.drop?.city,
       state: bk.drop?.state,
       address: bk.drop?.address,
-      latLng: bk.drop?.location || bk.drop?.latLng
+      latLng: bk.drop?.location || bk.drop?.latLng,
+      contactPerson: bk.drop?.contactPerson
     },
     materialType: bk.materialType,
     weight: bk.weight,

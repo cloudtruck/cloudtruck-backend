@@ -223,4 +223,25 @@ organizationSettingsSchema.methods.getNextLrNumber = async function(series) {
   return `${resolvedSeries}/${String(seq).padStart(2, '0')}`;
 };
 
+// Pre-save hook to extract PAN from GSTIN if not explicitly provided
+organizationSettingsSchema.pre('save', function (next) {
+  if (this.gstNumber && (!this.panNumber || (this.isModified('gstNumber') && !this.isModified('panNumber')))) {
+    const cleanGst = this.gstNumber.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (cleanGst.length === 15) {
+      this.panNumber = cleanGst.substring(2, 12);
+    }
+  }
+  if (this.addresses && Array.isArray(this.addresses)) {
+    for (const addr of this.addresses) {
+      if (addr.gstin && (!addr.pan || addr.isModified('gstin'))) {
+        const cleanGst = addr.gstin.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        if (cleanGst.length === 15) {
+          addr.pan = cleanGst.substring(2, 12);
+        }
+      }
+    }
+  }
+  next();
+});
+
 export default mongoose.model('OrganizationSettings', organizationSettingsSchema);

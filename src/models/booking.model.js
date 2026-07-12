@@ -70,32 +70,11 @@ const bookingSchema = new Schema(
       calculatedAt: Date
     },
 
-    // Cargo
     materialType: {
       type: String,
       required: true,
       trim: true,
-      index: true,
-      enum: [
-        'FMCG',
-        'electronics',
-        'furniture',
-        'steel',
-        'cement',
-        'tiles',
-        'chemicals',
-        'textiles',
-        'agriculture',
-        'automobile-parts',
-        'machinery',
-        'paper',
-        'pharma',
-        'plastic',
-        'food-grains',
-        'vegetables-fruits',
-        'general-cargo',
-        'other'
-      ]
+      index: true
     },
 
     weight: {

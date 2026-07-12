@@ -29,7 +29,7 @@ export const createBookingSchema = z.object({
     dropContactName: z.string().optional(),
     dropContactPhone: z.string().optional(),
     dropContactGst: z.string().optional(),
-    materialType: z.enum(MATERIAL_TYPES, { errorMap: () => ({ message: `Material type must be one of: ${MATERIAL_TYPES.join(', ')}` }) }),
+    materialType: z.string().min(1, 'Material type is required'),
     weight: z.preprocess((v) => {
       if (typeof v === 'number' || typeof v === 'string') {
         const parsed = parseFloat(v);

@@ -548,6 +548,13 @@ function drawPageNumbers(doc) {
 function buildDoc(renderFn, options = {}) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: MARGIN, size: 'A4', bufferPages: true, ...options });
+    
+    // Register Calibri-Light font if it exists
+    const CALIBRI_LIGHT_PATH = path.resolve(__dirname, '../assets/calibril.ttf');
+    if (fs.existsSync(CALIBRI_LIGHT_PATH)) {
+      doc.registerFont('Calibri-Light', CALIBRI_LIGHT_PATH);
+    }
+
     const buffers = [];
     doc.on('data', b => buffers.push(b));
     doc.on('end', () => resolve(Buffer.concat(buffers)));
@@ -890,6 +897,20 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
   const addr = company.companyAddress || {};
   const contact = company.contactDetails || {};
 
+  // Register and use Calibri Light & Bold fonts
+  const fontName = 'Calibri-Light';
+  const boldFontName = 'Calibri-Bold';
+  const CALIBRI_LIGHT_PATH = path.resolve(__dirname, '../assets/calibril.ttf');
+  const CALIBRI_BOLD_PATH = path.resolve(__dirname, '../assets/calibrib.ttf');
+  try {
+    if (fs.existsSync(CALIBRI_LIGHT_PATH)) {
+      doc.registerFont(fontName, CALIBRI_LIGHT_PATH);
+    }
+    if (fs.existsSync(CALIBRI_BOLD_PATH)) {
+      doc.registerFont(boldFontName, CALIBRI_BOLD_PATH);
+    }
+  } catch (err) {}
+
   // --- 1. Header (Left & Right) ---
   const logoBoxW = 80;
   const logoBoxH = 32;
@@ -905,29 +926,29 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
     }
   } catch (err) {}
 
-  const companyX = logoDrawn ? 130 : 40;
-
-  // Align the company name with the top of the right-side header block (CIN etc.), which starts at yStart + 15
-  const companyNameY = yStart + 15;
-  doc.fillColor('#1e3a8a').fontSize(12).font('Helvetica-Bold')
-    .text(company.companyName || 'Cloud Truck Private Limited', companyX, companyNameY);
+  // Move the address next to logo vertically (underneath the logo)
+  const companyX = 40;
+  let yHeader = yStart + 15;
+  if (logoDrawn) {
+    yHeader = yStart + 12 + logoRenderH + 6;
+  }
 
   const headerAddr = [
     addr.street,
     addr.city && addr.state ? `${addr.city}, ${addr.state} - ${addr.pincode || ''}` : addr.city,
   ].filter(Boolean);
 
-  let yHeader = companyNameY + 16;
   for (const line of headerAddr) {
-    doc.fontSize(6.5).font('Helvetica').fillColor('#4b5563').text(line, companyX, yHeader);
-    yHeader += 8;
+    doc.fontSize(9).font(fontName).fillColor('#000000').text(line, companyX, yHeader);
+    yHeader += 13;
   }
 
-  // Right side of header: CIN, GST No., Phone, Email — right-aligned with padding from the border
+  // Right side of header: Company Name (Bold), then CIN, GST No., Phone, Email (Light) — right-aligned
   const headerRightPad = 8;
   const headerRightW = 230;
   const headerRightX = PAGE_W - 30 - headerRightPad - headerRightW;
   const headerRight = [
+    company.companyName || 'Cloud Truck Private Limited',
     company.cinNumber ? `CIN: ${company.cinNumber}` : null,
     company.gstNumber ? `GST No: ${company.gstNumber}` : null,
     contact.phone ? `Phone: ${contact.phone}` : null,
@@ -935,36 +956,41 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
   ].filter(Boolean);
 
   let yHeaderRight = yStart + 15;
-  for (const line of headerRight) {
-    doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
+  for (let i = 0; i < headerRight.length; i++) {
+    const line = headerRight[i];
+    const currentFont = (i === 0) ? boldFontName : fontName;
+    doc.fontSize(9).font(currentFont).fillColor('#000000')
       .text(line, headerRightX, yHeaderRight, { align: 'right', width: headerRightW });
-    yHeaderRight += 9;
+    yHeaderRight += 13;
   }
 
-  // --- 2. Consignment Note Blue Bar ---
+  const yHeaderMax = Math.max(yHeader, yHeaderRight);
+
+  // --- 2. Consignment Note Bar ---
+  const barY = Math.max(yStart + 85, yHeaderMax + 5);
   doc.save();
-  doc.rect(30, yStart + 60, PAGE_W - 60, 14).fill('#1e3a8a');
-  doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#ffffff')
-     .text('CONSIGNMENT NOTE', 30, yStart + 64, { align: 'center', width: PAGE_W - 60 });
+  doc.strokeColor('#000000').lineWidth(0.5).rect(30, barY, PAGE_W - 60, 18).stroke();
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
+     .text('CONSIGNMENT NOTE', 30, barY + 4, { align: 'center', width: PAGE_W - 60 });
   doc.restore();
 
   // --- 3. First Meta Grid (CN Details) ---
-  const gridY = yStart + 74;
+  const gridY = barY + 18;
   doc.save();
-  doc.strokeColor('#9ca3af').lineWidth(0.5);
+  doc.strokeColor('#000000').lineWidth(0.5);
   // Grid outer boundary
-  doc.rect(30, gridY, PAGE_W - 60, 40).stroke();
+  doc.rect(30, gridY, PAGE_W - 60, 48).stroke();
   // Horizontal dividing line
-  doc.moveTo(30, gridY + 20).lineTo(PAGE_W - 30, gridY + 20).stroke();
+  doc.moveTo(30, gridY + 24).lineTo(PAGE_W - 30, gridY + 24).stroke();
   
   // Row 1 vertical dividers: CN NUMBER, DATE, DELIVERY TYPE, ORIGIN, DESTINATION, PAYMENT, COPY FOR
   const cols1 = [30, 110, 180, 250, 320, 390, 465, PAGE_W - 30];
   for (let i = 1; i < cols1.length - 1; i++) {
-    doc.moveTo(cols1[i], gridY).lineTo(cols1[i], gridY + 20).stroke();
+    doc.moveTo(cols1[i], gridY).lineTo(cols1[i], gridY + 24).stroke();
   }
   doc.restore();
 
-  // Row 1 text
+  // Row 1 text (Labels Bold, Values Light)
   const labels1 = ['CN NUMBER', 'DATE', 'DELIVERY TYPE', 'ORIGIN', 'DESTINATION', 'PAYMENT', 'COPY FOR'];
   const values1 = [
     booking.lrDetails?.lrNumber || booking.bookingId || '-',
@@ -976,22 +1002,22 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
     copyType.toUpperCase()
   ];
   for (let i = 0; i < labels1.length; i++) {
-    doc.fontSize(6).font('Helvetica-Bold').fillColor('#4b5563')
-       .text(labels1[i], cols1[i], gridY + 3, { align: 'center', width: cols1[i+1] - cols1[i] });
-    doc.fontSize(7.5).font('Helvetica-Bold').fillColor('#1f2937')
-       .text(values1[i], cols1[i], gridY + 10, { align: 'center', width: cols1[i+1] - cols1[i] });
+    doc.fontSize(9).font(boldFontName).fillColor('#000000')
+       .text(labels1[i], cols1[i], gridY + 2, { align: 'center', width: cols1[i+1] - cols1[i] });
+    doc.fontSize(9).font(fontName).fillColor('#000000')
+       .text(values1[i], cols1[i], gridY + 12, { align: 'center', width: cols1[i+1] - cols1[i] });
   }
 
-  // Row 2 vertical dividers: VEHICLE NO (w=150), DOOR DELIVERY (w=120), SHIPPING CHARGE (w=120), DRIVER (w=145)
+  // Row 2 vertical dividers: VEHICLE NO, DOOR DELIVERY, SHIPPING CHARGE, DRIVER
   const cols2 = [30, 180, 300, 420, PAGE_W - 30];
   doc.save();
-  doc.strokeColor('#9ca3af').lineWidth(0.5);
+  doc.strokeColor('#000000').lineWidth(0.5);
   for (let i = 1; i < cols2.length - 1; i++) {
-    doc.moveTo(cols2[i], gridY + 20).lineTo(cols2[i], gridY + 40).stroke();
+    doc.moveTo(cols2[i], gridY + 24).lineTo(cols2[i], gridY + 48).stroke();
   }
   doc.restore();
 
-  // Row 2 text
+  // Row 2 text (Labels Bold, Values Light)
   const labels2 = ['VEHICLE NO', 'DOOR DELIVERY', 'SHIPPING CHARGE', 'DRIVER:'];
   const values2 = [
     booking.vehicle?.vehicleNumber || 'N/A',
@@ -1000,18 +1026,18 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
     booking.driver?.name || 'N/A'
   ];
   for (let i = 0; i < labels2.length; i++) {
-    doc.fontSize(6).font('Helvetica-Bold').fillColor('#4b5563')
-       .text(labels2[i], cols2[i], gridY + 23, { align: 'center', width: cols2[i+1] - cols2[i] });
-    doc.fontSize(7.5).font('Helvetica-Bold').fillColor('#1f2937')
-       .text(values2[i], cols2[i], gridY + 30, { align: 'center', width: cols2[i+1] - cols2[i] });
+    doc.fontSize(9).font(boldFontName).fillColor('#000000')
+       .text(labels2[i], cols2[i], gridY + 26, { align: 'center', width: cols2[i+1] - cols2[i] });
+    doc.fontSize(9).font(fontName).fillColor('#000000')
+       .text(values2[i], cols2[i], gridY + 36, { align: 'center', width: cols2[i+1] - cols2[i] });
   }
 
   // --- 4. Address block grid (Consignor / Consignee / Shipping Address) ---
-  const addrY = gridY + 40;
-  const addrBlockH = 88;
+  const addrY = gridY + 48;
+  const addrBlockH = 96;
   const colWidth = (PAGE_W - 60) / 3;
   doc.save();
-  doc.strokeColor('#9ca3af').lineWidth(0.5);
+  doc.strokeColor('#000000').lineWidth(0.5);
   // Bounding box
   doc.rect(30, addrY, PAGE_W - 60, addrBlockH).stroke();
   // Dividers
@@ -1036,19 +1062,19 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
   
   const consignorPan = consignor.pan || extractPan(consignorGst);
 
-  doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#1e3a8a')
-     .text('CONSIGNOR:', 35, addrY + 4);
-  doc.fontSize(7.5).font('Helvetica-Bold').fillColor('#1f2937')
-     .text(consignorName, 35, addrY + 13, { width: colWidth - 10, height: 20 });
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
+     .text('CONSIGNOR:', 35, addrY + 3);
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
+     .text(consignorName, 35, addrY + 15, { width: colWidth - 10, height: 14 });
 
   const consignorAddress = [
     cAddr.address || cAddr.street,
     [cAddr.city, cAddr.state].filter(Boolean).join(', ') + (cAddr.pincode ? ` - ${cAddr.pincode}` : '')
   ].filter(Boolean).join('\n');
-  doc.fontSize(6.5).font('Helvetica').fillColor('#4b5563')
-     .text(consignorAddress || 'N/A', 35, addrY + 32, { width: colWidth - 10, height: 40 });
-  doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
-     .text(`GST: ${consignorGst}  PAN: ${consignorPan}`, 35, addrY + 74, { width: colWidth - 10 });
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text(consignorAddress || 'N/A', 35, addrY + 28, { width: colWidth - 10, height: 42 });
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text(`GST: ${consignorGst}\nPAN: ${consignorPan}`, 35, addrY + 68, { width: colWidth - 10 });
 
   // Consignee info
   const dropContact = booking.drop?.contactPerson || {};
@@ -1060,24 +1086,24 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
     dropAddr.address,
     [dropAddr.city, dropAddr.state].filter(Boolean).join(', ') + (dropAddr.pincode ? ` - ${dropAddr.pincode}` : '')
   ].filter(Boolean).join('\n');
-  doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#1e3a8a')
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
      .text('CONSIGNEE:', 35 + colWidth, addrY + 4);
-  doc.fontSize(7.5).font('Helvetica-Bold').fillColor('#1f2937')
-     .text(consigneeName, 35 + colWidth, addrY + 13, { width: colWidth - 10, height: 20 });
-  doc.fontSize(6.5).font('Helvetica').fillColor('#4b5563')
-     .text(consigneeAddress || 'N/A', 35 + colWidth, addrY + 32, { width: colWidth - 10, height: 40 });
-  doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
-     .text(`GST: ${consigneeGst}  PAN: ${consigneePan}`, 35 + colWidth, addrY + 74, { width: colWidth - 10 });
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
+     .text(consigneeName, 35 + colWidth, addrY + 15, { width: colWidth - 10, height: 14 });
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text(consigneeAddress || 'N/A', 35 + colWidth, addrY + 28, { width: colWidth - 10, height: 42 });
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text(`GST: ${consigneeGst}\nPAN: ${consigneePan}`, 35 + colWidth, addrY + 68, { width: colWidth - 10 });
 
   // Shipping Address
-  doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#1e3a8a')
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
      .text('SHIPPING ADDRESS:', 35 + colWidth * 2, addrY + 4);
-  doc.fontSize(7.5).font('Helvetica-Bold').fillColor('#1f2937')
-     .text(consigneeName, 35 + colWidth * 2, addrY + 13, { width: colWidth - 10, height: 20 });
-  doc.fontSize(6.5).font('Helvetica').fillColor('#4b5563')
-     .text(consigneeAddress || 'N/A', 35 + colWidth * 2, addrY + 32, { width: colWidth - 10, height: 40 });
-  doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
-     .text(`GST: ${consigneeGst}  PAN: ${consigneePan}`, 35 + colWidth * 2, addrY + 74, { width: colWidth - 10 });
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
+     .text(consigneeName, 35 + colWidth * 2, addrY + 15, { width: colWidth - 10, height: 14 });
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text(consigneeAddress || 'N/A', 35 + colWidth * 2, addrY + 28, { width: colWidth - 10, height: 42 });
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text(`GST: ${consigneeGst}\nPAN: ${consigneePan}`, 35 + colWidth * 2, addrY + 68, { width: colWidth - 10 });
 
   // --- 5. Item details and Charges Sidebar ---
   const itemY = addrY + addrBlockH;
@@ -1097,40 +1123,38 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
     }
   ];
 
-  const rowHeight = 12;
-  const headerHeight = 11;
-  const totalRowHeight = 11;
+  const rowHeight = 16;
+  const headerHeight = 16;
+  const totalRowHeight = 24;
   const tableHeight = headerHeight + (items.length * rowHeight) + totalRowHeight;
-  const chargesHeight = 88; // CGST, SGST, IGST as separate rows
+  const chargesHeight = 120; // CGST, SGST, IGST as separate rows
 
   const containerHeight = Math.max(tableHeight, chargesHeight);
   const refY = itemY + containerHeight;
 
   doc.save();
-  doc.strokeColor('#9ca3af').lineWidth(0.5);
+  doc.strokeColor('#000000').lineWidth(0.5);
   // Main container
   doc.rect(30, itemY, PAGE_W - 60, containerHeight).stroke();
   // Sidebar vertical divider
   doc.moveTo(30 + leftW, itemY).lineTo(30 + leftW, itemY + containerHeight).stroke();
   
-  // Left Header (Item Columns)
-  doc.rect(30, itemY, leftW, 11).fill('#f3f4f6');
   // Divider lines inside left header
-  const itemCols = [30, 160, 205, 235, 275, 315, 345, 30 + leftW];
+  const itemCols = [30, 150, 195, 225, 265, 305, 335, 30 + leftW];
   for (let i = 1; i < itemCols.length - 1; i++) {
     doc.moveTo(itemCols[i], itemY).lineTo(itemCols[i], itemY + containerHeight - totalRowHeight).stroke();
   }
   doc.restore();
 
-  // Left header labels
+  // Left header labels (Bold)
   const itemLabels = ['ITEM', 'PKG TYPE', 'QTY', 'N.WT', 'G.WT', 'RATE TYPE', 'AMOUNT'];
   for (let i = 0; i < itemLabels.length; i++) {
-    doc.fontSize(5.5).font('Helvetica-Bold').fillColor('#374151')
-       .text(itemLabels[i], itemCols[i], itemY + 3, { align: 'center', width: itemCols[i+1] - itemCols[i] });
+    doc.fontSize(9).font(boldFontName).fillColor('#000000')
+       .text(itemLabels[i], itemCols[i], itemY + 4, { align: 'center', width: itemCols[i+1] - itemCols[i] });
   }
 
-  // Left Row values (Dynamic items loop)
-  let curRowY = itemY + 13;
+  // Left Row values (Dynamic items loop - Light)
+  let curRowY = itemY + 20;
   for (const item of items) {
     const itemVals = [
       String(item.name || 'General Cargo'),
@@ -1142,7 +1166,7 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
       String(item.amount || '0.00')
     ];
     for (let i = 0; i < itemVals.length; i++) {
-      doc.fontSize(6.5).font('Helvetica').fillColor('#1f2937')
+      doc.fontSize(9).font(fontName).fillColor('#000000')
          .text(itemVals[i], itemCols[i], curRowY, { align: 'center', width: itemCols[i+1] - itemCols[i] });
     }
     curRowY += rowHeight;
@@ -1150,29 +1174,29 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
 
   // Left Total Row
   doc.save();
-  doc.strokeColor('#9ca3af').lineWidth(0.5);
+  doc.strokeColor('#000000').lineWidth(0.5);
   doc.moveTo(30, itemY + containerHeight - totalRowHeight).lineTo(30 + leftW, itemY + containerHeight - totalRowHeight).stroke();
   doc.restore();
 
   const totalWeightStr = items.length === 1 ? items[0].nwt : '-';
-  doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#1f2937')
-     .text('Total', 35, itemY + containerHeight - totalRowHeight + 2)
-     .text(String(items.length), 205, itemY + containerHeight - totalRowHeight + 2, { align: 'center', width: 30 })
-     .text(totalWeightStr, 235, itemY + containerHeight - totalRowHeight + 2, { align: 'center', width: 40 })
-     .text(totalWeightStr, 275, itemY + containerHeight - totalRowHeight + 2, { align: 'center', width: 40 })
-     .text('TO BE BILLED', 345, itemY + containerHeight - totalRowHeight + 2, { align: 'center', width: 45 });
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
+     .text('Total', 35, itemY + containerHeight - totalRowHeight + 4);
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text(String(items.length), 195, itemY + containerHeight - totalRowHeight + 4, { align: 'center', width: 30 })
+     .text(totalWeightStr, 225, itemY + containerHeight - totalRowHeight + 4, { align: 'center', width: 40 })
+     .text(totalWeightStr, 265, itemY + containerHeight - totalRowHeight + 4, { align: 'center', width: 40 })
+     .text('TO BE BILLED', 335, itemY + containerHeight - totalRowHeight + 4, { align: 'center', width: 55 });
 
   // Right Charges Sidebar
   doc.save();
-  doc.rect(30 + leftW, itemY, rightW, 11).fill('#f3f4f6');
-  doc.strokeColor('#9ca3af').lineWidth(0.5);
+  doc.strokeColor('#000000').lineWidth(0.5);
   const chargeColX = 30 + leftW + 115;
   doc.moveTo(chargeColX, itemY).lineTo(chargeColX, itemY + containerHeight).stroke();
   
-  // Header texts
-  doc.fontSize(5.5).font('Helvetica-Bold').fillColor('#374151')
-     .text('CHARGES', 30 + leftW, itemY + 3, { align: 'center', width: 115 })
-     .text('AMOUNT', chargeColX, itemY + 3, { align: 'center', width: rightW - 115 });
+  // Header texts (Bold)
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
+     .text('CHARGES', 30 + leftW, itemY + 4, { align: 'center', width: 115 })
+     .text('AMOUNT', chargeColX, itemY + 4, { align: 'center', width: rightW - 115 });
   
   // Draw inner rows of charges (CGST, SGST, IGST as separate rows)
   const chargesList = [
@@ -1186,93 +1210,88 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
     ['GRAND TOTAL', 'TO BE BILLED']
   ];
   
-  let cy = itemY + 13;
+  let cy = itemY + 20;
   for (const [chg, amt] of chargesList) {
-    doc.fontSize(5.5).font('Helvetica').fillColor('#4b5563').text(chg, 30 + leftW + 5, cy);
-    doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#1f2937').text(amt, chargeColX, cy, { align: 'center', width: rightW - 115 });
-    cy += 9;
+    const isBold = chg === 'SUB TOTAL' || chg === 'GRAND TOTAL';
+    const currentFont = isBold ? boldFontName : fontName;
+    doc.fontSize(9).font(currentFont).fillColor('#000000').text(chg, 30 + leftW + 5, cy);
+    doc.fontSize(9).font(currentFont).fillColor('#000000').text(amt, chargeColX, cy, { align: 'center', width: rightW - 115 });
+    cy += 12;
   }
   doc.restore();
 
   // --- 6. Lower Info/Reference Row ---
   doc.save();
-  doc.strokeColor('#9ca3af').lineWidth(0.5);
-  doc.rect(30, refY, PAGE_W - 60, 48).stroke();
+  doc.strokeColor('#000000').lineWidth(0.5);
+  doc.rect(30, refY, PAGE_W - 60, 80).stroke();
   
   // Horiz divides
-  doc.moveTo(30, refY + 12).lineTo(PAGE_W - 30, refY + 12).stroke();
-  doc.moveTo(30, refY + 24).lineTo(PAGE_W - 30, refY + 24).stroke();
-  doc.moveTo(30, refY + 36).lineTo(PAGE_W - 30, refY + 36).stroke();
+  doc.moveTo(30, refY + 20).lineTo(PAGE_W - 30, refY + 20).stroke();
+  doc.moveTo(30, refY + 40).lineTo(PAGE_W - 30, refY + 40).stroke();
+  doc.moveTo(30, refY + 60).lineTo(PAGE_W - 30, refY + 60).stroke();
   
   // Vert divides
-  doc.moveTo(170, refY).lineTo(170, refY + 24).stroke();
-  doc.moveTo(330, refY).lineTo(330, refY + 24).stroke();
-  doc.moveTo(330, refY + 24).lineTo(330, refY + 48).stroke();
+  doc.moveTo(200, refY).lineTo(200, refY + 40).stroke();
+  doc.moveTo(340, refY).lineTo(340, refY + 40).stroke();
+  doc.moveTo(340, refY + 40).lineTo(340, refY + 80).stroke();
   doc.restore();
 
-  // Row 1: INVOICE NO / DATE / VALUE
+  // Row 1: INVOICE NO / DATE / VALUE (Labels Bold, Values Light)
   const freightVal = booking.finalAmount || booking.expectedAmount || 0;
-  doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
-     .text('INVOICE NO:', 35, refY + 3)
-     .text('DATE:', 175, refY + 3)
-     .text('VALUE:', 335, refY + 3);
-  doc.font('Helvetica').fillColor('#1f2937')
-     .text(booking.invoiceNo || 'N/A', 80, refY + 3)
-     .text(booking.loadDateTime ? format(new Date(booking.loadDateTime), 'dd-MM-yyyy') : 'N/A', 205, refY + 3)
-     .text(freightVal ? rupees(freightVal) : 'TO BE BILLED', 370, refY + 3);
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
+     .text('INVOICE NO:', 35, refY + 5)
+     .text('DATE:', 205, refY + 5)
+     .text('VALUE:', 345, refY + 5);
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text(booking.invoiceNo || 'N/A', 115, refY + 5)
+     .text(booking.loadDateTime ? format(new Date(booking.loadDateTime), 'dd-MM-yyyy') : 'N/A', 245, refY + 5)
+     .text(freightVal ? rupees(freightVal) : 'TO BE BILLED', 390, refY + 5);
 
   // Row 2: E-WAY BILL NO / DATE / TAX PAID BY CONSIGNOR
-  doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
-     .text('E-WAY BILL NO:', 35, refY + 15)
-     .text('DATE:', 175, refY + 15);
-  doc.font('Helvetica').fillColor('#1f2937')
-     .text(booking.ewayBillNo || 'N/A', 92, refY + 15)
-     .text(booking.loadDateTime ? format(new Date(booking.loadDateTime), 'dd-MM-yyyy') : 'N/A', 205, refY + 15);
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
+     .text('E-WAY BILL NO:', 35, refY + 25)
+     .text('DATE:', 205, refY + 25);
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text(booking.ewayBillNo || 'N/A', 125, refY + 25)
+     .text(booking.loadDateTime ? format(new Date(booking.loadDateTime), 'dd-MM-yyyy') : 'N/A', 245, refY + 25);
   
-  doc.rect(335, refY + 14, 180, 8).fill('#f3f4f6');
-  doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#1f2937')
-     .text('TAX PAID BY CONSIGNOR', 335, refY + 15, { align: 'center', width: 180 });
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
+     .text('TAX PAID BY CONSIGNOR', 340, refY + 25, { align: 'center', width: PAGE_W - 60 - 340 });
 
   // Row 3: PRIVATE MARK
-  doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
-     .text('PRIVATE MARK:', 35, refY + 27);
-  doc.font('Helvetica').fillColor('#1f2937')
-     .text('N/A', 98, refY + 27);
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
+     .text('PRIVATE MARK:', 35, refY + 45);
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text('N/A', 125, refY + 45);
 
   // Row 4: REMARKS / CLAIM AMOUNT / AMOUNT IN WORD
-  doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#4b5563')
-     .text('REMARKS:', 35, refY + 39)
-     .text('Amount in Word:', 335, refY + 27)
-     .text('CLAIM AMOUNT:', 335, refY + 39);
-  doc.font('Helvetica').fillColor('#1f2937')
-     .text(booking.remarks || 'None', 80, refY + 39)
-     .text('TO BE BILLED', 405, refY + 27)
-     .text('N/A', 405, refY + 39);
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
+     .text('REMARKS:', 35, refY + 65)
+     .text('Amount in Word:', 345, refY + 45)
+     .text('CLAIM AMOUNT:', 345, refY + 65);
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text(booking.remarks || 'None', 105, refY + 65)
+     .text('TO BE BILLED', 440, refY + 45)
+     .text('N/A', 440, refY + 65);
 
   // --- 7. Notes and Signature Footer ---
-  const footY = refY + 48;
-
+  const footY = refY + 80;
 
   // Stamp and signature
-  doc.fontSize(7).font('Helvetica-Bold').fillColor('#1f2937')
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
      .text(`For ${company.companyName?.toUpperCase() || 'HIRA SINGH TRANSPORT'}`, 380, footY + 5, { align: 'center', width: 170 });
   
-  // Fake stamp circle for aesthetic quality!
-  doc.save();
-  doc.strokeColor('#3b82f6').lineWidth(0.75).circle(465, footY + 20, 12).stroke();
-  doc.fontSize(4).font('Helvetica-Bold').fillColor('#3b82f6')
-     .text('DIGITALLY', 450, footY + 16, { align: 'center', width: 30 })
-     .text('SIGNED', 450, footY + 21, { align: 'center', width: 30 });
-  doc.restore();
+  doc.fontSize(9).font(boldFontName).fillColor('#000000')
+     .text('DIGITALLY SIGNED', 380, footY + 20, { align: 'center', width: 170 });
 
-  doc.fontSize(6).font('Helvetica').fillColor('#9ca3af')
-     .text('Note: Digitally Generated CN/LR, Signature Not Required', 380, footY + 32, { align: 'center', width: 170 });
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text('Note: Digitally Generated CN/LR, Signature Not Required', 30, footY + 36, { width: PAGE_W - 60 });
 
-  const copyHeight = (footY - yStart) + 40;
+  const copyHeight = (footY - yStart) + 52;
 
   // Draw outer border box now that we have copyHeight
   doc.save();
-  doc.strokeColor('#9ca3af').lineWidth(0.75).rect(30, yStart, PAGE_W - 60, copyHeight).stroke();
+  doc.strokeColor('#000000').lineWidth(0.5).rect(30, yStart, PAGE_W - 60, copyHeight).stroke();
   doc.restore();
 
   return copyHeight;

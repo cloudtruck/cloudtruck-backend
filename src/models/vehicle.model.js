@@ -8,7 +8,6 @@ const vehicleSchema = new mongoose.Schema(
       required: [true, 'Vehicle number is required'],
       uppercase: true,
       trim: true,
-      index: true,
       validate: {
         validator: function(v) {
           // Indian vehicle number format: XX00XX0000 or XX-00-XX-0000
@@ -93,8 +92,7 @@ const vehicleSchema = new mongoose.Schema(
     // Expiry Tracking
     expiryDates: {
       fitness: {
-        type: Date,
-        index: true
+        type: Date
       },
       permit: {
         type: Date,
@@ -102,8 +100,7 @@ const vehicleSchema = new mongoose.Schema(
       },
       insurance: {
         type: Date,
-        required: [true, 'Insurance expiry date is required'],
-        index: true
+        required: [true, 'Insurance expiry date is required']
       },
       puc: Date,
       roadTax: Date

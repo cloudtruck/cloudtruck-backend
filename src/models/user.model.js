@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema({
       return ['customer', 'driver', 'supplier'].includes(this.role);
     }
   },
-  email: { type: String, sparse: true },
+  email: { type: String },
   password: { type: String, select: false }, // staff/internal only
   role: { type: String, enum: ['customer','driver','staff','internal','super-admin','supplier'], required: true, index: true },
   status: { type: String, enum: ['active','blocked','pending-verification','inactive'], default: 'pending-verification', index: true },

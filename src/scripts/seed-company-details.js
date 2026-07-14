@@ -14,10 +14,10 @@ const seedCompanyDetails = async () => {
   settings.panNumber = 'AANCC5682Q';
   settings.cinNumber = 'U52290GJ2026PTC173772';
   settings.companyAddress = {
-    street: '3rd Floor, Block A, Surya Shreeji 66, Motera Road, Near Motera Temple',
+    street: 'Shop N F3 B-A Takshashila, Orient, Naroda Rd, Nikol',
     city: 'Ahmedabad',
     state: 'Gujarat',
-    pincode: '380005',
+    pincode: '380049',
     country: 'India',
   };
   settings.contactDetails = {
@@ -34,11 +34,11 @@ const seedCompanyDetails = async () => {
   };
 
   const primaryAddress = {
-    name: 'Head Office',
-    address: '3rd Floor, Block A, Surya Shreeji 66, Motera Road, Near Motera Temple',
+    name: 'Corporate Office',
+    address: 'Shop N F3 B-A Takshashila, Orient, Naroda Rd, Nikol',
     city: 'Ahmedabad',
     state: 'Gujarat',
-    pincode: '380005',
+    pincode: '380049',
     country: 'India',
     gstin: '24AANCC5682Q1ZU',
     pan: 'AANCC5682Q',

@@ -35,6 +35,13 @@ function hr(doc, y, color = '#cccccc') {
   doc.strokeColor(color).lineWidth(0.5).moveTo(40, y).lineTo(595.28 - 40, y).stroke();
 }
 
+function toTitleCase(str) {
+  if (!str) return '';
+  return str.split(/[\s_-]+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
 // --- Data ---
 
 const mockBooking = {
@@ -78,10 +85,10 @@ const orgSettings = {
   companyName: 'CLOUD TRUCK PRIVATE LIMITED',
   gstNumber: '24AAHCS5254D1Z2',
   companyAddress: {
-    street: 'Plot No. 1, Phase 1, GIDC',
+    street: 'Shop N F3 B-A Takshashila, Orient, Naroda Rd, Nikol',
     city: 'Ahmedabad',
     state: 'Gujarat',
-    pincode: '382445'
+    pincode: '380049'
   },
   phone: '9892523292',
   email: 'ops@cloudtruck.in',
@@ -105,11 +112,11 @@ async function generate() {
     // Header
     doc.fillColor('#1a1a1a').fontSize(16).font('Helvetica-Bold').text(orgSettings.companyName, 40, 40);
     doc.fontSize(8.5).font('Helvetica').fillColor('#444444')
-       .text('Head Office: ' + orgSettings.companyAddress.street + ', ' + orgSettings.companyAddress.city + ', ' + orgSettings.companyAddress.state + ' - ' + orgSettings.companyAddress.pincode, 40, 60)
+       .text('Corporate Office Address: ' + orgSettings.companyAddress.street + ', ' + orgSettings.companyAddress.city + ', ' + orgSettings.companyAddress.state + ' - ' + orgSettings.companyAddress.pincode, 40, 60)
        .text('Phone: ' + orgSettings.phone + ', Email: ' + orgSettings.email, 40, 72)
-       .text('GST NO: ' + orgSettings.gstNumber + ', Website: santoshmovers.com', 40, 84);
+       .text('GST No: ' + orgSettings.gstNumber + ', Website: santoshmovers.com', 40, 84);
     
-    doc.fontSize(12).font('Helvetica-Bold').fillColor('#1a1a1a').text('CONSIGNMENT NOTE', 0, 40, { align: 'right', width: 595.28 - 40 });
+    doc.fontSize(12).font('Helvetica-Bold').fillColor('#1a1a1a').text('Consignment Note', 0, 40, { align: 'right', width: 595.28 - 40 });
     
     hr(doc, 100);
 
@@ -118,29 +125,29 @@ async function generate() {
     const col1 = 40, col2 = 140, col3 = 240, col4 = 340, col5 = 440;
     
     doc.fontSize(8).font('Helvetica-Bold').fillColor('#555555')
-       .text('CN NUMBER', col1, y).text('DATE', col2, y).text('DELIVERY TYPE', col3, y).text('COPY FOR', col5, y);
+       .text('CN Number', col1, y).text('Date', col2, y).text('Delivery Type', col3, y).text('Copy For', col5, y);
     y += 12;
     doc.fontSize(9).font('Helvetica').fillColor('#1a1a1a')
-       .text(mockBooking.lrDetails.lrNumber, col1, y).text(format(mockBooking.lrDetails.lrDate, 'dd-MM-yyyy'), col2, y).text('Road', col3, y).text(copyTitle, col5, y);
+       .text(mockBooking.lrDetails.lrNumber, col1, y).text(format(mockBooking.lrDetails.lrDate, 'dd-MM-yyyy'), col2, y).text('Road', col3, y).text(toTitleCase(copyTitle), col5, y);
     
     y += 20;
     doc.fontSize(8).font('Helvetica-Bold').fillColor('#555555')
-       .text('ORIGIN', col1, y).text('DESTINATION', col2, y).text('VEHICLE NO', col3, y).text('PAYMENT', col5, y);
+       .text('Origin', col1, y).text('Destination', col2, y).text('Vehicle No', col3, y).text('Payment', col5, y);
     y += 12;
     doc.fontSize(9).font('Helvetica')
-       .text(mockBooking.pickup.city.toUpperCase(), col1, y).text(mockBooking.drop.city.toUpperCase(), col2, y).text(mockBooking.vehicle.vehicleNumber, col3, y).text('TO BE BILLED', col5, y);
+       .text(toTitleCase(mockBooking.pickup.city), col1, y).text(toTitleCase(mockBooking.drop.city), col2, y).text(mockBooking.vehicle.vehicleNumber, col3, y).text('To Be Billed', col5, y);
 
     y += 25;
     hr(doc, y);
     y += 15;
 
     // Consignor / Consignee
-    doc.fontSize(8.5).font('Helvetica-Bold').text('CONSIGNOR:', col1, y);
+    doc.fontSize(8.5).font('Helvetica-Bold').text('Consignor:', col1, y);
     doc.font('Helvetica').text('SANTOSH MOVERS AND PACKERS (AS AGENT)', col1 + 60, y, { width: 180 });
     doc.text('GST: ' + orgSettings.gstNumber, col1 + 60, doc.y + 2);
     
     const consigneeY = y;
-    doc.font('Helvetica-Bold').text('CONSIGNEE:', col3 + 40, consigneeY);
+    doc.font('Helvetica-Bold').text('Consignee:', col3 + 40, consigneeY);
     doc.font('Helvetica').text(mockBooking.customer.companyName, col3 + 100, consigneeY, { width: 180 });
     doc.text('GST: ' + mockBooking.customer.gst, col3 + 100, doc.y + 2);
     
@@ -149,7 +156,7 @@ async function generate() {
     y += 10;
 
     // Items
-    doc.fontSize(8.5).font('Helvetica-Bold').text('ITEM', col1, y).text('PKG TYPE', col2 + 40, y).text('QTY', col3 + 20, y).text('G.WT', col4, y).text('RATE TYPE', col5, y);
+    doc.fontSize(8.5).font('Helvetica-Bold').text('Item', col1, y).text('Pkg Type', col2 + 40, y).text('Qty', col3 + 20, y).text('G.Wt', col4, y).text('Rate Type', col5, y);
     y += 15;
     doc.font('Helvetica').text(mockBooking.materialType, col1, y, { width: 140 })
        .text('Loose', col2 + 40, y)
@@ -163,11 +170,11 @@ async function generate() {
 
     // Details
     doc.fontSize(8.5).font('Helvetica-Bold')
-       .text('INVOICE NO: ' + mockBooking.invoiceNo, col1, y)
-       .text('DATE: ' + format(mockBooking.lrDetails.lrDate, 'dd-MM-yyyy'), col1 + 180, y)
-       .text('VALUE: Rs.' + mockBooking.customerPrice, col1 + 300, y);
+       .text('Invoice No: ' + mockBooking.invoiceNo, col1, y)
+       .text('Date: ' + format(mockBooking.lrDetails.lrDate, 'dd-MM-yyyy'), col1 + 180, y)
+       .text('Value: Rs.' + mockBooking.customerPrice, col1 + 300, y);
     y += 15;
-    doc.text('E-WAY BILL NO: ' + mockBooking.ewayBillNo, col1, y);
+    doc.text('E-Way Bill No: ' + mockBooking.ewayBillNo, col1, y);
     
     y += 20;
     hr(doc, y);
@@ -179,14 +186,14 @@ async function generate() {
     
     const bankY = y;
     doc.fontSize(8).font('Helvetica-Bold').fillColor('#1a1a1a')
-       .text('BANK DETAILS:', col4 - 20, bankY);
+       .text('Bank Details:', col4 - 20, bankY);
     doc.fontSize(7.5).font('Helvetica')
        .text('A/C: ' + orgSettings.bank.accountNo, col4 - 20, bankY + 12)
        .text('Bank: ' + orgSettings.bank.name, col4 - 20, bankY + 22)
        .text('IFSC: ' + orgSettings.bank.ifsc, col4 - 20, bankY + 32);
 
     y = 720;
-    doc.fontSize(9).font('Helvetica-Bold').text('For ' + orgSettings.companyName.toUpperCase(), col4, y);
+    doc.fontSize(9).font('Helvetica-Bold').text('For ' + orgSettings.companyName, col4, y);
     doc.fontSize(7).font('Helvetica').text('Note: Digitally Generated CN/LR, Signature Not Required', col4, y + 15);
   };
 

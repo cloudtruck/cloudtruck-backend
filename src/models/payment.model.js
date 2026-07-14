@@ -97,8 +97,6 @@ const paymentSchema = new Schema(
 // Indexes
 paymentSchema.index({ booking: 1, status: 1 });
 paymentSchema.index({ customer: 1, createdAt: -1 });
-paymentSchema.index({ merchantTransactionId: 1 });
-paymentSchema.index({ transactionId: 1 });
 
 // Exclude deleted payments by default
 paymentSchema.pre(/^find/, function () {

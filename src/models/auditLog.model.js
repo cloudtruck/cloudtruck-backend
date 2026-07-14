@@ -216,8 +216,7 @@ const auditLogSchema = new mongoose.Schema(
     timestamp: {
       type: Date,
       default: Date.now,
-      required: true,
-      index: true
+      required: true
     },
 
     // Related entities (for complex operations)

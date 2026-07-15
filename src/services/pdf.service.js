@@ -22,26 +22,31 @@ const PAGE_H = 841.89; // A4 height in points
 const MARGIN = 50;
 const COL_RIGHT = 370;
 
-const NAVY = '#1e3a8a';
-const NAVY_TINT = '#eef2ff';
+const NAVY = '#000000';
+const NAVY_TINT = '#ffffff';
+
+const FONT_REG = fs.existsSync(path.resolve(__dirname, '../assets/calibril.ttf')) ? 'Calibri-Light' : 'Helvetica';
+const FONT_BOLD = fs.existsSync(path.resolve(__dirname, '../assets/calibrib.ttf')) ? 'Calibri-Bold' : 'Helvetica-Bold';
+const SIZE_BOLD = 8;
+const SIZE_REG = 9;
 
 const colX = {
   sno: 50,
-  desc: 80,
-  hsn: 270,
-  qty: 325,
-  rate: 355,
-  tax: 405,
-  amount: 460
+  desc: 75,
+  hsn: 265,
+  qty: 320,
+  rate: 350,
+  tax: 415,
+  amount: 455
 };
 const colW = {
-  sno: 30,
+  sno: 25,
   desc: 190,
   hsn: 55,
-  qty: colX.rate - 5 - 325,
-  rate: colX.tax - 5 - colX.rate,
-  tax: colX.amount - 5 - colX.tax,
-  amount: PAGE_W - MARGIN - 5 - colX.amount
+  qty: 30,
+  rate: 65,
+  tax: 40,
+  amount: PAGE_W - MARGIN - 455
 };
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -155,7 +160,7 @@ function drawHeader(doc, orgSettings, title = 'Tax Invoice') {
 
   // Company Name
   const companyNameY = logoDrawn ? 82 : 50;
-  doc.fillColor('#1f2937').fontSize(14).font('Helvetica-Bold')
+  doc.fillColor('#000000').fontSize(9).font(FONT_BOLD)
     .text(company.companyName || 'CloudTruck', MARGIN, companyNameY);
 
   const addrLines = [
@@ -169,15 +174,15 @@ function drawHeader(doc, orgSettings, title = 'Tax Invoice') {
     company.panNumber ? `PAN: ${company.panNumber}` : null,
   ].filter(Boolean);
 
-  let y = companyNameY + 16;
+  let y = companyNameY + 14;
   for (const line of addrLines) {
     const isLabel = line === 'Corporate Office Address:';
-    doc.fontSize(8.5).font(isLabel ? 'Helvetica-Bold' : 'Helvetica').fillColor('#4b5563').text(line, MARGIN, y);
+    doc.fontSize(SIZE_REG).font(isLabel ? FONT_BOLD : FONT_REG).fillColor('#000000').text(line, MARGIN, y);
     y += 12;
   }
 
   // Title label (right)
-  doc.fontSize(title === 'Tax Invoice' ? 12 : 14).font('Helvetica-Bold').fillColor('#1f2937')
+  doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000')
     .text(title, 0, 50, { align: 'right', width: PAGE_W - MARGIN });
 
   return y + 8;
@@ -199,7 +204,7 @@ function drawInvoiceHeader(doc, orgSettings, invNo, totalAmount) {
 
   // Company Name
   const companyNameY = logoDrawn ? 82 : 40;
-  doc.fillColor('#1f2937').fontSize(12).font('Helvetica-Bold')
+  doc.fillColor('#000000').fontSize(9).font(FONT_BOLD)
     .text(company.companyName || 'Cloud Truck Private Limited', MARGIN, companyNameY);
 
   // Address lines
@@ -214,38 +219,38 @@ function drawInvoiceHeader(doc, orgSettings, invNo, totalAmount) {
     company.panNumber ? `PAN: ${company.panNumber}` : null,
   ].filter(Boolean);
 
-  let y = companyNameY + 16;
+  let y = companyNameY + 14;
   for (const line of addrLines) {
     const isLabel = line === 'Corporate Office Address:';
-    doc.fontSize(8.5).font(isLabel ? 'Helvetica-Bold' : 'Helvetica').fillColor('#4b5563').text(line, MARGIN, y);
+    doc.fontSize(SIZE_REG).font(isLabel ? FONT_BOLD : FONT_REG).fillColor('#000000').text(line, MARGIN, y);
     y += 12;
   }
 
-  // Right Side: Tax Invoice title with navy underline
+  // Right Side: Tax Invoice title with black underline
   const titleW = 160;
   const titleX = PAGE_W - MARGIN - titleW;
-  doc.fontSize(13).font('Helvetica-Bold').fillColor(NAVY);
+  doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000');
   const titleTextW = doc.widthOfString('Tax Invoice');
   doc.text('Tax Invoice', titleX, 40, { align: 'right', width: titleW });
-  doc.strokeColor(NAVY).lineWidth(1.2)
-    .moveTo(titleX + titleW - titleTextW, 56).lineTo(titleX + titleW, 56).stroke();
+  doc.strokeColor('#000000').lineWidth(0.5)
+    .moveTo(titleX + titleW - titleTextW, 52).lineTo(titleX + titleW, 52).stroke();
 
-  doc.fontSize(10.5).font('Helvetica-Bold').fillColor('#4b5563')
-    .text(`# ${invNo}`, 0, 62, { align: 'right', width: PAGE_W - MARGIN });
+  doc.fontSize(SIZE_REG).font(FONT_BOLD).fillColor('#000000')
+    .text(`# ${invNo}`, 0, 58, { align: 'right', width: PAGE_W - MARGIN });
 
   // Invoice Amount callout box
   const boxW = 150;
   const boxX = PAGE_W - MARGIN - boxW;
-  const boxY = 82;
-  const boxH = 38;
+  const boxY = 76;
+  const boxH = 36;
 
   doc.save();
   doc.roundedRect(boxX, boxY, boxW, boxH, 3).fillAndStroke(NAVY_TINT, NAVY);
   doc.restore();
 
-  doc.fillColor(NAVY).fontSize(7.5).font('Helvetica-Bold')
+  doc.fillColor('#000000').fontSize(SIZE_BOLD).font(FONT_BOLD)
     .text('INVOICE AMOUNT', boxX, boxY + 7, { align: 'center', width: boxW });
-  doc.fillColor('#1f2937').fontSize(14).font('Helvetica-Bold')
+  doc.fillColor('#000000').fontSize(11).font(FONT_BOLD)
     .text(rupees(totalAmount), boxX, boxY + 18, { align: 'center', width: boxW });
 
   return Math.max(y + 14, boxY + boxH + 10);
@@ -264,8 +269,8 @@ function drawInvoiceMeta(doc, yStart, invNo, invDate, dueDate, extraFields = [])
   ];
 
   for (const [label, value] of rows) {
-    doc.fontSize(9).font('Helvetica').fillColor('#6b7280').text(label + ':', labelX, y);
-    doc.font('Helvetica-Bold').fillColor('#374151').text(String(value), valueX, y);
+    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(label + ':', labelX, y);
+    doc.font(FONT_BOLD).fillColor('#000000').text(String(value), valueX, y);
     y += 14;
   }
 
@@ -277,11 +282,11 @@ function drawInvoiceBillToAndMeta(doc, yStart, customer, invDate, dueDate, billi
   const customerState = addr.state || '';
 
   // --- Left Column: Bill To ---
-  doc.fontSize(9).font('Helvetica-Bold').fillColor(NAVY).text('Bill To', MARGIN, yStart);
-  doc.strokeColor(NAVY).lineWidth(1).moveTo(MARGIN, yStart + 11).lineTo(MARGIN + 200, yStart + 11).stroke();
+  doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('Bill To', MARGIN, yStart);
+  doc.strokeColor('#000000').lineWidth(0.5).moveTo(MARGIN, yStart + 11).lineTo(MARGIN + 200, yStart + 11).stroke();
 
   let yLeft = yStart + 18;
-  doc.fontSize(9.5).font('Helvetica-Bold').fillColor('#374151')
+  doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000')
      .text(customer.companyName || 'N/A', MARGIN, yLeft);
   yLeft += 13;
 
@@ -294,22 +299,22 @@ function drawInvoiceBillToAndMeta(doc, yStart, customer, invDate, dueDate, billi
   ].filter(Boolean);
 
   for (const line of addrLines) {
-    doc.fontSize(8.5).font('Helvetica').fillColor('#4b5563').text(line, MARGIN, yLeft);
+    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(line, MARGIN, yLeft);
     yLeft += 11;
   }
 
   if (customer.gst) {
-    doc.fontSize(8.5).font('Helvetica').fillColor('#4b5563').text(`GSTIN - ${customer.gst}`, MARGIN, yLeft);
+    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(`GSTIN - ${customer.gst}`, MARGIN, yLeft);
     yLeft += 11;
   }
   if (customer.pan) {
-    doc.fontSize(8.5).font('Helvetica').fillColor('#4b5563').text(`PAN - ${customer.pan}`, MARGIN, yLeft);
+    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(`PAN - ${customer.pan}`, MARGIN, yLeft);
     yLeft += 11;
   }
 
   if (customerState) {
     yLeft += 4;
-    doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#4b5563')
+    doc.fontSize(SIZE_REG).font(FONT_BOLD).fillColor('#000000')
        .text(`Place Of Supply: ${customerState}`, MARGIN, yLeft);
     yLeft += 12;
   }
@@ -320,8 +325,8 @@ function drawInvoiceBillToAndMeta(doc, yStart, customer, invDate, dueDate, billi
   const valueX = labelX + labelW + 10;
   const valW = PAGE_W - MARGIN - valueX;
 
-  doc.fontSize(9).font('Helvetica-Bold').fillColor(NAVY).text('Invoice Details', labelX, yStart);
-  doc.strokeColor(NAVY).lineWidth(1).moveTo(labelX, yStart + 11).lineTo(PAGE_W - MARGIN, yStart + 11).stroke();
+  doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('Invoice Details', labelX, yStart);
+  doc.strokeColor('#000000').lineWidth(0.5).moveTo(labelX, yStart + 11).lineTo(PAGE_W - MARGIN, yStart + 11).stroke();
 
   let yRight = yStart + 18;
 
@@ -334,8 +339,8 @@ function drawInvoiceBillToAndMeta(doc, yStart, customer, invDate, dueDate, billi
   ];
 
   for (const [key, value] of rows) {
-    doc.fontSize(8.5).font('Helvetica').fillColor('#6b7280').text(key, labelX, yRight, { width: labelW, align: 'left' });
-    doc.font('Helvetica-Bold').fillColor('#374151').text(String(value), valueX, yRight, { width: valW, align: 'right' });
+    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(key, labelX, yRight, { width: labelW, align: 'left' });
+    doc.font(FONT_BOLD).fillColor('#000000').text(String(value), valueX, yRight, { width: valW, align: 'right' });
     yRight += 15;
   }
 
@@ -343,45 +348,54 @@ function drawInvoiceBillToAndMeta(doc, yStart, customer, invDate, dueDate, billi
   return { bottomY };
 }
 
-const COL_DIVIDERS = [colX.desc, colX.hsn, colX.qty, colX.rate, colX.tax, colX.amount];
+const COL_DIVIDERS = [75, 265, 320, 350, 415, 455];
 
 function drawLineItemsHeader(doc, y, taxType = 'IGST') {
-  doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, 20).fill(NAVY);
-  doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold');
+  doc.save();
+  doc.strokeColor('#000000').lineWidth(0.5);
+  doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, 20).stroke();
+  for (const dx of COL_DIVIDERS) {
+    doc.moveTo(dx, y).lineTo(dx, y + 20).stroke();
+  }
+  doc.restore();
+
+  doc.fillColor('#000000').fontSize(SIZE_BOLD).font(FONT_BOLD);
   doc.text('S. No.', colX.sno, y + 6, { width: colW.sno, align: 'center' });
-  doc.text('Item & Description', colX.desc, y + 6, { width: colW.desc });
+  doc.text('Item & Description', colX.desc + 5, y + 6, { width: colW.desc - 10, align: 'left' });
   doc.text('HSN/SAC', colX.hsn, y + 6, { width: colW.hsn, align: 'center' });
-  doc.text('Qty', colX.qty, y + 6, { width: colW.qty, align: 'right' });
-  doc.text('Rate', colX.rate, y + 6, { width: colW.rate, align: 'right' });
-  doc.fontSize(taxType.length > 5 ? 6.5 : 8.5)
-    .text(taxType, colX.tax, y + 6.5, { width: colW.tax, align: 'right' });
-  doc.fontSize(8.5).text('Amount', colX.amount, y + 6, { width: colW.amount, align: 'right' });
+  doc.text('Qty', colX.qty, y + 6, { width: colW.qty, align: 'center' });
+  doc.text('Rate', colX.rate, y + 6, { width: colW.rate, align: 'center' });
+  doc.fontSize(taxType.length > 5 ? 6.5 : SIZE_BOLD)
+    .text(taxType, colX.tax, y + 6.5, { width: colW.tax, align: 'center' });
+  doc.fontSize(SIZE_BOLD).text('Amount', colX.amount, y + 6, { width: colW.amount, align: 'center' });
   return y + 20;
 }
 
 function drawLineItem(doc, y, sno, description, hsn, qty, rate, taxRateStr, amount) {
-  const descHeight = doc.heightOfString(description, { width: colW.desc });
+  const descHeight = doc.heightOfString(description, { width: colW.desc - 10 });
   const rowH = Math.max(28, descHeight + 12);
 
-  if (sno % 2 === 0) {
-    doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, rowH).fill('#f9fafb');
-  }
-
-  doc.fillColor('#374151').fontSize(8.5).font('Helvetica');
+  doc.fillColor('#000000').fontSize(SIZE_REG).font(FONT_REG);
   doc.text(String(sno), colX.sno, y + 6, { width: colW.sno, align: 'center' });
 
-  doc.text(description, colX.desc, y + 6, { width: colW.desc });
+  doc.text(description, colX.desc + 5, y + 6, { width: colW.desc - 10, align: 'left' });
   doc.text(hsn, colX.hsn, y + 6, { width: colW.hsn, align: 'center' });
-  doc.text(String(qty), colX.qty, y + 6, { width: colW.qty, align: 'right' });
-  doc.text(rupees(rate), colX.rate, y + 6, { width: colW.rate, align: 'right' });
-  doc.text(taxRateStr, colX.tax, y + 6, { width: colW.tax, align: 'right' });
-  doc.text(rupees(amount), colX.amount, y + 6, { width: colW.amount, align: 'right' });
+  doc.text(String(qty), colX.qty, y + 6, { width: colW.qty, align: 'center' });
+  doc.text(rupees(rate), colX.rate, y + 6, { width: colW.rate, align: 'center' });
+  doc.text(taxRateStr, colX.tax, y + 6, { width: colW.tax, align: 'center' });
+  doc.text(rupees(amount), colX.amount, y + 6, { width: colW.amount, align: 'center' });
 
   doc.save();
-  doc.strokeColor('#e5e7eb').lineWidth(0.5);
+  doc.strokeColor('#000000').lineWidth(0.5);
+  // Left outer border line
+  doc.moveTo(MARGIN, y).lineTo(MARGIN, y + rowH).stroke();
+  // Dividers
   for (const dx of COL_DIVIDERS) {
-    doc.moveTo(dx - 5, y).lineTo(dx - 5, y + rowH).stroke();
+    doc.moveTo(dx, y).lineTo(dx, y + rowH).stroke();
   }
+  // Right outer border line
+  doc.moveTo(PAGE_W - MARGIN, y).lineTo(PAGE_W - MARGIN, y + rowH).stroke();
+  // Bottom horizontal line
   doc.moveTo(MARGIN, y + rowH).lineTo(PAGE_W - MARGIN, y + rowH).stroke();
   doc.restore();
 
@@ -401,28 +415,28 @@ function drawInvoiceTotalsAndWords(doc, y, subTotal, taxAmount, taxLabel, roundi
   const cardH = rows.length * rowH + grandH + wordsH + 10;
 
   doc.save();
-  doc.lineWidth(1).roundedRect(lx, y, cardW, cardH, 3).fillAndStroke(NAVY_TINT, NAVY);
+  doc.lineWidth(0.5).roundedRect(lx, y, cardW, cardH, 3).fillAndStroke(NAVY_TINT, NAVY);
   doc.restore();
 
   let ty = y + 8;
   for (const [label, value] of rows) {
-    doc.fontSize(8.5).font('Helvetica').fillColor('#4b5563').text(label, lx + 10, ty);
-    doc.font('Helvetica-Bold').fillColor('#374151').text(rupees(value), 0, ty, { align: 'right', width: vx });
+    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(label, lx + 10, ty);
+    doc.font(FONT_BOLD).fillColor('#000000').text(rupees(value), 0, ty, { align: 'right', width: vx });
     ty += rowH;
   }
 
-  // Invoice Amount row (bold, navy)
-  doc.strokeColor(NAVY).lineWidth(1).moveTo(lx + 8, ty).lineTo(rx - 8, ty).stroke();
+  // Invoice Amount row (bold, black)
+  doc.strokeColor(NAVY).lineWidth(0.5).moveTo(lx + 8, ty).lineTo(rx - 8, ty).stroke();
   ty += 6;
-  doc.fillColor(NAVY).fontSize(10.5).font('Helvetica-Bold')
+  doc.fillColor('#000000').fontSize(SIZE_BOLD).font(FONT_BOLD)
      .text('Invoice Amount', lx + 10, ty)
      .text(rupees(total), 0, ty, { align: 'right', width: vx });
   ty += grandH - 6;
 
   // Amount in words caption
-  doc.fontSize(7).font('Helvetica-Bold').fillColor('#6b7280')
+  doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000')
      .text('AMOUNT IN WORDS', lx + 10, ty, { width: cardW - 20 });
-  doc.fontSize(7.5).font('Helvetica-Oblique').fillColor('#374151')
+  doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000')
      .text(amountInWords(total), lx + 10, ty + 10, { width: cardW - 20 });
 
   return y + cardH + 12;
@@ -435,10 +449,9 @@ function drawBankDetails(doc, y, orgSettings) {
   const ifsc = bank.ifsc || 'ICIC0004611';
   const beneficiaryName = bank.accountName || orgSettings?.companyName || 'CLOUD TRUCK PVT LTD';
 
-  doc.strokeColor(NAVY).lineWidth(1).moveTo(MARGIN, y).lineTo(MARGIN + 150, y).stroke();
-  y += 12;
+  y += 8;
 
-  doc.fontSize(9.5).font('Helvetica-Bold').fillColor(NAVY).text('Bank Details', MARGIN, y);
+  doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('Bank Details', MARGIN, y);
   y += 16;
 
   const rows = [
@@ -449,9 +462,9 @@ function drawBankDetails(doc, y, orgSettings) {
   ];
 
   for (const [label, value] of rows) {
-    doc.fontSize(8.5).font('Helvetica').fillColor('#6b7280')
+    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000')
       .text(label + ':', MARGIN, y, { continued: true })
-      .font('Helvetica-Bold').fillColor('#374151')
+      .font(FONT_BOLD).fillColor('#000000')
       .text(' ' + value);
     y += 13;
   }
@@ -460,18 +473,20 @@ function drawBankDetails(doc, y, orgSettings) {
 }
 
 function drawTerms(doc, y) {
-  doc.strokeColor(NAVY).lineWidth(1).moveTo(MARGIN, y).lineTo(MARGIN + 150, y).stroke();
-  y += 12;
+  y += 8;
 
-  doc.fontSize(9.5).font('Helvetica-Bold').fillColor(NAVY).text('Terms & Conditions', MARGIN, y);
+  doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('Terms & Conditions', MARGIN, y);
   y += 16;
 
   const lineH = 14;
   const panelH = TERMS_AND_CONDITIONS.length * lineH + 10;
-  doc.rect(MARGIN, y - 4, PAGE_W - MARGIN * 2, panelH).fill('#f9fafb');
+  
+  doc.save();
+  doc.strokeColor('#000000').lineWidth(0.5).rect(MARGIN, y - 4, PAGE_W - MARGIN * 2, panelH).stroke();
+  doc.restore();
 
   for (const line of TERMS_AND_CONDITIONS) {
-    doc.fontSize(8.5).font('Helvetica').fillColor('#4b5563')
+    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000')
       .text(`•  ${line}`, MARGIN + 8, y, { width: PAGE_W - MARGIN * 2 - 16 });
     y += lineH;
   }
@@ -480,11 +495,10 @@ function drawTerms(doc, y) {
 
 function drawNotes(doc, y, note) {
   if (!note) return y;
-  doc.strokeColor(NAVY).lineWidth(1).moveTo(MARGIN, y).lineTo(MARGIN + 150, y).stroke();
-  y += 12;
-  doc.fontSize(9.5).font('Helvetica-Bold').fillColor(NAVY).text('Notes', MARGIN, y);
+  y += 8;
+  doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('Notes', MARGIN, y);
   y += 16;
-  doc.fontSize(8.5).font('Helvetica').fillColor('#4b5563').text(note, MARGIN, y, { width: PAGE_W - MARGIN * 2 });
+  doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(note, MARGIN, y, { width: PAGE_W - MARGIN * 2 });
   return y + 20;
 }
 
@@ -521,7 +535,7 @@ function drawCapabilityIcon(doc, type, cx, cy) {
       break;
     case 'rupee':
       doc.circle(cx, cy, r).stroke();
-      doc.fontSize(8).font('Helvetica-Bold').text('Rs', cx - r * 0.55, cy - r * 0.55);
+      doc.fontSize(8).font(FONT_BOLD).text('Rs', cx - r * 0.55, cy - r * 0.55);
       break;
     case 'bars':
       doc.rect(cx - r, cy + r * 0.2, r * 0.5, r * 0.8).fillAndStroke(NAVY, NAVY);
@@ -538,13 +552,13 @@ function drawCapabilityStrip(doc, y) {
   const colW2 = innerW / CAPABILITIES.length;
 
   doc.save();
-  doc.lineWidth(1).roundedRect(MARGIN, y, innerW, stripH, 3).fillAndStroke(NAVY_TINT, NAVY);
+  doc.lineWidth(0.5).roundedRect(MARGIN, y, innerW, stripH, 3).fillAndStroke(NAVY_TINT, NAVY);
   doc.restore();
 
   CAPABILITIES.forEach((cap, i) => {
     const cx = MARGIN + colW2 * i + colW2 / 2;
     drawCapabilityIcon(doc, cap.icon, cx, y + 13);
-    doc.fillColor(NAVY).fontSize(6.5).font('Helvetica-Bold')
+    doc.fillColor(NAVY).fontSize(SIZE_BOLD).font(FONT_BOLD)
       .text(cap.label, MARGIN + colW2 * i, y + 24, { width: colW2, align: 'center' });
   });
 
@@ -558,8 +572,8 @@ function drawFooter(doc) {
     doc.page.margins.bottom = 0;
   }
 
-  doc.strokeColor('#e5e7eb').lineWidth(0.5).moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).stroke();
-  doc.fontSize(8).font('Helvetica').fillColor('#9ca3af')
+  doc.strokeColor('#000000').lineWidth(0.5).moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).stroke();
+  doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000')
     .text('This is a computer-generated document. No physical signature required.', MARGIN, y + 8, {
       align: 'center', width: PAGE_W - MARGIN * 2,
     });
@@ -576,7 +590,7 @@ function drawPageNumbers(doc) {
     doc.switchToPage(range.start + i);
     const oldBottom = doc.page.margins.bottom;
     doc.page.margins.bottom = 0;
-    doc.fontSize(7.5).font('Helvetica').fillColor('#9ca3af')
+    doc.fontSize(SIZE_REG - 1.5).font(FONT_REG).fillColor('#000000')
       .text(`Page ${i + 1} of ${range.count}`, MARGIN, PAGE_H - 30, {
         align: 'right', width: PAGE_W - MARGIN * 2,
       });
@@ -588,10 +602,14 @@ function buildDoc(renderFn, options = {}) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: MARGIN, size: 'A4', bufferPages: true, ...options });
     
-    // Register Calibri-Light font if it exists
+    // Register Calibri-Light and Calibri-Bold fonts if they exist
     const CALIBRI_LIGHT_PATH = path.resolve(__dirname, '../assets/calibril.ttf');
     if (fs.existsSync(CALIBRI_LIGHT_PATH)) {
       doc.registerFont('Calibri-Light', CALIBRI_LIGHT_PATH);
+    }
+    const CALIBRI_BOLD_PATH = path.resolve(__dirname, '../assets/calibrib.ttf');
+    if (fs.existsSync(CALIBRI_BOLD_PATH)) {
+      doc.registerFont('Calibri-Bold', CALIBRI_BOLD_PATH);
     }
 
     const buffers = [];
@@ -727,13 +745,16 @@ class PDFService {
       // Payment history
       if (summary.payments?.length) {
         y += 15;
-        doc.fontSize(9.5).font('Helvetica-Bold').fillColor(NAVY).text('Payment History', MARGIN, y);
-        doc.strokeColor(NAVY).lineWidth(1).moveTo(MARGIN, y + 12).lineTo(MARGIN + 200, y + 12).stroke();
-        y += 18;
+        doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('Payment History', MARGIN, y);
+        doc.strokeColor('#000000').lineWidth(0.5).moveTo(MARGIN, y + 10).lineTo(MARGIN + 200, y + 10).stroke();
+        y += 15;
 
         // Table Header
-        doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, 18).fill(NAVY);
-        doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff')
+        doc.save();
+        doc.strokeColor('#000000').lineWidth(0.5);
+        doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, 18).stroke();
+        doc.restore();
+        doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000')
           .text('Date', MARGIN + 8, y + 5)
           .text('Method / Reference', MARGIN + 100, y + 5)
           .text('Amount', 0, y + 5, { align: 'right', width: PAGE_W - MARGIN - 8 });
@@ -741,22 +762,28 @@ class PDFService {
 
         for (const [i, p] of summary.payments.entries()) {
           const rowH = 16;
-          if (i % 2 === 0) {
-            doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, rowH).fill('#f9fafb');
-          }
           const date = p.paidAt ? format(new Date(p.paidAt), 'dd-MMM-yy') : '-';
           const ref = [p.paymentMethod, p.referenceNumber || p.transactionId].filter(Boolean).join(' / ');
-          doc.fontSize(8).font('Helvetica').fillColor('#4b5563')
+          
+          doc.save();
+          doc.strokeColor('#000000').lineWidth(0.5);
+          // Left border
+          doc.moveTo(MARGIN, y).lineTo(MARGIN, y + rowH).stroke();
+          // Right border
+          doc.moveTo(PAGE_W - MARGIN, y).lineTo(PAGE_W - MARGIN, y + rowH).stroke();
+          doc.restore();
+
+          doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000')
             .text(date, MARGIN + 8, y + 4)
             .text(ref || '-', MARGIN + 100, y + 4)
             .text(rupees(p.amount), 0, y + 4, { align: 'right', width: PAGE_W - MARGIN - 8 });
           y += rowH;
-          doc.strokeColor('#e5e7eb').lineWidth(0.5).moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).stroke();
+          doc.strokeColor('#000000').lineWidth(0.5).moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).stroke();
         }
 
         y += 10;
-        doc.strokeColor(NAVY).lineWidth(1).moveTo(325, y).lineTo(PAGE_W - MARGIN, y).stroke();
-        doc.fontSize(9.5).font('Helvetica-Bold').fillColor(NAVY)
+        doc.strokeColor('#000000').lineWidth(0.5).moveTo(325, y).lineTo(PAGE_W - MARGIN, y).stroke();
+        doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000')
           .text('Balance Due:', 330, y + 5)
           .text(rupees(summary.balance || 0), 0, y + 5, { align: 'right', width: PAGE_W - MARGIN - 5 });
         y += 25;
@@ -803,45 +830,45 @@ class PDFService {
       ]);
 
       // Driver & vehicle (left column)
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#1f2937').text('DRIVER', MARGIN, y);
+      doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('DRIVER', MARGIN, y);
       y += 13;
-      doc.fontSize(8.5).font('Helvetica').fillColor('#4b5563')
+      doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000')
         .text(`Name: ${na(booking.driver?.name)}`, MARGIN, y)
         .text(`Phone: ${na(booking.driver?.phone)}`, MARGIN, y + 12);
       y += 30;
 
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#1f2937').text('VEHICLE', MARGIN, y);
+      doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('VEHICLE', MARGIN, y);
       y += 13;
-      doc.fontSize(8.5).font('Helvetica').fillColor('#4b5563')
+      doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000')
         .text(`Number: ${na(booking.vehicle?.vehicleNumber)}`, MARGIN, y)
         .text(`Type: ${na(booking.vehicle?.truckType)}`, MARGIN, y + 12);
       y += 35;
 
-      hr(doc, y);
+      hr(doc, y, '#000000');
       y += 10;
 
       // Route
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#1f2937').text('FROM', MARGIN, y).text('TO', 300, y);
+      doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('FROM', MARGIN, y).text('TO', 300, y);
       y += 13;
-      doc.fontSize(9).font('Helvetica').fillColor('#4b5563')
+      doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000')
         .text(na(booking.pickup?.city), MARGIN, y, { width: 230 })
         .text(na(booking.drop?.city), 300, y, { width: 230 });
       y += 13;
-      doc.fontSize(8).fillColor('#9ca3af')
+      doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000')
         .text(na(booking.pickup?.address), MARGIN, y, { width: 230 })
         .text(na(booking.drop?.address), 300, y, { width: 230 });
       y += 28;
 
-      hr(doc, y);
+      hr(doc, y, '#000000');
       y += 10;
 
       // Cargo
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#1f2937').text('CARGO DETAILS', MARGIN, y);
+      doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('CARGO DETAILS', MARGIN, y);
       y += 14;
       const weightStr = booking.weight?.value
         ? `${booking.weight.value} ${booking.weight.unit || ''}`.trim()
         : na(null);
-      doc.fontSize(8.5).font('Helvetica').fillColor('#4b5563')
+      doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000')
         .text(`Material: ${na(booking.materialType)}`, MARGIN, y)
         .text(`Weight: ${weightStr}`, 200, y)
         .text(`Distance: ${booking.estimatedDistance ? booking.estimatedDistance + ' km' : 'N/A'}`, 370, y);
@@ -850,13 +877,13 @@ class PDFService {
         .text(`Body Type: ${na(booking.bodyType)}`, 200, y);
       y += 25;
 
-      hr(doc, y);
+      hr(doc, y, '#000000');
       y += 10;
 
       // Freight breakdown table
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#1f2937').text('FREIGHT BREAKDOWN', MARGIN, y);
+      doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('FREIGHT BREAKDOWN', MARGIN, y);
       y += 8;
-      hr(doc, y);
+      hr(doc, y, '#000000');
       y += 10;
 
       const fRows = [
@@ -865,9 +892,9 @@ class PDFService {
         ['Balance Due', rupees(balance), true],
       ];
       for (const [label, value, bold] of fRows) {
-        doc.fontSize(bold ? 10 : 9)
-          .font(bold ? 'Helvetica-Bold' : 'Helvetica')
-          .fillColor(bold ? '#1f2937' : '#4b5563')
+        doc.fontSize(SIZE_REG)
+          .font(bold ? FONT_BOLD : FONT_REG)
+          .fillColor('#000000')
           .text(label + ':', COL_RIGHT, y)
           .text(value, 0, y, { align: 'right', width: PAGE_W - MARGIN - 2 });
         y += bold ? 20 : 16;
@@ -876,11 +903,11 @@ class PDFService {
       // POD delivery confirmation
       if (booking.podDetails?.receiverName) {
         y += 8;
-        hr(doc, y);
+        hr(doc, y, '#000000');
         y += 10;
-        doc.fontSize(9).font('Helvetica-Bold').fillColor('#1f2937').text('DELIVERY CONFIRMATION', MARGIN, y);
+        doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('DELIVERY CONFIRMATION', MARGIN, y);
         y += 14;
-        doc.fontSize(8.5).font('Helvetica').fillColor('#4b5563')
+        doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000')
           .text(`Receiver: ${booking.podDetails.receiverName}`, MARGIN, y)
           .text(`Phone: ${na(booking.podDetails.receiverPhone)}`, 220, y);
         y += 13;

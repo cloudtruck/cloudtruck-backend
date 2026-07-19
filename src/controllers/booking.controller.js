@@ -772,8 +772,9 @@ export const downloadLR = asyncHandler(async (req, res) => {
   const pdfBuffer = await PDFService.generateLoadingMemo(booking, orgSettings);
 
   const lrNum = booking.lrDetails?.lrNumber || booking.bookingId || id;
+  const sanitizedLrNum = String(lrNum).replace(/[\/\\:\*\?"<>\|]/g, '_');
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename=LR-${lrNum}.pdf`);
+  res.setHeader('Content-Disposition', `attachment; filename=LR-${sanitizedLrNum}.pdf`);
   return res.send(pdfBuffer);
 });
 
@@ -807,8 +808,9 @@ export const downloadBookingInvoicePdf = asyncHandler(async (req, res) => {
   const pdfBuffer = await PDFService.generateBookingInvoice(booking, summary, orgSettings);
 
   const invNo = booking.invoiceNo || booking.bookingId || id;
+  const sanitizedInvNo = String(invNo).replace(/[\/\\:\*\?"<>\|]/g, '_');
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename=Invoice-${invNo}.pdf`);
+  res.setHeader('Content-Disposition', `attachment; filename=Invoice-${sanitizedInvNo}.pdf`);
   return res.send(pdfBuffer);
 });
 

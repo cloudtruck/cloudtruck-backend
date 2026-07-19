@@ -24,6 +24,9 @@ const COL_RIGHT = 370;
 
 const NAVY = '#000000';
 const NAVY_TINT = '#ffffff';
+const BLUE_THEME = '#1d4ed8';
+const BLUE_TINT = '#eff6ff';
+
 
 const FONT_REG = fs.existsSync(path.resolve(__dirname, '../assets/calibril.ttf')) ? 'Calibri-Light' : 'Helvetica';
 const FONT_BOLD = fs.existsSync(path.resolve(__dirname, '../assets/calibrib.ttf')) ? 'Calibri-Bold' : 'Helvetica-Bold';
@@ -226,17 +229,11 @@ function drawInvoiceHeader(doc, orgSettings, invNo, totalAmount) {
     y += 12;
   }
 
-  // Right Side: Tax Invoice title with black underline
+  // Right Side: Tax Invoice title
   const titleW = 160;
   const titleX = PAGE_W - MARGIN - titleW;
-  doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000');
-  const titleTextW = doc.widthOfString('Tax Invoice');
-  doc.text('Tax Invoice', titleX, 40, { align: 'right', width: titleW });
-  doc.strokeColor('#000000').lineWidth(0.5)
-    .moveTo(titleX + titleW - titleTextW, 52).lineTo(titleX + titleW, 52).stroke();
-
-  doc.fontSize(SIZE_REG).font(FONT_BOLD).fillColor('#000000')
-    .text(`# ${invNo}`, 0, 58, { align: 'right', width: PAGE_W - MARGIN });
+  doc.fontSize(11).font(FONT_BOLD).fillColor('#000000')
+    .text(`Tax Invoice\n# ${invNo}`, titleX, 40, { align: 'right', width: titleW });
 
   // Invoice Amount callout box
   const boxW = 150;
@@ -244,14 +241,10 @@ function drawInvoiceHeader(doc, orgSettings, invNo, totalAmount) {
   const boxY = 76;
   const boxH = 36;
 
-  doc.save();
-  doc.roundedRect(boxX, boxY, boxW, boxH, 3).fillAndStroke(NAVY_TINT, NAVY);
-  doc.restore();
-
   doc.fillColor('#000000').fontSize(SIZE_BOLD).font(FONT_BOLD)
-    .text('INVOICE AMOUNT', boxX, boxY + 7, { align: 'center', width: boxW });
+    .text('Invoice Amount', boxX, boxY + 7, { align: 'right', width: boxW });
   doc.fillColor('#000000').fontSize(11).font(FONT_BOLD)
-    .text(rupees(totalAmount), boxX, boxY + 18, { align: 'center', width: boxW });
+    .text(rupees(totalAmount), boxX, boxY + 18, { align: 'right', width: boxW });
 
   return Math.max(y + 14, boxY + boxH + 10);
 }
@@ -282,10 +275,9 @@ function drawInvoiceBillToAndMeta(doc, yStart, customer, invDate, dueDate, billi
   const customerState = addr.state || '';
 
   // --- Left Column: Bill To ---
-  doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('Bill To', MARGIN, yStart);
-  doc.strokeColor('#000000').lineWidth(0.5).moveTo(MARGIN, yStart + 11).lineTo(MARGIN + 200, yStart + 11).stroke();
+  doc.fontSize(SIZE_BOLD).font(FONT_REG).fillColor('#000000').text('Bill To', MARGIN, yStart);
 
-  let yLeft = yStart + 18;
+  let yLeft = yStart + 11;
   doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000')
      .text(customer.companyName || 'N/A', MARGIN, yLeft);
   yLeft += 13;
@@ -325,10 +317,9 @@ function drawInvoiceBillToAndMeta(doc, yStart, customer, invDate, dueDate, billi
   const valueX = labelX + labelW + 10;
   const valW = PAGE_W - MARGIN - valueX;
 
-  doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('Invoice Details', labelX, yStart);
-  doc.strokeColor('#000000').lineWidth(0.5).moveTo(labelX, yStart + 11).lineTo(PAGE_W - MARGIN, yStart + 11).stroke();
+  doc.fontSize(SIZE_BOLD).font(FONT_REG).fillColor('#000000').text('Invoice Details', labelX, yStart);
 
-  let yRight = yStart + 18;
+  let yRight = yStart + 11;
 
   const rows = [
     ['Invoice Date', invDate],
@@ -414,10 +405,6 @@ function drawInvoiceTotalsAndWords(doc, y, subTotal, taxAmount, taxLabel, roundi
   const wordsH = 30;
   const cardH = rows.length * rowH + grandH + wordsH + 10;
 
-  doc.save();
-  doc.lineWidth(0.5).roundedRect(lx, y, cardW, cardH, 3).fillAndStroke(NAVY_TINT, NAVY);
-  doc.restore();
-
   let ty = y + 8;
   for (const [label, value] of rows) {
     doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(label, lx + 10, ty);
@@ -426,9 +413,8 @@ function drawInvoiceTotalsAndWords(doc, y, subTotal, taxAmount, taxLabel, roundi
   }
 
   // Invoice Amount row (bold, black)
-  doc.strokeColor(NAVY).lineWidth(0.5).moveTo(lx + 8, ty).lineTo(rx - 8, ty).stroke();
   ty += 6;
-  doc.fillColor('#000000').fontSize(SIZE_BOLD).font(FONT_BOLD)
+  doc.fillColor('#000000').fontSize(SIZE_REG).font(FONT_BOLD)
      .text('Invoice Amount', lx + 10, ty)
      .text(rupees(total), 0, ty, { align: 'right', width: vx });
   ty += grandH - 6;
@@ -479,15 +465,10 @@ function drawTerms(doc, y) {
   y += 16;
 
   const lineH = 14;
-  const panelH = TERMS_AND_CONDITIONS.length * lineH + 10;
-  
-  doc.save();
-  doc.strokeColor('#000000').lineWidth(0.5).rect(MARGIN, y - 4, PAGE_W - MARGIN * 2, panelH).stroke();
-  doc.restore();
 
   for (const line of TERMS_AND_CONDITIONS) {
     doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000')
-      .text(`•  ${line}`, MARGIN + 8, y, { width: PAGE_W - MARGIN * 2 - 16 });
+      .text(`•  ${line}`, MARGIN, y, { width: PAGE_W - MARGIN * 2 });
     y += lineH;
   }
   return y + 12;
@@ -511,9 +492,9 @@ const CAPABILITIES = [
   { label: 'Analytics', icon: 'bars' },
 ];
 
-function drawCapabilityIcon(doc, type, cx, cy) {
+function drawCapabilityIcon(doc, type, cx, cy, color = NAVY) {
   doc.save();
-  doc.strokeColor(NAVY).fillColor(NAVY).lineWidth(1);
+  doc.strokeColor(color).fillColor(color).lineWidth(1);
   const r = 7;
   switch (type) {
     case 'box':
@@ -535,12 +516,12 @@ function drawCapabilityIcon(doc, type, cx, cy) {
       break;
     case 'rupee':
       doc.circle(cx, cy, r).stroke();
-      doc.fontSize(8).font(FONT_BOLD).text('Rs', cx - r * 0.55, cy - r * 0.55);
+      doc.fontSize(8).font(FONT_BOLD).fillColor(color).text('Rs', cx - r * 0.55, cy - r * 0.55);
       break;
     case 'bars':
-      doc.rect(cx - r, cy + r * 0.2, r * 0.5, r * 0.8).fillAndStroke(NAVY, NAVY);
-      doc.rect(cx - r * 0.2, cy - r * 0.3, r * 0.5, r * 1.3).fillAndStroke(NAVY, NAVY);
-      doc.rect(cx + r * 0.6, cy - r, r * 0.5, r * 2).fillAndStroke(NAVY, NAVY);
+      doc.rect(cx - r, cy + r * 0.2, r * 0.5, r * 0.8).fillAndStroke(color, color);
+      doc.rect(cx - r * 0.2, cy - r * 0.3, r * 0.5, r * 1.3).fillAndStroke(color, color);
+      doc.rect(cx + r * 0.6, cy - r, r * 0.5, r * 2).fillAndStroke(color, color);
       break;
   }
   doc.restore();
@@ -552,12 +533,12 @@ function drawCapabilityStrip(doc, y) {
   const colW2 = innerW / CAPABILITIES.length;
 
   doc.save();
-  doc.lineWidth(0.5).roundedRect(MARGIN, y, innerW, stripH, 3).fillAndStroke(NAVY_TINT, NAVY);
+  doc.lineWidth(1.2).roundedRect(MARGIN, y, innerW, stripH, 3).fillAndStroke('#ffffff', BLUE_THEME);
   doc.restore();
 
   CAPABILITIES.forEach((cap, i) => {
     const cx = MARGIN + colW2 * i + colW2 / 2;
-    drawCapabilityIcon(doc, cap.icon, cx, y + 13);
+    drawCapabilityIcon(doc, cap.icon, cx, y + 13, NAVY);
     doc.fillColor(NAVY).fontSize(SIZE_BOLD).font(FONT_BOLD)
       .text(cap.label, MARGIN + colW2 * i, y + 24, { width: colW2, align: 'center' });
   });

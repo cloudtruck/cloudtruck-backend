@@ -341,8 +341,10 @@ export const downloadBookingInvoice = asyncHandler(async (req, res) => {
 
   const orgSettings = await OrganizationSettings.getInstance();
   const pdfBuffer = await PDFService.generateBookingInvoice(booking, summary, orgSettings);
+  const fileId = summary.bookingId || bookingId;
+  const sanitizedFileId = String(fileId).replace(/[\/\\:\*\?"<>\|]/g, '_');
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename=invoice-${summary.bookingId || bookingId}.pdf`);
+  res.setHeader('Content-Disposition', `attachment; filename=invoice-${sanitizedFileId}.pdf`);
   return res.send(pdfBuffer);
 });
 

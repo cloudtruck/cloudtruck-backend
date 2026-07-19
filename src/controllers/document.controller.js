@@ -156,8 +156,10 @@ export const downloadLoadingMemo = asyncHandler(async (req, res) => {
   const { buffer, bookingId: readable } = await DocumentService.getLoadingMemoPDF(
     bookingId, req.user._id, req.user.role
   );
+  const fileId = readable || bookingId;
+  const sanitizedFileId = String(fileId).replace(/[\/\\:\*\?"<>\|]/g, '_');
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename=loading-memo-${readable || bookingId}.pdf`);
+  res.setHeader('Content-Disposition', `attachment; filename=loading-memo-${sanitizedFileId}.pdf`);
   return res.send(buffer);
 });
 

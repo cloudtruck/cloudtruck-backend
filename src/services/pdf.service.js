@@ -1210,68 +1210,76 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
     {
       label: 'Consignor:',
       name: consignorName,
-      address: consignorAddress || 'N/A',
-      gstPan: `GST: ${consignorGst}\nPAN: ${consignorPan}`,
+      addressLines: (consignorAddress || 'N/A').split('\n'),
+      gst: consignorGst,
+      pan: consignorPan,
       x: 35
     },
     {
       label: 'Consignee:',
       name: consigneeName,
-      address: consigneeAddress || 'N/A',
-      gstPan: `GST: ${consigneeGst}\nPAN: ${consigneePan}`,
+      addressLines: (consigneeAddress || 'N/A').split('\n'),
+      gst: consigneeGst,
+      pan: consigneePan,
       x: 35 + colWidth
     },
     {
       label: 'Shipping Address:',
       name: consigneeName,
-      address: consigneeAddress || 'N/A',
-      gstPan: `GST: ${consigneeGst}\nPAN: ${consigneePan}`,
+      addressLines: (consigneeAddress || 'N/A').split('\n'),
+      gst: consigneeGst,
+      pan: consigneePan,
       x: 35 + colWidth * 2
     }
   ];
 
   const colWText = colWidth - 10;
   
-  // Calculate dynamic heights
-  doc.font(boldFontName).fontSize(boldFontSize);
-  const hLabel1 = doc.heightOfString(colsData[0].label, { width: colWText, lineGap: -2 });
-  const hName1 = doc.heightOfString(colsData[0].name, { width: colWText, lineGap: -2 });
-  const hLabel2 = doc.heightOfString(colsData[1].label, { width: colWText, lineGap: -2 });
-  const hName2 = doc.heightOfString(colsData[1].name, { width: colWText, lineGap: -2 });
-  const hLabel3 = doc.heightOfString(colsData[2].label, { width: colWText, lineGap: -2 });
-  const hName3 = doc.heightOfString(colsData[2].name, { width: colWText, lineGap: -2 });
-
+  // Single line height calculation for regular size 9 text with lineGap: -2
   doc.font(fontName).fontSize(9);
-  const hAddr1 = doc.heightOfString(colsData[0].address, { width: colWText, lineGap: -2 });
-  const hGst1 = doc.heightOfString(colsData[0].gstPan, { width: colWText, lineGap: -2 });
-  const hAddr2 = doc.heightOfString(colsData[1].address, { width: colWText, lineGap: -2 });
-  const hGst2 = doc.heightOfString(colsData[1].gstPan, { width: colWText, lineGap: -2 });
-  const hAddr3 = doc.heightOfString(colsData[2].address, { width: colWText, lineGap: -2 });
-  const hGst3 = doc.heightOfString(colsData[2].gstPan, { width: colWText, lineGap: -2 });
+  const singleLineHeight = doc.heightOfString('A', { width: colWText, lineGap: -2 });
 
-  // Calculate coordinates relative to starting Y of the column
-  // For col 1:
-  const yLabel1 = 4;
-  const yName1 = yLabel1 + hLabel1 + 2;
-  const yAddr1 = yName1 + hName1 + 2;
-  const yGst1 = yAddr1 + hAddr1 + 8; // ~1 line gap
-  const height1 = yGst1 + hGst1 + 4;
+  // Function to build line layout and measure total height for a column
+  const buildColLinesAndMeasure = (col) => {
+    const lines = [
+      { text: col.name, isBold: true },
+      ...col.addressLines.map(line => ({ text: line, isBold: false })),
+      { isSpacer: true },
+      { text: `GST: ${col.gst}`, isBold: false },
+      { text: `PAN: ${col.pan}`, isBold: false }
+    ];
 
-  // For col 2:
-  const yLabel2 = 4;
-  const yName2 = yLabel2 + hLabel2 + 2;
-  const yAddr2 = yName2 + hName2 + 2;
-  const yGst2 = yAddr2 + hAddr2 + 8;
-  const height2 = yGst2 + hGst2 + 4;
+    let yCurrent = 4; // top padding
+    
+    // Label height measurement
+    doc.font(boldFontName).fontSize(boldFontSize);
+    const hLabel = doc.heightOfString(col.label, { width: colWText, lineGap: -2 });
+    const labelY = yCurrent;
+    yCurrent += hLabel + 2; // small gap after label
 
-  // For col 3:
-  const yLabel3 = 4;
-  const yName3 = yLabel3 + hLabel3 + 2;
-  const yAddr3 = yName3 + hName3 + 2;
-  const yGst3 = yAddr3 + hAddr3 + 8;
-  const height3 = yGst3 + hGst3 + 4;
+    const measuredLines = [];
+    for (const line of lines) {
+      if (line.isSpacer) {
+        measuredLines.push({ ...line, y: yCurrent, height: singleLineHeight });
+        yCurrent += singleLineHeight;
+      } else {
+        doc.font(line.isBold ? boldFontName : fontName).fontSize(9);
+        const hLine = doc.heightOfString(line.text, { width: colWText, lineGap: -2 });
+        measuredLines.push({ ...line, y: yCurrent, height: hLine });
+        yCurrent += hLine;
+      }
+    }
 
-  const addrBlockH = Math.max(height1, height2, height3);
+    const totalHeight = yCurrent + 4; // bottom padding
+    return {
+      labelY,
+      lines: measuredLines,
+      totalHeight
+    };
+  };
+
+  const colLayouts = colsData.map(col => buildColLinesAndMeasure(col));
+  const addrBlockH = Math.max(...colLayouts.map(layout => layout.totalHeight));
 
   // Draw grid boundary and dividers
   doc.save();
@@ -1283,35 +1291,23 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
   doc.moveTo(30 + colWidth * 2, addrY).lineTo(30 + colWidth * 2, addrY + addrBlockH).stroke();
   doc.restore();
 
-  // Draw Consignor info
-  doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text(colsData[0].label, colsData[0].x, addrY + yLabel1);
-  doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text(colsData[0].name, colsData[0].x, addrY + yName1, { width: colWText, lineGap: -2 });
-  doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(colsData[0].address, colsData[0].x, addrY + yAddr1, { width: colWText, lineGap: -2 });
-  doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(colsData[0].gstPan, colsData[0].x, addrY + yGst1, { width: colWText, lineGap: -2 });
+  // Draw actual text for all columns
+  for (let i = 0; i < colsData.length; i++) {
+    const col = colsData[i];
+    const layout = colLayouts[i];
 
-  // Draw Consignee info
-  doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text(colsData[1].label, colsData[1].x, addrY + yLabel2);
-  doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text(colsData[1].name, colsData[1].x, addrY + yName2, { width: colWText, lineGap: -2 });
-  doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(colsData[1].address, colsData[1].x, addrY + yAddr2, { width: colWText, lineGap: -2 });
-  doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(colsData[1].gstPan, colsData[1].x, addrY + yGst2, { width: colWText, lineGap: -2 });
+    // Label
+    doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
+       .text(col.label, col.x, addrY + layout.labelY);
 
-  // Draw Shipping Address info
-  doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text(colsData[2].label, colsData[2].x, addrY + yLabel3);
-  doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text(colsData[2].name, colsData[2].x, addrY + yName3, { width: colWText, lineGap: -2 });
-  doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(colsData[2].address, colsData[2].x, addrY + yAddr3, { width: colWText, lineGap: -2 });
-  doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(colsData[2].gstPan, colsData[2].x, addrY + yGst3, { width: colWText, lineGap: -2 });
+    // Content lines
+    for (const line of layout.lines) {
+      if (!line.isSpacer) {
+        doc.fontSize(9).font(line.isBold ? boldFontName : fontName).fillColor('#000000')
+           .text(line.text, col.x, addrY + line.y, { width: colWText, lineGap: -2 });
+      }
+    }
+  }
 
   // --- 5. Item details and Charges Sidebar ---
   const itemY = addrY + addrBlockH;

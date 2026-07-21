@@ -1163,16 +1163,7 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
 
   // --- 4. Address block grid (Consignor / Consignee / Shipping Address) ---
   const addrY = gridY + 48;
-  const addrBlockH = 96;
   const colWidth = (PAGE_W - 60) / 3;
-  doc.save();
-  doc.strokeColor('#000000').lineWidth(0.5);
-  // Bounding box
-  doc.rect(30, addrY, PAGE_W - 60, addrBlockH).stroke();
-  // Dividers
-  doc.moveTo(30 + colWidth, addrY).lineTo(30 + colWidth, addrY + addrBlockH).stroke();
-  doc.moveTo(30 + colWidth * 2, addrY).lineTo(30 + colWidth * 2, addrY + addrBlockH).stroke();
-  doc.restore();
 
   // Consignor info
   const consignor = booking.customer || {};
@@ -1190,20 +1181,10 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
   };
   
   const consignorPan = consignor.pan || extractPan(consignorGst);
-
-  doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text('Consignor:', 35, addrY + 3);
-  doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text(consignorName, 35, addrY + 17, { width: colWidth - 10, height: 12, lineGap: -2 });
-
   const consignorAddress = [
     cAddr.address || cAddr.street,
     [cAddr.city, cAddr.state].filter(Boolean).join(', ') + (cAddr.pincode ? ` - ${cAddr.pincode}` : '')
   ].filter(Boolean).join('\n');
-  doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(consignorAddress || 'N/A', 35, addrY + 25, { width: colWidth - 10, height: 38, lineGap: -2 });
-  doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(`GST: ${consignorGst}\nPAN: ${consignorPan}`, 35, addrY + 66, { width: colWidth - 10, lineGap: -2 });
 
   // Consignee info
   const dropContact = booking.drop?.contactPerson || {};
@@ -1215,24 +1196,114 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
     dropAddr.address,
     [dropAddr.city, dropAddr.state].filter(Boolean).join(', ') + (dropAddr.pincode ? ` - ${dropAddr.pincode}` : '')
   ].filter(Boolean).join('\n');
-  doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text('Consignee:', 35 + colWidth, addrY + 3);
-  doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text(consigneeName, 35 + colWidth, addrY + 17, { width: colWidth - 10, height: 12, lineGap: -2 });
-  doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(consigneeAddress || 'N/A', 35 + colWidth, addrY + 25, { width: colWidth - 10, height: 38, lineGap: -2 });
-  doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(`GST: ${consigneeGst}\nPAN: ${consigneePan}`, 35 + colWidth, addrY + 66, { width: colWidth - 10, lineGap: -2 });
 
-  // Shipping Address
+  // Calculate dynamic heights for all three columns
+  const colsData = [
+    {
+      label: 'Consignor:',
+      name: consignorName,
+      address: consignorAddress || 'N/A',
+      gstPan: `GST: ${consignorGst}\nPAN: ${consignorPan}`,
+      x: 35
+    },
+    {
+      label: 'Consignee:',
+      name: consigneeName,
+      address: consigneeAddress || 'N/A',
+      gstPan: `GST: ${consigneeGst}\nPAN: ${consigneePan}`,
+      x: 35 + colWidth
+    },
+    {
+      label: 'Shipping Address:',
+      name: consigneeName,
+      address: consigneeAddress || 'N/A',
+      gstPan: `GST: ${consigneeGst}\nPAN: ${consigneePan}`,
+      x: 35 + colWidth * 2
+    }
+  ];
+
+  const colWText = colWidth - 10;
+  
+  // Calculate dynamic heights
+  doc.font(boldFontName).fontSize(boldFontSize);
+  const hLabel1 = doc.heightOfString(colsData[0].label, { width: colWText, lineGap: -2 });
+  const hName1 = doc.heightOfString(colsData[0].name, { width: colWText, lineGap: -2 });
+  const hLabel2 = doc.heightOfString(colsData[1].label, { width: colWText, lineGap: -2 });
+  const hName2 = doc.heightOfString(colsData[1].name, { width: colWText, lineGap: -2 });
+  const hLabel3 = doc.heightOfString(colsData[2].label, { width: colWText, lineGap: -2 });
+  const hName3 = doc.heightOfString(colsData[2].name, { width: colWText, lineGap: -2 });
+
+  doc.font(fontName).fontSize(9);
+  const hAddr1 = doc.heightOfString(colsData[0].address, { width: colWText, lineGap: -2 });
+  const hGst1 = doc.heightOfString(colsData[0].gstPan, { width: colWText, lineGap: -2 });
+  const hAddr2 = doc.heightOfString(colsData[1].address, { width: colWText, lineGap: -2 });
+  const hGst2 = doc.heightOfString(colsData[1].gstPan, { width: colWText, lineGap: -2 });
+  const hAddr3 = doc.heightOfString(colsData[2].address, { width: colWText, lineGap: -2 });
+  const hGst3 = doc.heightOfString(colsData[2].gstPan, { width: colWText, lineGap: -2 });
+
+  // Calculate coordinates relative to starting Y of the column
+  // For col 1:
+  const yLabel1 = 4;
+  const yName1 = yLabel1 + hLabel1 + 2;
+  const yAddr1 = yName1 + hName1 + 2;
+  const yGst1 = yAddr1 + hAddr1 + 8; // ~1 line gap
+  const height1 = yGst1 + hGst1 + 4;
+
+  // For col 2:
+  const yLabel2 = 4;
+  const yName2 = yLabel2 + hLabel2 + 2;
+  const yAddr2 = yName2 + hName2 + 2;
+  const yGst2 = yAddr2 + hAddr2 + 8;
+  const height2 = yGst2 + hGst2 + 4;
+
+  // For col 3:
+  const yLabel3 = 4;
+  const yName3 = yLabel3 + hLabel3 + 2;
+  const yAddr3 = yName3 + hName3 + 2;
+  const yGst3 = yAddr3 + hAddr3 + 8;
+  const height3 = yGst3 + hGst3 + 4;
+
+  const addrBlockH = Math.max(height1, height2, height3);
+
+  // Draw grid boundary and dividers
+  doc.save();
+  doc.strokeColor('#000000').lineWidth(0.5);
+  // Bounding box
+  doc.rect(30, addrY, PAGE_W - 60, addrBlockH).stroke();
+  // Dividers
+  doc.moveTo(30 + colWidth, addrY).lineTo(30 + colWidth, addrY + addrBlockH).stroke();
+  doc.moveTo(30 + colWidth * 2, addrY).lineTo(30 + colWidth * 2, addrY + addrBlockH).stroke();
+  doc.restore();
+
+  // Draw Consignor info
   doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text('Shipping Address:', 35 + colWidth * 2, addrY + 3);
+     .text(colsData[0].label, colsData[0].x, addrY + yLabel1);
   doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text(consigneeName, 35 + colWidth * 2, addrY + 17, { width: colWidth - 10, height: 12, lineGap: -2 });
+     .text(colsData[0].name, colsData[0].x, addrY + yName1, { width: colWText, lineGap: -2 });
   doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(consigneeAddress || 'N/A', 35 + colWidth * 2, addrY + 25, { width: colWidth - 10, height: 38, lineGap: -2 });
+     .text(colsData[0].address, colsData[0].x, addrY + yAddr1, { width: colWText, lineGap: -2 });
   doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(`GST: ${consigneeGst}\nPAN: ${consigneePan}`, 35 + colWidth * 2, addrY + 66, { width: colWidth - 10, lineGap: -2 });
+     .text(colsData[0].gstPan, colsData[0].x, addrY + yGst1, { width: colWText, lineGap: -2 });
+
+  // Draw Consignee info
+  doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
+     .text(colsData[1].label, colsData[1].x, addrY + yLabel2);
+  doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
+     .text(colsData[1].name, colsData[1].x, addrY + yName2, { width: colWText, lineGap: -2 });
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text(colsData[1].address, colsData[1].x, addrY + yAddr2, { width: colWText, lineGap: -2 });
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text(colsData[1].gstPan, colsData[1].x, addrY + yGst2, { width: colWText, lineGap: -2 });
+
+  // Draw Shipping Address info
+  doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
+     .text(colsData[2].label, colsData[2].x, addrY + yLabel3);
+  doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
+     .text(colsData[2].name, colsData[2].x, addrY + yName3, { width: colWText, lineGap: -2 });
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text(colsData[2].address, colsData[2].x, addrY + yAddr3, { width: colWText, lineGap: -2 });
+  doc.fontSize(9).font(fontName).fillColor('#000000')
+     .text(colsData[2].gstPan, colsData[2].x, addrY + yGst3, { width: colWText, lineGap: -2 });
 
   // --- 5. Item details and Charges Sidebar ---
   const itemY = addrY + addrBlockH;

@@ -10,11 +10,13 @@ const LOGO_PATH = path.resolve(__dirname, '../assets/pdf-logo.png');
 
 const HSN_SAC = '996812'; // Road freight transport services
 const TERMS_AND_CONDITIONS = [
-  'Invoices should be paid within the due date to ensure uninterrupted services.',
-  'If an invoice remains unpaid beyond 45 days, interest at 2% per month will be charged from the invoice date.',
-  'In case outstanding is not cleared within 90 days, CloudTruck may suspend all services.',
-  'This invoice shows the actual price of the services described and all particulars are true and correct.',
-  'Write to support@cloudtruck.in within 48 hours of receiving the invoice for any disputes.',
+  'Cloud Truck Private Limited , doing business as Cloud Truck having CIN NO U52290GJ2026PTC173772, is registered as a Small Enterprise under the Micro, Small and Medium Enterprises Development Act, 2006 (“Act”)',
+  'Invoices raised by Cloud Truck for the services provided should be paid within a maximum 30 days of receipt.',
+  'If an invoice remains unpaid beyond 45 days, Interest at the rate of 2% per month will be charged from the date of invoice on the full outstanding amount.',
+  'In case the outstanding is not cleared within 60 days, Cloud Truck may have to resort to suspension of all the services.',
+  'We declare that this invoice shows the actual price of the goods/services described and that all particulars are true and correct.',
+  'We are Udyam registered vide Udyam Regn. No: UDYAM-GJ-01-0609177',
+  'Write to info@cloudtruck.in within 48 hours of receiving the invoice in case of any issues.',
 ];
 
 const PAGE_W = 595.28; // A4 width in points
@@ -528,14 +530,14 @@ function drawTerms(doc, y) {
   doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000').text('Terms & Conditions', MARGIN, y);
   y += 16;
 
-  const lineH = 14;
-
   for (const line of TERMS_AND_CONDITIONS) {
-    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000')
-      .text(`•  ${line}`, MARGIN, y, { width: PAGE_W - MARGIN * 2 });
-    y += lineH;
+    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000');
+    const text = `•  ${line}`;
+    const textHeight = doc.heightOfString(text, { width: PAGE_W - MARGIN * 2, lineGap: -2 });
+    doc.text(text, MARGIN, y, { width: PAGE_W - MARGIN * 2, lineGap: -2 });
+    y += textHeight + 2;
   }
-  return y + 12;
+  return y + 8;
 }
 
 function drawNotes(doc, y, note) {
@@ -1065,8 +1067,8 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
 
   for (const line of headerAddr) {
     const isLabel = line === 'Corporate Office Address:';
-    doc.fontSize(9).font(isLabel ? boldFontName : fontName).fillColor('#000000').text(line, companyX, yHeader);
-    yHeader += 13;
+    doc.fontSize(9).font(isLabel ? boldFontName : fontName).fillColor('#000000').text(line, companyX, yHeader, { lineGap: -2 });
+    yHeader += 10;
   }
 
   // Right side of header: Company Name (Bold), then CIN, GST No., Phone, Email (Light) — right-aligned
@@ -1081,14 +1083,14 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
     contact.email ? `Email: ${contact.email}` : null,
   ].filter(Boolean);
 
-  let yHeaderRight = yStart + 15;
+  let yHeaderRight = yStart + 25;
   for (let i = 0; i < headerRight.length; i++) {
     const line = headerRight[i];
     const currentFont = (i === 0) ? boldFontName : fontName;
     const currentSize = (i === 0) ? boldFontSize : 9;
     doc.fontSize(currentSize).font(currentFont).fillColor('#000000')
-      .text(line, headerRightX, yHeaderRight, { align: 'right', width: headerRightW });
-    yHeaderRight += 13;
+      .text(line, headerRightX, yHeaderRight, { align: 'right', width: headerRightW, lineGap: -2 });
+    yHeaderRight += 10;
   }
 
   const yHeaderMax = Math.max(yHeader, yHeaderRight);
@@ -1192,16 +1194,16 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
   doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
      .text('Consignor:', 35, addrY + 3);
   doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text(consignorName, 35, addrY + 15, { width: colWidth - 10, height: 14 });
+     .text(consignorName, 35, addrY + 17, { width: colWidth - 10, height: 12, lineGap: -2 });
 
   const consignorAddress = [
     cAddr.address || cAddr.street,
     [cAddr.city, cAddr.state].filter(Boolean).join(', ') + (cAddr.pincode ? ` - ${cAddr.pincode}` : '')
   ].filter(Boolean).join('\n');
   doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(consignorAddress || 'N/A', 35, addrY + 28, { width: colWidth - 10, height: 42 });
+     .text(consignorAddress || 'N/A', 35, addrY + 25, { width: colWidth - 10, height: 38, lineGap: -2 });
   doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(`GST: ${consignorGst}\nPAN: ${consignorPan}`, 35, addrY + 68, { width: colWidth - 10 });
+     .text(`GST: ${consignorGst}\nPAN: ${consignorPan}`, 35, addrY + 66, { width: colWidth - 10, lineGap: -2 });
 
   // Consignee info
   const dropContact = booking.drop?.contactPerson || {};
@@ -1214,23 +1216,23 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
     [dropAddr.city, dropAddr.state].filter(Boolean).join(', ') + (dropAddr.pincode ? ` - ${dropAddr.pincode}` : '')
   ].filter(Boolean).join('\n');
   doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text('Consignee:', 35 + colWidth, addrY + 4);
+     .text('Consignee:', 35 + colWidth, addrY + 3);
   doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text(consigneeName, 35 + colWidth, addrY + 15, { width: colWidth - 10, height: 14 });
+     .text(consigneeName, 35 + colWidth, addrY + 17, { width: colWidth - 10, height: 12, lineGap: -2 });
   doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(consigneeAddress || 'N/A', 35 + colWidth, addrY + 28, { width: colWidth - 10, height: 42 });
+     .text(consigneeAddress || 'N/A', 35 + colWidth, addrY + 25, { width: colWidth - 10, height: 38, lineGap: -2 });
   doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(`GST: ${consigneeGst}\nPAN: ${consigneePan}`, 35 + colWidth, addrY + 68, { width: colWidth - 10 });
+     .text(`GST: ${consigneeGst}\nPAN: ${consigneePan}`, 35 + colWidth, addrY + 66, { width: colWidth - 10, lineGap: -2 });
 
   // Shipping Address
   doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text('Shipping Address:', 35 + colWidth * 2, addrY + 4);
+     .text('Shipping Address:', 35 + colWidth * 2, addrY + 3);
   doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text(consigneeName, 35 + colWidth * 2, addrY + 15, { width: colWidth - 10, height: 14 });
+     .text(consigneeName, 35 + colWidth * 2, addrY + 17, { width: colWidth - 10, height: 12, lineGap: -2 });
   doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(consigneeAddress || 'N/A', 35 + colWidth * 2, addrY + 28, { width: colWidth - 10, height: 42 });
+     .text(consigneeAddress || 'N/A', 35 + colWidth * 2, addrY + 25, { width: colWidth - 10, height: 38, lineGap: -2 });
   doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(`GST: ${consigneeGst}\nPAN: ${consigneePan}`, 35 + colWidth * 2, addrY + 68, { width: colWidth - 10 });
+     .text(`GST: ${consigneeGst}\nPAN: ${consigneePan}`, 35 + colWidth * 2, addrY + 66, { width: colWidth - 10, lineGap: -2 });
 
   // --- 5. Item details and Charges Sidebar ---
   const itemY = addrY + addrBlockH;
@@ -1342,30 +1344,39 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
     const isBold = chg === 'Sub Total' || chg === 'Grand Total';
     const currentFont = isBold ? boldFontName : fontName;
     const currentSize = isBold ? boldFontSize : 9;
-    doc.fontSize(currentSize).font(currentFont).fillColor('#000000').text(chg, 30 + leftW + 5, cy);
-    doc.fontSize(currentSize).font(currentFont).fillColor('#000000').text(amt, chargeColX, cy, { align: 'center', width: rightW - 115 });
-    cy += 12;
+    doc.fontSize(currentSize).font(currentFont).fillColor('#000000').text(chg, 30 + leftW + 5, cy, { lineGap: -2 });
+    doc.fontSize(currentSize).font(currentFont).fillColor('#000000').text(amt, chargeColX, cy, { align: 'center', width: rightW - 115, lineGap: -2 });
+    cy += 10;
   }
   doc.restore();
 
   // --- 6. Lower Info/Reference Row ---
+  const freightVal = booking.finalAmount || booking.expectedAmount || 0;
+  const amtInWords = freightVal ? amountInWordsLR(freightVal) : 'To Be Billed';
+  const amtInWordsWidth = PAGE_W - 60 - 440;
+  
+  doc.save();
+  doc.font(fontName).fontSize(9);
+  const amtInWordsHeight = doc.heightOfString(amtInWords, { width: amtInWordsWidth, lineGap: -2 });
+  const row3Height = Math.max(20, amtInWordsHeight + 6);
+  doc.restore();
+
   doc.save();
   doc.strokeColor('#000000').lineWidth(0.5);
-  doc.rect(30, refY, PAGE_W - 60, 80).stroke();
+  doc.rect(30, refY, PAGE_W - 60, 60 + row3Height).stroke();
   
   // Horiz divides
   doc.moveTo(30, refY + 20).lineTo(PAGE_W - 30, refY + 20).stroke();
   doc.moveTo(30, refY + 40).lineTo(PAGE_W - 30, refY + 40).stroke();
-  doc.moveTo(30, refY + 60).lineTo(PAGE_W - 30, refY + 60).stroke();
+  doc.moveTo(30, refY + 40 + row3Height).lineTo(PAGE_W - 30, refY + 40 + row3Height).stroke();
   
   // Vert divides
   doc.moveTo(200, refY).lineTo(200, refY + 40).stroke();
   doc.moveTo(340, refY).lineTo(340, refY + 40).stroke();
-  doc.moveTo(340, refY + 40).lineTo(340, refY + 80).stroke();
+  doc.moveTo(340, refY + 40).lineTo(340, refY + 40 + row3Height + 20).stroke();
   doc.restore();
 
   // Row 1: Invoice No / Date / Value (Labels Bold, Values Light)
-  const freightVal = booking.finalAmount || booking.expectedAmount || 0;
   doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
      .text('Invoice No:', 35, refY + 5)
      .text('Date:', 205, refY + 5)
@@ -1386,25 +1397,24 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
   doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
      .text('Tax Paid by Consignor', 340, refY + 25, { align: 'center', width: PAGE_W - 60 - 340 });
 
-  // Row 3: Private Mark
+  // Row 3: Private Mark / Amount in Words
   doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text('Private Mark:', 35, refY + 45);
+     .text('Private Mark:', 35, refY + 40 + 5)
+     .text('Amount in Words:', 345, refY + 40 + 5);
   doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text('N/A', 125, refY + 45);
+     .text('N/A', 125, refY + 40 + 5)
+     .text(amtInWords, 440, refY + 40 + 5, { width: amtInWordsWidth, lineGap: -2 });
 
-  // Row 4: Remarks / Claim Amount / Amount in Words
-  const amtInWords = freightVal ? amountInWordsLR(freightVal) : 'To Be Billed';
+  // Row 4: Remarks / Claim Amount
   doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')
-     .text('Remarks:', 35, refY + 65)
-     .text('Amount in Words:', 345, refY + 45)
-     .text('Claim Amount:', 345, refY + 65);
+     .text('Remarks:', 35, refY + 40 + row3Height + 5)
+     .text('Claim Amount:', 345, refY + 40 + row3Height + 5);
   doc.fontSize(9).font(fontName).fillColor('#000000')
-     .text(booking.remarks || 'None', 105, refY + 65)
-     .text(amtInWords, 440, refY + 45)
-     .text('N/A', 440, refY + 65);
+     .text(booking.remarks || 'None', 105, refY + 40 + row3Height + 5)
+     .text('N/A', 440, refY + 40 + row3Height + 5);
 
   // --- 7. Notes and Signature Footer ---
-  const footY = refY + 80;
+  const footY = refY + 60 + row3Height;
 
   // Stamp and signature
   doc.fontSize(boldFontSize).font(boldFontName).fillColor('#000000')

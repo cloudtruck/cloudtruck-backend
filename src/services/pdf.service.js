@@ -1065,12 +1065,6 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
     addr.city && addr.state ? `${addr.city}, ${addr.state} - ${addr.pincode || ''}` : addr.city,
   ].filter(Boolean);
 
-  for (const line of headerAddr) {
-    const isLabel = line === 'Corporate Office Address:';
-    doc.fontSize(9).font(isLabel ? boldFontName : fontName).fillColor('#000000').text(line, companyX, yHeader, { lineGap: -2 });
-    yHeader += 10;
-  }
-
   // Right side of header: Company Name (Bold), then CIN, GST No., Phone, Email (Light) — right-aligned
   const headerRightPad = 8;
   const headerRightW = 230;
@@ -1083,7 +1077,21 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
     contact.email ? `Email: ${contact.email}` : null,
   ].filter(Boolean);
 
-  let yHeaderRight = yStart + 25;
+  // Calculate target last line Y-coordinate for both columns to align their bottoms
+  const yHeaderStartLeft = logoDrawn ? (yStart + 12 + logoRenderH + 6) : (yStart + 25);
+  const leftLastLineY = yHeaderStartLeft + (headerAddr.length - 1) * 10;
+  const rightLastLineY = (yStart + 25) + (headerRight.length - 1) * 10;
+  const targetLastLineY = Math.max(leftLastLineY, rightLastLineY);
+
+  yHeader = targetLastLineY - (headerAddr.length - 1) * 10;
+  let yHeaderRight = targetLastLineY - (headerRight.length - 1) * 10;
+
+  for (const line of headerAddr) {
+    const isLabel = line === 'Corporate Office Address:';
+    doc.fontSize(9).font(isLabel ? boldFontName : fontName).fillColor('#000000').text(line, companyX, yHeader, { lineGap: -2 });
+    yHeader += 10;
+  }
+
   for (let i = 0; i < headerRight.length; i++) {
     const line = headerRight[i];
     const currentFont = (i === 0) ? boldFontName : fontName;

@@ -32,7 +32,7 @@ const BLUE_TINT = '#eff6ff';
 
 const FONT_REG = fs.existsSync(path.resolve(__dirname, '../assets/calibril.ttf')) ? 'Calibri-Light' : 'Helvetica';
 const FONT_BOLD = fs.existsSync(path.resolve(__dirname, '../assets/calibrib.ttf')) ? 'Calibri-Bold' : 'Helvetica-Bold';
-const SIZE_BOLD = 8;
+const SIZE_BOLD = 9;
 const SIZE_REG = 9;
 
 const colX = {
@@ -277,7 +277,7 @@ function drawInvoiceBillToAndMeta(doc, yStart, customer, invDate, dueDate, billi
   const customerState = addr.state || '';
 
   // --- Left Column: Bill To ---
-  doc.fontSize(SIZE_BOLD).font(FONT_REG).fillColor('#000000').text('Bill To', MARGIN, yStart);
+  doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text('Bill To', MARGIN, yStart);
 
   let yLeft = yStart + 11;
   doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000')
@@ -319,7 +319,7 @@ function drawInvoiceBillToAndMeta(doc, yStart, customer, invDate, dueDate, billi
   const valueX = labelX + labelW + 10;
   const valW = PAGE_W - MARGIN - valueX;
 
-  doc.fontSize(SIZE_BOLD).font(FONT_REG).fillColor('#000000').text('Invoice Details', labelX, yStart);
+  doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text('Invoice Details', labelX, yStart);
 
   let yRight = yStart + 11;
 
@@ -1013,7 +1013,7 @@ function drawSingleCopy(doc, yStart, booking, orgSettings, copyType) {
   // Register and use Calibri Light & Bold fonts
   const fontName = 'Calibri-Light';
   const boldFontName = 'Calibri-Bold';
-  const boldFontSize = 8;
+  const boldFontSize = 9;
   const CALIBRI_LIGHT_PATH = path.resolve(__dirname, '../assets/calibril.ttf');
   const CALIBRI_BOLD_PATH = path.resolve(__dirname, '../assets/calibrib.ttf');
   try {

@@ -149,7 +149,7 @@ function invoiceNumber(id, date) {
 
 // ─── shared layout blocks ─────────────────────────────────────────────────────
 
-function drawHeader(doc, orgSettings, title = 'Tax Invoice') {
+function drawHeader(doc, orgSettings, title = 'TAX INVOICE') {
   const company = orgSettings || {};
   const addr = company.companyAddress || {};
   const contact = company.contactDetails || {};
@@ -187,7 +187,7 @@ function drawHeader(doc, orgSettings, title = 'Tax Invoice') {
   }
 
   // Title label (right)
-  doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000')
+  doc.fontSize(SIZE_BOLD).font(FONT_REG).fillColor('#000000')
     .text(title, 0, 50, { align: 'right', width: PAGE_W - MARGIN });
 
   return y + 8;
@@ -234,8 +234,8 @@ function drawInvoiceHeader(doc, orgSettings, invNo, totalAmount) {
   // Right Side: Tax Invoice title
   const titleW = 160;
   const titleX = PAGE_W - MARGIN - titleW;
-  doc.fontSize(11).font(FONT_BOLD).fillColor('#000000')
-    .text(`Tax Invoice\n# ${invNo}`, titleX, 40, { align: 'right', width: titleW });
+  doc.fontSize(11).font(FONT_REG).fillColor('#000000')
+    .text(`TAX INVOICE\n# ${invNo}`, titleX, 40, { align: 'right', width: titleW });
 
   // Invoice Amount callout box
   const boxW = 150;
@@ -243,7 +243,7 @@ function drawInvoiceHeader(doc, orgSettings, invNo, totalAmount) {
   const boxY = 76;
   const boxH = 36;
 
-  doc.fillColor('#000000').fontSize(SIZE_BOLD).font(FONT_BOLD)
+  doc.fillColor('#000000').fontSize(SIZE_BOLD).font(FONT_REG)
     .text('Invoice Amount', boxX, boxY + 7, { align: 'right', width: boxW });
   doc.fillColor('#000000').fontSize(11).font(FONT_BOLD)
     .text(rupees(totalAmount), boxX, boxY + 18, { align: 'right', width: boxW });
@@ -480,9 +480,9 @@ function drawInvoiceTotalsAndWords(doc, y, subTotal, taxAmount, taxLabel, roundi
   doc.fillColor('#f3f4f6').rect(lx, bannerY, rx - lx, bannerH).fill();
   doc.restore();
 
-  doc.fontSize(SIZE_REG).font(FONT_BOLD).fillColor('#1a1a1a');
+  doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#1a1a1a');
   doc.text('Invoice Amount', labelX, ty + 2, { width: labelW, align: 'right' });
-  doc.text(formattedRupees(total), valueX, ty + 2, { width: valueW, align: 'right' });
+  doc.font(FONT_BOLD).text(formattedRupees(total), valueX, ty + 2, { width: valueW, align: 'right' });
 
   ty += bannerH + 12;
 

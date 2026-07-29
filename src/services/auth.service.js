@@ -85,7 +85,7 @@ class AuthService {
           await Driver.create({
             user: user._id,
             name: 'New Driver', // Placeholder
-            licenseNumber: 'PENDING',
+            licenseNumber: `PENDING_${user._id}`,
             createdBy: user._id
           });
         }
@@ -104,7 +104,7 @@ class AuthService {
         } else if (role === 'driver' || role === 'supplier') {
           const existingDriver = await Driver.findOne({ user: user._id });
           if (!existingDriver) {
-            await Driver.create({ user: user._id, name: 'New Driver', licenseNumber: 'PENDING', createdBy: user._id });
+            await Driver.create({ user: user._id, name: 'New Driver', licenseNumber: `PENDING_${user._id}`, createdBy: user._id });
           }
         }
 

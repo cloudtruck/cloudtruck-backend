@@ -58,7 +58,12 @@ export const getSuppliersQuerySchema = z.object({
 
 export const addDriverToFleetSchema = z.object({
   body: z.object({
-    driverId: objectId,
+    driverId:      objectId.optional(),
+    name:          z.string().min(2, 'Name must be at least 2 characters').optional(),
+    phone:         z.string().min(10).optional(),
+    licenseNumber: z.string().optional(),
+  }).refine((data) => data.driverId || data.phone, {
+    message: 'Either driverId or phone is required',
   }),
 });
 

@@ -38,6 +38,7 @@ import {
   updateBankAccount,
   removeBankAccount,
   getAvailableDrivers,
+  addMyFleetDriver,
 } from '../controllers/supplier.controller.js';
 
 const router = Router();
@@ -54,6 +55,7 @@ router.patch('/my-profile',       isSupplier,        validate(updateSupplierSche
 router.get('/my-bookings',        isSupplier,        getSupplierBookings);
 router.get('/my-dashboard',       isSupplier,        getSupplierDashboard);
 router.get('/my-fleet/drivers',   isSupplier,        getFleetDrivers);
+router.post('/my-fleet/drivers',  isSupplier,        validate(addDriverToFleetSchema), addMyFleetDriver);
 router.get('/my-fleet/vehicles',  isSupplier,        getFleetVehicles);
 
 // ── Admin CRUD ──────────────────────────────────────────────────────────────

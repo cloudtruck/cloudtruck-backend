@@ -116,8 +116,15 @@ export const removeFromBlacklist = asyncHandler(async (req, res) => {
 });
 
 export const addDriverToFleet = asyncHandler(async (req, res) => {
-  const driver = await SupplierService.addDriverToFleet(req.params.id, req.body.driverId, req.user._id);
+  const driver = await SupplierService.addDriverToFleet(req.params.id, req.body, req.user._id);
   res.json(new ApiResponse(200, driver, 'Driver added to fleet'));
+});
+
+export const addMyFleetDriver = asyncHandler(async (req, res) => {
+  const supplierId = await resolveSupplierId(req);
+  if (!supplierId) throw new ApiError(404, 'Supplier profile not found');
+  const driver = await SupplierService.addDriverToFleet(supplierId, req.body, req.user._id);
+  res.status(201).json(new ApiResponse(201, driver, 'Driver added to fleet successfully'));
 });
 
 export const removeDriverFromFleet = asyncHandler(async (req, res) => {

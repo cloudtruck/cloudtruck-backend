@@ -352,27 +352,75 @@ class SupplierService {
    * Add an existing driver to a company's fleet.
    * Only valid for company suppliers.
    */
-  static async addDriverToFleet(supplierId, driverId, actorId) {
+  static async addDriverToFleet(supplierId, driverIdentifier, actorId) {
     const supplier = await Supplier.findOne({ _id: supplierId, isDeleted: false });
     if (!supplier) throw new ApiError(404, 'Supplier not found');
     if (supplier.supplierType !== 'company') {
       throw new ApiError(400, 'Only company suppliers can have a fleet');
     }
 
-    const driver = await Driver.findById(driverId);
-    if (!driver || driver.isDeleted) throw new ApiError(404, 'Driver not found');
-    if (driver.supplierOwner) {
-      throw new ApiError(409, 'Driver is already attached to another supplier');
+    let driverId = typeof driverIdentifier === 'string' ? driverIdentifier : driverIdentifier?.driverId;
+    const phone = typeof driverIdentifier === 'object' ? driverIdentifier?.phone : null;
+    const name = typeof driverIdentifier === 'object' ? driverIdentifier?.name : null;
+    const licenseNumber = typeof driverIdentifier === 'object' ? driverIdentifier?.licenseNumber : null;
+
+    let driver = null;
+    if (driverId) {
+      driver = await Driver.findById(driverId);
+    } else if (phone) {
+      const cleanPhone = String(phone).replace(/\D/g, '');
+      let user = await User.findOne({ phone: cleanPhone, isDeleted: false });
+
+      if (user) {
+        driver = await Driver.findOne({ user: user._id, isDeleted: false });
+      }
+
+      if (!driver) {
+        if (!user) {
+          user = await User.create({
+            phone: cleanPhone,
+            role: 'driver',
+            status: 'active',
+          });
+        }
+        driver = await Driver.create({
+          user: user._id,
+          name: name || `Driver ${cleanPhone.slice(-4)}`,
+          licenseNumber: licenseNumber || `LIC-${cleanPhone.slice(-6)}`,
+          supplierOwner: supplierId,
+          driverRole: 'employee',
+          isApprovedBySupplier: true,
+          availability: 'available',
+        });
+      }
+    }
+
+    if (!driver || driver.isDeleted) {
+      throw new ApiError(404, 'Driver not found with the provided details');
+    }
+
+    if (driver.supplierOwner && String(driver.supplierOwner) !== String(supplierId)) {
+      throw new ApiError(409, 'Driver is already attached to another fleet');
+    }
+
+    if (String(driver.supplierOwner) === String(supplierId)) {
+      if (name && driver.name !== name) {
+        driver.name = name;
+        await driver.save();
+      }
+      return driver;
     }
 
     driver.supplierOwner = supplierId;
     driver.driverRole = 'employee';
     driver.isApprovedBySupplier = true;
+    if (name) driver.name = name;
+    if (licenseNumber) driver.licenseNumber = licenseNumber;
     await driver.save();
 
     // Set supplierOwner on all vehicles owned by this driver
     await Vehicle.updateMany(
-      { owner: driverId, isDeleted: false },
+      { owner: driver._id, isDeleted: false },
       { supplierOwner: supplierId }
     );
 

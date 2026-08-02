@@ -135,8 +135,18 @@ export const removeVehicleFromFleet = asyncHandler(async (req, res) => {
   res.json(new ApiResponse(200, null, 'Vehicle removed from fleet'));
 });
 
+const resolveSupplierId = async (req) => {
+  if (req.params.id) return req.params.id;
+  if (req.supplier?._id) return req.supplier._id;
+  if (req.user?._id) {
+    const supplier = await Supplier.findOne({ user: req.user._id, isDeleted: false });
+    return supplier?._id || null;
+  }
+  return null;
+};
+
 export const getFleetDrivers = asyncHandler(async (req, res) => {
-  const supplierId = req.params.id || req.supplier?._id;
+  const supplierId = await resolveSupplierId(req);
   const result = await SupplierService.getFleetDrivers(supplierId, req.query);
   res.json(new ApiResponse(200, {
     items: result.data,
@@ -145,7 +155,7 @@ export const getFleetDrivers = asyncHandler(async (req, res) => {
 });
 
 export const getFleetVehicles = asyncHandler(async (req, res) => {
-  const supplierId = req.params.id || req.supplier?._id;
+  const supplierId = await resolveSupplierId(req);
   const result = await SupplierService.getFleetVehicles(supplierId, req.query);
   res.json(new ApiResponse(200, {
     items: result.data,
@@ -154,7 +164,7 @@ export const getFleetVehicles = asyncHandler(async (req, res) => {
 });
 
 export const getSupplierBookings = asyncHandler(async (req, res) => {
-  const supplierId = req.params.id || req.supplier?._id;
+  const supplierId = await resolveSupplierId(req);
   const result = await SupplierService.getSupplierBookings(supplierId, req.query, req.query);
   res.json(new ApiResponse(200, {
     items: result.data,
@@ -163,7 +173,8 @@ export const getSupplierBookings = asyncHandler(async (req, res) => {
 });
 
 export const getSupplierDashboard = asyncHandler(async (req, res) => {
-  const supplierId = req.params.id || req.supplier?._id;
+  const supplierId = await resolveSupplierId(req);
+  if (!supplierId) throw new ApiError(404, 'Supplier profile not found');
   const dashboard = await SupplierService.getSupplierDashboard(supplierId);
   res.json(new ApiResponse(200, dashboard));
 });

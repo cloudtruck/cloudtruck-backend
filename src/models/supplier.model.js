@@ -133,12 +133,9 @@ supplierSchema.index(
   { unique: true, partialFilterExpression: { panNumber: { $ne: null }, isDeleted: false } }
 );
 
-/* Pre-validate hook — enforce company-specific required fields */
+/* Pre-validate hook — enforce identity anchor required fields */
 supplierSchema.pre('validate', function (next) {
   if (this.supplierType === 'company') {
-    if (!this.companyName) {
-      return next(new Error('companyName is required for company suppliers'));
-    }
     if (!this.user) {
       return next(new Error('user is required for company suppliers'));
     }

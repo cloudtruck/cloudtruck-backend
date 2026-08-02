@@ -425,6 +425,9 @@ class SupplierService {
    * Get paginated list of drivers in a supplier's fleet.
    */
   static async getFleetDrivers(supplierId, pagination = {}) {
+    if (!supplierId) {
+      return { data: [], pagination: { total: 0, page: 1, limit: 20, pages: 0 } };
+    }
     const { page = 1, limit = 20, sort = '-createdAt' } = pagination;
 
     return Driver.paginate(
@@ -443,6 +446,9 @@ class SupplierService {
    * Count is always derived live — no reliance on fleetStats.totalVehicles.
    */
   static async getFleetVehicles(supplierId, pagination = {}) {
+    if (!supplierId) {
+      return { data: [], pagination: { total: 0, page: 1, limit: 20, pages: 0 } };
+    }
     const { page = 1, limit = 20, sort = '-createdAt' } = pagination;
 
     return Vehicle.paginate(

@@ -4,17 +4,22 @@ import logger from '../utils/logger.js';
 let client
 
 export const connectRedis = async () => {
-
+  try {
     client = createClient({
       username: 'default',
       password: process.env.REDIS_PASSWORD,
       socket: {
-          host: process.env.REDIS_HOST,
-          port: process.env.REDIS_PORT
+        host: process.env.REDIS_HOST,
+        port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : undefined,
+        reconnectStrategy: (retries) => {
+          if (retries > 3) {
+            logger.warn('Redis connection failed after 3 retries. Disabling Redis.');
+            return false; // Stop retrying
+          }
+          return 2000;
+        }
       }
-  });
-
-  client.on('error', err => console.log('Redis Client Error', err));
+    });
 
     client.on('connect', () => {
       logger.info('Redis client connected');
@@ -25,11 +30,11 @@ export const connectRedis = async () => {
     });
 
     client.on('error', (err) => {
-      logger.error('Redis client error:', err);
+      logger.error('Redis client error:', err.message || err);
     });
 
     client.on('reconnecting', () => {
-      logger.warn('Redis client reconnecting');
+      logger.warn('Redis client reconnecting...');
     });
 
     client.on('end', () => {
@@ -38,6 +43,10 @@ export const connectRedis = async () => {
 
     await client.connect();
     return client;
+  } catch (err) {
+    logger.warn(`Redis failed to connect: ${err.message || err}. Continuing without Redis.`);
+    return null;
+  }
 };
 
 export const getRedisClient = () => {

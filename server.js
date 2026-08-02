@@ -111,9 +111,13 @@ const startServer = async () => {
     await connectDB();
     logger.info('MongoDB connected successfully');
     
-    // Connect to Redis
-    redisClient = await connectRedis();
-    logger.info('Redis connected successfully');
+    // Connect to Redis (optional)
+    try {
+      redisClient = await connectRedis();
+      if (redisClient) logger.info('Redis connected successfully');
+    } catch (redisErr) {
+      logger.warn(`Redis connection skipped: ${redisErr.message || redisErr}`);
+    }
     
     // Initialize cron jobs after database connection
     try {

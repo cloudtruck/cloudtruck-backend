@@ -170,16 +170,42 @@ export const getSupplierDashboard = asyncHandler(async (req, res) => {
 
 // Self-service: company owner views/edits own profile
 export const getMyProfile = asyncHandler(async (req, res) => {
-  const supplier = await Supplier.findOne({ user: req.user._id, isDeleted: false })
+  let supplier = await Supplier.findOne({ user: req.user._id, isDeleted: false })
     .populate('user', 'phone email status')
     .populate('driver', 'name licenseNumber availability')
     .populate('verifiedBy', 'name');
+
+  if (!supplier && req.user?.role === 'supplier') {
+    supplier = await Supplier.create({
+      user: req.user._id,
+      supplierType: 'company',
+      displayName: 'New Fleet Owner',
+      phone: req.user.phone,
+      createdBy: req.user._id,
+    });
+    supplier = await Supplier.findById(supplier._id)
+      .populate('user', 'phone email status')
+      .populate('driver', 'name licenseNumber availability')
+      .populate('verifiedBy', 'name');
+  }
+
   if (!supplier) throw new ApiError(404, 'Supplier profile not found');
   res.json(new ApiResponse(200, mapSupplier(supplier)));
 });
 
 export const updateMyProfile = asyncHandler(async (req, res) => {
-  const supplier = await Supplier.findOne({ user: req.user._id, isDeleted: false });
+  let supplier = await Supplier.findOne({ user: req.user._id, isDeleted: false });
+
+  if (!supplier && req.user?.role === 'supplier') {
+    supplier = await Supplier.create({
+      user: req.user._id,
+      supplierType: 'company',
+      displayName: req.body.companyName || 'New Fleet Owner',
+      phone: req.user.phone,
+      createdBy: req.user._id,
+    });
+  }
+
   if (!supplier) throw new ApiError(404, 'Supplier profile not found');
   const updated = await SupplierService.updateSupplier(supplier._id, req.body, req.user._id);
   res.json(new ApiResponse(200, mapSupplier(updated), 'Profile updated'));

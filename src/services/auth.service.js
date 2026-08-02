@@ -1,6 +1,7 @@
 import User from '../models/user.model.js';
 import Customer from '../models/customer.model.js';
 import Driver from '../models/driver.model.js';
+import Supplier from '../models/supplier.model.js';
 import Staff from '../models/staff.model.js';
 import Permission from '../models/permission.model.js';
 import RefreshToken from '../models/refreshToken.model.js';
@@ -81,11 +82,19 @@ class AuthService {
             companyName: 'New Customer', // Placeholder
             createdBy: user._id
           });
-        } else if (role === 'driver' || role === 'supplier') {
+        } else if (role === 'driver') {
           await Driver.create({
             user: user._id,
             name: 'New Driver', // Placeholder
             licenseNumber: `PENDING_${user._id}`,
+            createdBy: user._id
+          });
+        } else if (role === 'supplier') {
+          await Supplier.create({
+            user: user._id,
+            supplierType: 'company',
+            displayName: 'New Fleet Owner',
+            phone,
             createdBy: user._id
           });
         }
@@ -101,10 +110,21 @@ class AuthService {
           if (!existingCustomer) {
             await Customer.create({ user: user._id, companyName: 'New Customer', createdBy: user._id });
           }
-        } else if (role === 'driver' || role === 'supplier') {
+        } else if (role === 'driver') {
           const existingDriver = await Driver.findOne({ user: user._id });
           if (!existingDriver) {
             await Driver.create({ user: user._id, name: 'New Driver', licenseNumber: `PENDING_${user._id}`, createdBy: user._id });
+          }
+        } else if (role === 'supplier') {
+          const existingSupplier = await Supplier.findOne({ user: user._id });
+          if (!existingSupplier) {
+            await Supplier.create({
+              user: user._id,
+              supplierType: 'company',
+              displayName: 'New Fleet Owner',
+              phone: user.phone,
+              createdBy: user._id
+            });
           }
         }
 

@@ -67,7 +67,8 @@ export const sendOTP = async (phoneNumber, otp = null) => {
       headers: {
         'authkey': MSG91_AUTH_KEY,
         'Content-Type': 'application/json'
-      }
+      },
+      timeout: 8000
     };
 
     console.log(`Sending OTP to ${formattedPhone} via MSG91...`);

@@ -1787,11 +1787,23 @@ class BookingService {
     }
 
     if (pickupCity) {
-      query['pickup.city'] = new RegExp(pickupCity, 'i');
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { 'pickup.city': new RegExp(pickupCity, 'i') },
+          { 'pickup.address': new RegExp(pickupCity, 'i') }
+        ]
+      });
     }
 
     if (dropCity) {
-      query['drop.city'] = new RegExp(dropCity, 'i');
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { 'drop.city': new RegExp(dropCity, 'i') },
+          { 'drop.address': new RegExp(dropCity, 'i') }
+        ]
+      });
     }
 
     if (truckType) {
@@ -1823,14 +1835,23 @@ class BookingService {
       };
     }
 
-    // If driverId provided and no explicit truckType filter, restrict to driver's verified fleet
+    // If driverId provided and no explicit truckType filter, match driver's fleet if available
     if (driverId && !truckType) {
-      const vehicles = await Vehicle.find({ owner: driverId, isDeleted: false, verificationStatus: 'verified' }).select('truckType').lean();
+      const vehicles = await Vehicle.find({
+        $or: [
+          { owner: driverId },
+          { 'ownerRef.item': driverId }
+        ],
+        isDeleted: false
+      }).select('truckType verificationStatus').lean();
+
       if (vehicles.length > 0) {
-        const myTruckTypes = [...new Set(vehicles.map(v => v.truckType))];
-        query.truckTypeNeeded = { $in: myTruckTypes };
-      } else {
-        return { data: [], pagination: { page: parseInt(page), limit: parseInt(limit), total: 0, pages: 0 } };
+        const myTruckTypes = [...new Set(vehicles.map(v => v.truckType).filter(Boolean))];
+        if (myTruckTypes.length > 0) {
+          // Support flexible regex matching (e.g. 'tata-ace' vs 'Tata Ace')
+          const regexList = myTruckTypes.map(t => new RegExp(t.replace(/-/g, '[-\\s]?'), 'i'));
+          query.truckTypeNeeded = { $in: regexList };
+        }
       }
     }
 

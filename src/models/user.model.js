@@ -148,7 +148,8 @@ userSchema.statics.findActive = function() {
 
 // Find by phone
 userSchema.statics.findByPhone = function(phone) {
-  return this.findOne({ phone, isDeleted: false });
+  const normalized = phone ? String(phone).replace(/[\s\-]/g, '').replace(/^\+/, '') : phone;
+  return this.findOne({ phone: normalized, isDeleted: false });
 };
 
 // Find by email
@@ -157,6 +158,15 @@ userSchema.statics.findByEmail = function(email) {
 };
 
 /* Middleware */
+
+// Normalize phone to digits-only with country code (e.g. "918459727003").
+// Prevents duplicate accounts for the same number in different formats (+91..., 91..., raw 10-digit).
+userSchema.pre('save', function(next) {
+  if (this.isModified('phone') && this.phone) {
+    this.phone = String(this.phone).replace(/[\s\-]/g, '').replace(/^\+/, '');
+  }
+  next();
+});
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

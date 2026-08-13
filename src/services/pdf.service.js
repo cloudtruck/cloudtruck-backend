@@ -129,6 +129,9 @@ function hr(doc, y, color = '#e5e7eb') {
 // Determine IGST vs CGST+SGST based on supplier and customer states
 function resolveTax(orgSettings, customerState) {
   const taxSettings = orgSettings?.taxSettings || {};
+  if (taxSettings.gstEnabled === false) {
+    return { type: 'IGST', rate: 0, cgst: 0, sgst: 0 };
+  }
   const orgState = orgSettings?.companyAddress?.state || '';
   const isInterState = orgState.toLowerCase() !== (customerState || '').toLowerCase();
   const igstRate = taxSettings.igstRate ?? 18;

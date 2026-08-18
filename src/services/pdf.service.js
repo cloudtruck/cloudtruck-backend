@@ -412,6 +412,8 @@ function drawInvoiceBillToAndMeta(doc, yStart, billTo, invDate, dueDate, billing
 
   doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text('Invoice Details', labelX, yStart);
 
+  let yRight = yStart + 11;
+
   const vehicleNumber =
     booking?.vehicle?.vehicleNumber ||
     booking?.vehicleNumber ||

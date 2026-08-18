@@ -412,13 +412,20 @@ function drawInvoiceBillToAndMeta(doc, yStart, billTo, invDate, dueDate, billing
 
   doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text('Invoice Details', labelX, yStart);
 
-  let yRight = yStart + 11;
+  const vehicleNumber =
+    booking?.vehicle?.vehicleNumber ||
+    booking?.vehicleNumber ||
+    booking?.vehicleNo ||
+    '-';
+  const lrNumber = booking?.lrDetails?.lrNumber || '-';
 
   const rows = [
     ['Invoice Date', invDate],
     ['Terms', 'Net 30'],
     ['Due Date', dueDate],
     ['P.O.#', booking?.poNo || booking?.poNumber || '-'],
+    ['Truck No.', vehicleNumber],
+    ['LR No.', lrNumber],
     ['Billing Month', billingMonth],
   ];
 

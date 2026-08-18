@@ -793,6 +793,7 @@ export const downloadBookingInvoicePdf = asyncHandler(async (req, res) => {
     isDeleted: false
   })
     .populate('customer', 'companyName gst contactPerson billingAddress address pan')
+    .populate('vehicle', 'vehicleNumber truckType')
     .lean();
 
   if (!booking) throw new ApiError(404, 'Booking not found');
@@ -942,6 +943,7 @@ export const generateCustomerInvoice = asyncHandler(async (req, res) => {
     isDeleted: false
   })
     .populate('customer', 'companyName gst contactPerson billingAddress address pan')
+    .populate('vehicle', 'vehicleNumber truckType')
     .lean();
 
   if (!booking) throw new ApiError(404, 'Booking not found');

@@ -335,6 +335,7 @@ export const downloadBookingInvoice = asyncHandler(async (req, res) => {
     isDeleted: false
   })
     .populate('customer', 'companyName gst contactPerson billingAddress address pan')
+    .populate('vehicle', 'vehicleNumber truckType')
     .lean();
 
   if (!booking) throw new ApiError(404, 'Booking not found');

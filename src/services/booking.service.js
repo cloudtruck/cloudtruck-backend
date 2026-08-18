@@ -122,6 +122,7 @@ class BookingService {
       customerPodBalance,
       supplierPodBalance,
       invoiceTo,
+      invoiceParty,
       payTo,
       accountNo,
       podType,
@@ -300,6 +301,7 @@ class BookingService {
           customerPodBalance: customerPodBalance || 0,
           supplierPodBalance: supplierPodBalance || 0,
           invoiceTo: invoiceTo || undefined,
+          invoiceParty: invoiceParty || 'consignor',
           payTo: payTo || undefined,
           accountNo: accountNo || undefined,
           podType: podType || undefined,
@@ -1007,7 +1009,7 @@ class BookingService {
       'truckTypeNeeded', 'expiryTime', 'postToSupplier', 'supervisor',
       'laneCode', 'loadType', 'remarks', 'supplierEntity',
       // Post-creation operational fields
-      'boeNumber', 'jobNo', 'hireChallan', 'invoiceNo', 'ewayBillNo', 'shipmentNo', 'containerNo', 'poNumber', 'actualKm',
+      'boeNumber', 'jobNo', 'hireChallan', 'invoiceNo', 'invoiceParty', 'ewayBillNo', 'shipmentNo', 'containerNo', 'poNumber', 'actualKm',
       // Supplier financial
       'supplierTds',
       // Detention charges

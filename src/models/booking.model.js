@@ -363,6 +363,7 @@ const bookingSchema = new Schema(
     customerPodBalance:   { type: Number, default: 0 },
     supplierPodBalance:   { type: Number, default: 0 },
     invoiceTo:            { type: String, enum: ['Customer', 'Supplier', 'Both'], default: null },
+    invoiceParty:         { type: String, enum: ['consignor', 'consignee', 'customer'], default: 'consignor' },
     payTo:                { type: String, enum: ['Supplier', 'Driver', 'Customer'], default: null },
     accountNo:            { type: String, default: null },
     podType:              { type: String, enum: ['Hard', 'Soft'], default: null },
@@ -477,6 +478,7 @@ bookingSchema.pre('save', async function (next) {
        this.isModified('expectedAmount') ||
        this.isModified('bookingType') ||
        this.isModified('invoiceNo') ||
+       this.isModified('invoiceParty') ||
        this.isModified('ewayBillNo') ||
        this.isModified('status') ||
        this.isModified('pickup') ||

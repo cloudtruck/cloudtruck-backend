@@ -81,6 +81,7 @@ export const createBookingSchema = z.object({
     customerPodBalance:   z.preprocess(v => v === undefined ? 0 : parseFloat(v), z.number().nonnegative()).optional().default(0),
     supplierPodBalance:   z.preprocess(v => v === undefined ? 0 : parseFloat(v), z.number().nonnegative()).optional().default(0),
     invoiceTo:            z.enum(['Customer', 'Supplier', 'Both']).optional(),
+    invoiceParty:         z.enum(['consignor', 'consignee', 'customer']).optional().default('consignor'),
     payTo:                z.enum(['Supplier', 'Driver', 'Customer']).optional(),
     accountNo:            z.string().optional(),
     podType:              z.enum(['Hard', 'Soft']).optional(),
@@ -258,6 +259,7 @@ export const updateBookingSchema = z.object({
     shipmentNo: z.string().trim().optional(),
     containerNo: z.string().trim().optional(),
     poNumber: z.string().trim().optional(),
+    invoiceParty: z.enum(['consignor', 'consignee', 'customer']).optional(),
     bookingType: z.enum(['indent', 'direct-load', 'direct-invoice', 'direct-lr']).optional(),
   })
 });

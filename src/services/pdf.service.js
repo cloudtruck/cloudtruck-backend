@@ -142,6 +142,89 @@ function resolveTax(orgSettings, customerState) {
     : { type: 'CGST+SGST', cgst: cgstRate, sgst: sgstRate };
 }
 
+// Extract PAN from GSTIN (digits 3 to 12)
+function extractPan(gst) {
+  if (!gst || gst === 'N/A') return 'N/A';
+  const clean = gst.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  return clean.length === 15 ? clean.substring(2, 12) : 'N/A';
+}
+
+// Resolve bill-to entity based on booking.invoiceParty ('consignor' | 'consignee' | 'customer')
+function resolveInvoiceBillTo(booking) {
+  const invoiceParty = booking?.invoiceParty || 'consignor';
+  const customer = booking?.customer || {};
+
+  if (invoiceParty === 'consignee') {
+    const dropContact = booking?.drop?.contactPerson || {};
+    const dropAddr = booking?.drop || {};
+    const gst = dropContact.gstNumber || '';
+    const pan = extractPan(gst);
+    const addressLines = [
+      dropAddr.address,
+      [dropAddr.city, dropAddr.state].filter(Boolean).join(', ') + (dropAddr.pincode ? ` - ${dropAddr.pincode}` : ''),
+      'India'
+    ].filter(Boolean);
+    const state = dropAddr.state || '';
+    const name = dropContact.name || 'Consignee';
+    return {
+      name,
+      addressLines: addressLines.length ? addressLines : ['N/A'],
+      gst: gst && gst !== 'N/A' ? gst : '',
+      pan: pan && pan !== 'N/A' ? pan : '',
+      state,
+      partyType: 'Consignee'
+    };
+  }
+
+  if (invoiceParty === 'customer') {
+    const addr = customer.billingAddress || customer.address || {};
+    const gst = customer.gst || '';
+    const pan = customer.pan || extractPan(gst);
+    const addressLines = [
+      addr.street || addr.address,
+      addr.city && addr.state
+        ? `${addr.city}, ${addr.state}${addr.pincode ? ' - ' + addr.pincode : ''}`
+        : (addr.city || addr.state),
+      addr.country || 'India'
+    ].filter(Boolean);
+    const state = addr.state || '';
+    const name = customer.companyName || 'Customer';
+    return {
+      name,
+      addressLines: addressLines.length ? addressLines : ['N/A'],
+      gst: gst && gst !== 'N/A' ? gst : '',
+      pan: pan && pan !== 'N/A' ? pan : '',
+      state,
+      partyType: 'Customer'
+    };
+  }
+
+  // Default: 'consignor'
+  const pickupContact = booking?.pickup?.contactPerson || {};
+  const pickupAddr = booking?.pickup || {};
+  const cAddr = (pickupAddr.address || pickupAddr.city)
+    ? pickupAddr
+    : (customer.billingAddress || customer.address || {});
+  const name = pickupContact.name || customer.companyName || 'Consignor';
+  const gst = pickupContact.gstNumber || customer.gst || '';
+  const pan = customer.pan || extractPan(gst);
+  const addressLines = [
+    cAddr.address || cAddr.street,
+    [cAddr.city, cAddr.state].filter(Boolean).join(', ') + (cAddr.pincode ? ` - ${cAddr.pincode}` : ''),
+    'India'
+  ].filter(Boolean);
+  const state = cAddr.state || customer.billingAddress?.state || customer.address?.state || '';
+
+  return {
+    name,
+    addressLines: addressLines.length ? addressLines : ['N/A'],
+    gst: gst && gst !== 'N/A' ? gst : '',
+    pan: pan && pan !== 'N/A' ? pan : '',
+    state,
+    partyType: 'Consignor'
+  };
+}
+
 // Build invoice number in FY format: CT/YYYY-YY/XXXXX
 function invoiceNumber(id, date) {
   const d = date ? new Date(date) : new Date();
@@ -275,44 +358,49 @@ function drawInvoiceMeta(doc, yStart, invNo, invDate, dueDate, extraFields = [])
   return y;
 }
 
-function drawInvoiceBillToAndMeta(doc, yStart, customer, invDate, dueDate, billingMonth, booking = null, paymentStatus = 'unpaid') {
-  const addr = customer.billingAddress || customer.address || {};
-  const customerState = addr.state || '';
+function drawInvoiceBillToAndMeta(doc, yStart, billTo, invDate, dueDate, billingMonth, booking = null, paymentStatus = 'unpaid') {
+  const name = billTo?.name || billTo?.companyName || 'N/A';
+  let addrLines = billTo?.addressLines;
+  if (!addrLines) {
+    const addr = billTo?.billingAddress || billTo?.address || {};
+    addrLines = [
+      addr.street || addr.address,
+      addr.city && addr.state
+        ? `${addr.city}, ${addr.state}${addr.pincode ? ' - ' + addr.pincode : ''}`
+        : (addr.city || addr.state),
+      addr.country || 'India',
+    ].filter(Boolean);
+  }
+  const placeOfSupply = billTo?.state || billTo?.placeOfSupply || billTo?.billingAddress?.state || billTo?.address?.state || '';
+  const gst = billTo?.gst || billTo?.gstNumber || '';
+  const pan = billTo?.pan || '';
 
   // --- Left Column: Bill To ---
   doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text('Bill To', MARGIN, yStart);
 
   let yLeft = yStart + 11;
   doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000')
-     .text(customer.companyName || 'N/A', MARGIN, yLeft);
+     .text(name, MARGIN, yLeft);
   yLeft += 11;
 
-  const addrLines = [
-    addr.street,
-    addr.city && addr.state
-      ? `${addr.city}, ${addr.state}${addr.pincode ? ' - ' + addr.pincode : ''}`
-      : addr.city || addr.state,
-    addr.country || 'India',
-  ].filter(Boolean);
-
-  for (const line of addrLines) {
+  for (const line of (addrLines.length ? addrLines : ['N/A'])) {
     doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(line, MARGIN, yLeft);
     yLeft += 10.5;
   }
 
-  if (customer.gst) {
-    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(`GSTIN - ${customer.gst}`, MARGIN, yLeft);
+  if (gst && gst !== 'N/A') {
+    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(`GSTIN - ${gst}`, MARGIN, yLeft);
     yLeft += 10.5;
   }
-  if (customer.pan) {
-    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(`PAN - ${customer.pan}`, MARGIN, yLeft);
+  if (pan && pan !== 'N/A') {
+    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(`PAN - ${pan}`, MARGIN, yLeft);
     yLeft += 10.5;
   }
 
-  if (customerState) {
+  if (placeOfSupply) {
     yLeft += 2;
     doc.fontSize(SIZE_REG).font(FONT_BOLD).fillColor('#000000')
-       .text(`Place Of Supply: ${customerState}`, MARGIN, yLeft);
+       .text(`Place Of Supply: ${placeOfSupply}`, MARGIN, yLeft);
     yLeft += 11;
   }
 
@@ -750,9 +838,8 @@ class PDFService {
    */
   static async generateBookingInvoice(booking, summary, orgSettings = {}) {
     return buildDoc(doc => {
-      const customer = booking.customer || {};
-      const customerState = customer.billingAddress?.state || customer.address?.state || '';
-      const tax = resolveTax(orgSettings, customerState);
+      const billTo = resolveInvoiceBillTo(booking);
+      const tax = resolveTax(orgSettings, billTo.state);
       const subTotal = summary.payable || 0;
       const taxRate = tax.rate || (tax.cgst + tax.sgst);
       const taxAmount = parseFloat(((subTotal * taxRate) / 100).toFixed(2));
@@ -771,7 +858,7 @@ class PDFService {
       const { bottomY } = drawInvoiceBillToAndMeta(
         doc,
         y,
-        customer,
+        billTo,
         invDate,
         dueDate,
         billingMonth,

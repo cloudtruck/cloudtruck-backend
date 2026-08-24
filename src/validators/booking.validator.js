@@ -89,6 +89,8 @@ export const createBookingSchema = z.object({
     bookingType:          z.enum(['indent', 'direct-load', 'direct-invoice', 'direct-lr']).optional().default('indent'),
     // LR reference fields
     invoiceNo:            z.string().trim().optional(),
+    invoiceDate:          z.preprocess(v => (v ? new Date(v) : undefined), z.date()).optional(),
+    invoiceDueDate:       z.preprocess(v => (v ? new Date(v) : undefined), z.date()).optional(),
     ewayBillNo:           z.string().trim().optional(),
   })
 });
@@ -255,6 +257,8 @@ export const updateBookingSchema = z.object({
     jobNo: z.string().trim().optional(),
     hireChallan: z.string().trim().optional(),
     invoiceNo: z.string().trim().optional(),
+    invoiceDate: z.preprocess(v => (v ? new Date(v) : undefined), z.date().nullable()).optional(),
+    invoiceDueDate: z.preprocess(v => (v ? new Date(v) : undefined), z.date().nullable()).optional(),
     ewayBillNo: z.string().trim().optional(),
     shipmentNo: z.string().trim().optional(),
     containerNo: z.string().trim().optional(),

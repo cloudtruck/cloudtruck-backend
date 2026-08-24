@@ -948,8 +948,11 @@ export const generateCustomerInvoice = asyncHandler(async (req, res) => {
 
   if (!booking) throw new ApiError(404, 'Booking not found');
 
-  // Return cached URL if already generated
-  if (booking.customerInvoicePdf?.url) {
+  const { regenerate, force } = req.query;
+  const shouldRegenerate = regenerate === 'true' || force === 'true';
+
+  // Return cached URL if already generated and regenerate is not requested
+  if (booking.customerInvoicePdf?.url && !shouldRegenerate) {
     return res.status(200).json(
       new ApiResponse(200, { url: booking.customerInvoicePdf.url, bookingId: booking.bookingId, invoiceNo: booking.invoiceNo }, 'Invoice generated successfully')
     );

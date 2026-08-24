@@ -17,6 +17,7 @@ const TERMS_AND_CONDITIONS = [
   'We declare that this invoice shows the actual price of the goods/services described and that all particulars are true and correct.',
   'We are Udyam registered vide Udyam Regn. No: UDYAM-GJ-01-0609177',
   'Write to info@cloudtruck.in within 48 hours of receiving the invoice in case of any issues.',
+  'GST on GTA services is paid by the recipient under RCM , At 5% subject to GST rules and exemptions.',
 ];
 
 const PAGE_W = 595.28; // A4 width in points
@@ -376,32 +377,41 @@ function drawInvoiceBillToAndMeta(doc, yStart, billTo, invDate, dueDate, billing
   const pan = billTo?.pan || '';
 
   // --- Left Column: Bill To ---
+  const maxLeftW = 240;
   doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text('Bill To', MARGIN, yStart);
 
   let yLeft = yStart + 11;
   doc.fontSize(SIZE_BOLD).font(FONT_BOLD).fillColor('#000000')
-     .text(name, MARGIN, yLeft);
-  yLeft += 11;
+     .text(name, MARGIN, yLeft, { width: maxLeftW });
+  const nameH = doc.heightOfString(name, { width: maxLeftW });
+  yLeft += Math.max(11, nameH + 2);
 
   for (const line of (addrLines.length ? addrLines : ['N/A'])) {
-    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(line, MARGIN, yLeft);
-    yLeft += 10.5;
+    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(line, MARGIN, yLeft, { width: maxLeftW });
+    const lineH = doc.heightOfString(line, { width: maxLeftW });
+    yLeft += Math.max(10.5, lineH + 2);
   }
 
   if (gst && gst !== 'N/A') {
-    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(`GSTIN - ${gst}`, MARGIN, yLeft);
-    yLeft += 10.5;
+    const gstText = `GSTIN - ${gst}`;
+    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(gstText, MARGIN, yLeft, { width: maxLeftW });
+    const gstH = doc.heightOfString(gstText, { width: maxLeftW });
+    yLeft += Math.max(10.5, gstH + 2);
   }
   if (pan && pan !== 'N/A') {
-    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(`PAN - ${pan}`, MARGIN, yLeft);
-    yLeft += 10.5;
+    const panText = `PAN - ${pan}`;
+    doc.fontSize(SIZE_REG).font(FONT_REG).fillColor('#000000').text(panText, MARGIN, yLeft, { width: maxLeftW });
+    const panH = doc.heightOfString(panText, { width: maxLeftW });
+    yLeft += Math.max(10.5, panH + 2);
   }
 
   if (placeOfSupply) {
     yLeft += 2;
+    const posText = `Place Of Supply: ${placeOfSupply}`;
     doc.fontSize(SIZE_REG).font(FONT_BOLD).fillColor('#000000')
-       .text(`Place Of Supply: ${placeOfSupply}`, MARGIN, yLeft);
-    yLeft += 11;
+       .text(posText, MARGIN, yLeft, { width: maxLeftW });
+    const posH = doc.heightOfString(posText, { width: maxLeftW });
+    yLeft += Math.max(11, posH + 2);
   }
 
   // --- Right Column: Invoice Meta ---
@@ -592,6 +602,25 @@ function drawInvoiceTotalsAndWords(doc, y, subTotal, taxAmount, taxLabel, roundi
   doc.font('Helvetica-BoldOblique').fillColor('#1a1a1a').text(amountInWords(total));
 
   return ty + 25;
+}
+
+function drawRcmDeclaration(doc, y) {
+  const boxW = PAGE_W - MARGIN * 2;
+  const boxH = 22;
+  y += 4;
+
+  doc.save();
+  // Clean subtle background with thin border
+  doc.fillColor('#f8fafc').strokeColor('#cbd5e1').lineWidth(0.5)
+     .roundedRect(MARGIN, y, boxW, boxH, 3).fillAndStroke();
+  doc.restore();
+
+  doc.fontSize(SIZE_REG - 0.5).font(FONT_BOLD).fillColor('#1e293b')
+     .text('Statutory Declaration: ', MARGIN + 8, y + 6, { continued: true })
+     .font(FONT_REG).fillColor('#334155')
+     .text('GST on GTA services is paid by the recipient under RCM , At 5% subject to GST rules and exemptions.');
+
+  return y + boxH + 6;
 }
 
 function drawBankDetails(doc, y, orgSettings) {
@@ -822,6 +851,7 @@ class PDFService {
         ? `IGST (${tax.rate}%)`
         : `CGST (${tax.cgst}%) + SGST (${tax.sgst}%)`;
       y = drawInvoiceTotalsAndWords(doc, y, subTotal, taxAmount, taxLabel, rounding, finalTotal);
+      y = drawRcmDeclaration(doc, y);
 
       if (y < 660) {
         drawCapabilityStrip(doc, 700);
@@ -856,10 +886,15 @@ class PDFService {
       const rounding = parseFloat((Math.round(grossTotal) - grossTotal).toFixed(2));
       const finalTotal = grossTotal + rounding;
 
-      const invDate = format(new Date(), 'dd-MM-yy');
-      const dueDate = format(new Date(Date.now() + 30 * 86400000), 'dd-MM-yy');
-      const invNo = invoiceNumber(booking._id, new Date());
-      const billingMonth = format(new Date(), 'MMM-yy');
+      const rawInvDate = booking.invoiceDate ? new Date(booking.invoiceDate) : new Date();
+      const rawDueDate = booking.invoiceDueDate
+        ? new Date(booking.invoiceDueDate)
+        : (booking.dueDate ? new Date(booking.dueDate) : new Date(rawInvDate.getTime() + 30 * 86400000));
+
+      const invDate = format(rawInvDate, 'dd-MM-yy');
+      const dueDate = format(rawDueDate, 'dd-MM-yy');
+      const invNo = invoiceNumber(booking._id, rawInvDate);
+      const billingMonth = format(rawInvDate, 'MMM-yy');
 
       const invNoFormatted = booking.invoiceNo || invNo;
       let y = drawInvoiceHeader(doc, orgSettings, invNoFormatted, finalTotal);
@@ -887,6 +922,7 @@ class PDFService {
         ? `IGST (${tax.rate}%)`
         : `CGST (${tax.cgst}%) + SGST (${tax.sgst}%)`;
       y = drawInvoiceTotalsAndWords(doc, y, subTotal, taxAmount, taxLabel, rounding, finalTotal);
+      y = drawRcmDeclaration(doc, y);
 
       // Payment history
       if (summary.payments?.length) {

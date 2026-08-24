@@ -345,6 +345,8 @@ const bookingSchema = new Schema(
     jobNo:            { type: String, trim: true },  // Internal job/trip number
     hireChallan:      { type: String, trim: true },  // Transporter payment challan
     invoiceNo:        { type: String, trim: true },  // Invoice number
+    invoiceDate:      { type: Date },                // Custom invoice date
+    invoiceDueDate:   { type: Date },                // Custom invoice due date
     ewayBillNo:       { type: String, trim: true },  // E-way bill number (for LR printing)
     shipmentNo:       { type: String, trim: true },  // Shipment number
     containerNo:      { type: String, trim: true },  // Container number

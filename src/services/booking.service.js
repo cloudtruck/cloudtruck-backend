@@ -1009,7 +1009,7 @@ class BookingService {
       'truckTypeNeeded', 'expiryTime', 'postToSupplier', 'supervisor',
       'laneCode', 'loadType', 'remarks', 'supplierEntity',
       // Post-creation operational fields
-      'boeNumber', 'jobNo', 'hireChallan', 'invoiceNo', 'invoiceParty', 'ewayBillNo', 'shipmentNo', 'containerNo', 'poNumber', 'actualKm',
+      'boeNumber', 'jobNo', 'hireChallan', 'invoiceNo', 'invoiceDate', 'invoiceDueDate', 'invoiceParty', 'ewayBillNo', 'shipmentNo', 'containerNo', 'poNumber', 'actualKm',
       // Supplier financial
       'supplierTds',
       // Detention charges

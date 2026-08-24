@@ -480,6 +480,8 @@ bookingSchema.pre('save', async function (next) {
        this.isModified('expectedAmount') ||
        this.isModified('bookingType') ||
        this.isModified('invoiceNo') ||
+       this.isModified('invoiceDate') ||
+       this.isModified('invoiceDueDate') ||
        this.isModified('invoiceParty') ||
        this.isModified('ewayBillNo') ||
        this.isModified('status') ||

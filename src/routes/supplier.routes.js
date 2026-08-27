@@ -10,6 +10,7 @@ import {
   getSuppliersQuerySchema,
   addDriverToFleetSchema,
   addVehicleToFleetSchema,
+  createFleetVehicleSchema,
   rejectSupplierSchema,
   blacklistSupplierSchema,
 } from '../validators/supplier.validator.js';
@@ -39,6 +40,7 @@ import {
   removeBankAccount,
   getAvailableDrivers,
   addMyFleetDriver,
+  addMyFleetVehicle,
 } from '../controllers/supplier.controller.js';
 
 const router = Router();
@@ -57,6 +59,7 @@ router.get('/my-dashboard',       isSupplier,        getSupplierDashboard);
 router.get('/my-fleet/drivers',   isSupplier,        getFleetDrivers);
 router.post('/my-fleet/drivers',  isSupplier,        validate(addDriverToFleetSchema), addMyFleetDriver);
 router.get('/my-fleet/vehicles',  isSupplier,        getFleetVehicles);
+router.post('/my-fleet/vehicles', isSupplier,        validate(createFleetVehicleSchema), addMyFleetVehicle);
 
 // ── Admin CRUD ──────────────────────────────────────────────────────────────
 router.get('/',   isStaff, validate(getSuppliersQuerySchema), getAllSuppliers);

@@ -23,14 +23,14 @@ const router = express.Router();
 // Get vehicles belonging to a driver
 router.get('/driver/:driverId', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(driverIdParamSchema), vehicleController.getVehiclesByDriver);
 
-// Driver self-service: Get personal fleet
-router.get('/my-trucks', verifyJWT, checkRole('driver'), vehicleController.getMyTrucks);
+// Driver & Supplier self-service: Get personal fleet
+router.get('/my-trucks', verifyJWT, checkRole('driver', 'supplier'), vehicleController.getMyTrucks);
 
-// Driver self-service: Get single truck detail (with PAN + TDS)
-router.get('/my-trucks/:vehicleId', verifyJWT, checkRole('driver'), vehicleController.getMyTruckDetail);
+// Driver & Supplier self-service: Get single truck detail (with PAN + TDS)
+router.get('/my-trucks/:vehicleId', verifyJWT, checkRole('driver', 'supplier'), vehicleController.getMyTruckDetail);
 
-// Driver self-service: Update single truck
-router.patch('/my-trucks/:vehicleId', verifyJWT, checkRole('driver'), validate(updateMyTruckSchema), vehicleController.updateMyTruck);
+// Driver & Supplier self-service: Update single truck
+router.patch('/my-trucks/:vehicleId', verifyJWT, checkRole('driver', 'supplier'), validate(updateMyTruckSchema), vehicleController.updateMyTruck);
 
 // Staff/Admin routes - list and search
 router.get('/available', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getAvailableVehiclesQuerySchema), vehicleController.getAvailableVehicles);

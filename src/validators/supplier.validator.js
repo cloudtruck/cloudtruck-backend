@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { addMyTruckSchema } from './driver.validator.js';
+
+export { addMyTruckSchema as createFleetVehicleSchema };
 
 const objectId = z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId');
 

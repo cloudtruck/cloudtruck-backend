@@ -1,5 +1,6 @@
 import Vehicle from '../models/vehicle.model.js';
 import Driver from '../models/driver.model.js';
+import Supplier from '../models/supplier.model.js';
 import Booking from '../models/booking.model.js';
 import AuditLog from '../models/auditLog.model.js';
 import ApiError from '../utils/ApiError.js';
@@ -219,33 +220,59 @@ class VehicleService {
       .select('+pan.number')
       .populate('documents.tdsDocument', 'type status url');
 
-    if (!driver) {
-      throw new ApiError(404, 'Driver profile not found');
+    if (driver) {
+      const vehicle = await Vehicle.findOne({ _id: vehicleId, $or: [{ 'ownerRef.item': driver._id }, { owner: driver._id }], isDeleted: false })
+        .populate('documents.rcDocument', 'type status url')
+        .populate('currentBooking', 'bookingId status')
+        .lean();
+
+      if (!vehicle) {
+        throw new ApiError(404, 'Vehicle not found');
+      }
+
+      return {
+        ...vehicle,
+        ownerName: driver.name,
+        ownerLicenseNumber: driver.licenseNumber,
+        ownerLicenseImage: driver.licenseImage,
+        ownerPan: driver.pan?.number || null,
+        tdsDocument: driver.documents?.tdsDocument || null,
+        // Resolved last location: GPS city takes priority, falls back to registrationCity
+        resolvedCity: vehicle.lastKnownLocation?.city || vehicle.registrationCity || null,
+      };
     }
 
-    const vehicle = await Vehicle.findOne({ _id: vehicleId, $or: [{ 'ownerRef.item': driver._id }, { owner: driver._id }], isDeleted: false })
-      .populate('documents.rcDocument', 'type status url')
-      .populate('currentBooking', 'bookingId status')
-      .lean();
+    const supplier = await Supplier.findOne({ user: userId, isDeleted: false });
+    if (supplier) {
+      const vehicle = await Vehicle.findOne({
+        _id: vehicleId,
+        $or: [{ 'ownerRef.item': supplier._id }, { supplierOwner: supplier._id }],
+        isDeleted: false,
+      })
+        .populate('documents.rcDocument', 'type status url')
+        .populate('currentBooking', 'bookingId status')
+        .lean();
 
-    if (!vehicle) {
-      throw new ApiError(404, 'Vehicle not found');
+      if (!vehicle) {
+        throw new ApiError(404, 'Vehicle not found');
+      }
+
+      return {
+        ...vehicle,
+        ownerName: supplier.displayName || supplier.companyName,
+        ownerLicenseNumber: '—',
+        ownerLicenseImage: null,
+        ownerPan: supplier.panNumber || null,
+        tdsDocument: null,
+        resolvedCity: vehicle.lastKnownLocation?.city || vehicle.registrationCity || null,
+      };
     }
 
-    return {
-      ...vehicle,
-      ownerName: driver.name,
-      ownerLicenseNumber: driver.licenseNumber,
-      ownerLicenseImage: driver.licenseImage,
-      ownerPan: driver.pan?.number || null,
-      tdsDocument: driver.documents?.tdsDocument || null,
-      // Resolved last location: GPS city takes priority, falls back to registrationCity
-      resolvedCity: vehicle.lastKnownLocation?.city || vehicle.registrationCity || null,
-    };
+    throw new ApiError(404, 'Profile not found');
   }
 
   /**
-   * Update a truck via driver self-service
+   * Update a truck via driver/supplier self-service
    * @param {string} userId - Authenticated user ID
    * @param {string} vehicleId - Vehicle ID
    * @param {Object} data - Update data
@@ -253,11 +280,17 @@ class VehicleService {
    */
   static async updateMyTruck(userId, vehicleId, data) {
     const driver = await Driver.findOne({ user: userId, isDeleted: false });
-    if (!driver) {
-      throw new ApiError(404, 'Driver profile not found');
+    const supplier = !driver ? await Supplier.findOne({ user: userId, isDeleted: false }) : null;
+
+    if (!driver && !supplier) {
+      throw new ApiError(404, 'Profile not found');
     }
 
-    const vehicle = await Vehicle.findOne({ _id: vehicleId, $or: [{ 'ownerRef.item': driver._id }, { owner: driver._id }], isDeleted: false });
+    const ownerFilter = driver
+      ? { $or: [{ 'ownerRef.item': driver._id }, { owner: driver._id }] }
+      : { $or: [{ 'ownerRef.item': supplier._id }, { supplierOwner: supplier._id }] };
+
+    const vehicle = await Vehicle.findOne({ _id: vehicleId, ...ownerFilter, isDeleted: false });
     if (!vehicle) {
       throw new ApiError(404, 'Vehicle not found or you do not have permission to update it');
     }
@@ -291,14 +324,14 @@ class VehicleService {
 
     await AuditLog.create({
       user: userId,
-      action: 'DRIVER_UPDATE_TRUCK',
+      action: 'UPDATE_VEHICLE',
       entityType: 'vehicle',
       entityId: vehicle._id,
       changes: {
         before: oldData,
         after: vehicle.toObject()
       }
-    });
+    }).catch(() => null);
 
     return vehicle;
   }
@@ -659,17 +692,31 @@ class VehicleService {
   }
 
   /**
-   * Get vehicles for a driver by User ID
+   * Get vehicles for a driver or supplier by User ID
    * @param {string} userId - Auth user ID
    * @returns {Promise<Array>} Vehicles list
    */
   static async getVehiclesByUserId(userId) {
     const driver = await Driver.findOne({ user: userId, isDeleted: false });
-    if (!driver) {
-      throw new ApiError(404, 'Driver profile not found');
+    if (driver) {
+      return await this.getVehiclesByDriver(driver._id);
     }
 
-    return await this.getVehiclesByDriver(driver._id);
+    const supplier = await Supplier.findOne({ user: userId, isDeleted: false });
+    if (supplier) {
+      return await Vehicle.find({
+        $or: [
+          { 'ownerRef.item': supplier._id, 'ownerRef.kind': 'Supplier' },
+          { supplierOwner: supplier._id },
+        ],
+        isDeleted: false,
+      })
+        .populate({ path: 'ownerRef.item', select: 'name phone displayName companyName' })
+        .sort('-createdAt')
+        .lean();
+    }
+
+    throw new ApiError(404, 'Profile not found');
   }
 
   /**

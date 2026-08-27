@@ -510,6 +510,56 @@ class SupplierService {
     );
   }
 
+  static async createFleetVehicle(supplierId, data, actorId) {
+    const supplier = await Supplier.findOne({ _id: supplierId, isDeleted: false });
+    if (!supplier) throw new ApiError(404, 'Supplier not found');
+
+    const normalizedNumber = data.truckNumber.replace(/[-\s]/g, '').toUpperCase();
+    const existingVehicle = await Vehicle.findOne({
+      vehicleNumber: normalizedNumber,
+      isDeleted: false,
+    });
+    if (existingVehicle) {
+      throw new ApiError(400, 'Vehicle with this number already exists');
+    }
+
+    const key = (data.truckType || '').toLowerCase();
+    let bodyType = 'open';
+    if (key.includes('container')) bodyType = 'container';
+    else if (key.includes('tanker')) bodyType = 'tanker';
+    else if (key.includes('flatbed')) bodyType = 'flatbed';
+    else if (key.includes('refrigerated') || key.includes('reefer')) bodyType = 'refrigerated';
+
+    const vehicle = await Vehicle.create({
+      vehicleNumber: normalizedNumber,
+      truckType: data.truckType,
+      height: { value: data.truckHeight, unit: 'ft' },
+      length: { value: data.truckLength, unit: 'ft' },
+      capacity: { value: data.truckCapacity, unit: 'tons' },
+      expiryDates: { insurance: new Date(data.insuranceExpiryDate) },
+      bodyType,
+      ownerRef: { kind: 'Supplier', item: supplier._id },
+      supplierOwner: supplier._id,
+      driverPhoneNumber: data.driverPhoneNumber,
+      registrationCity: data.currentCity,
+      availability: 'available',
+      createdBy: actorId,
+    });
+
+    await AuditLog.create({
+      user: actorId,
+      action: 'CREATE_VEHICLE',
+      entityType: 'vehicle',
+      entityId: vehicle._id,
+      changes: {
+        before: null,
+        after: vehicle.toObject(),
+      },
+    }).catch(() => null);
+
+    return vehicle;
+  }
+
   static async addVehicleToFleet(supplierId, vehicleId, actorId) {
     const supplier = await Supplier.findOne({ _id: supplierId, isDeleted: false });
     if (!supplier) throw new ApiError(404, 'Supplier not found');

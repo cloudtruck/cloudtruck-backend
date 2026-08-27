@@ -127,6 +127,13 @@ export const addMyFleetDriver = asyncHandler(async (req, res) => {
   res.status(201).json(new ApiResponse(201, driver, 'Driver added to fleet successfully'));
 });
 
+export const addMyFleetVehicle = asyncHandler(async (req, res) => {
+  const supplierId = await resolveSupplierId(req);
+  if (!supplierId) throw new ApiError(404, 'Supplier profile not found');
+  const vehicle = await SupplierService.createFleetVehicle(supplierId, req.body, req.user._id);
+  res.status(201).json(new ApiResponse(201, vehicle, 'Vehicle added to fleet successfully'));
+});
+
 export const removeDriverFromFleet = asyncHandler(async (req, res) => {
   await SupplierService.removeDriverFromFleet(req.params.id, req.params.driverId, req.user._id);
   res.json(new ApiResponse(200, null, 'Driver removed from fleet'));

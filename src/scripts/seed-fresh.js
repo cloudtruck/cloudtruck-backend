@@ -671,11 +671,11 @@ async function seedBranches() {
 // 6. ACCOUNT (primary company bank account)
 // ══════════════════════════════════════════════════════════════════════════════
 const PRIMARY_ACCOUNT = {
-  accountNumber: '1234567890',
-  ifscCode: 'HDFC0001234',
-  accountHolderName: 'CloudTruck Logistics Pvt Ltd',
-  bankName: 'HDFC Bank',
-  branchName: 'Andheri West, Mumbai',
+  accountNumber: '771305000395',
+  ifscCode: 'ICIC0004611',
+  accountHolderName: 'CLOUD TRUCK PVT LTD',
+  bankName: 'ICICI Bank',
+  branchName: 'Motera Road',
   accountType: 'current',
   isPrimary: true,
   isActive: true,

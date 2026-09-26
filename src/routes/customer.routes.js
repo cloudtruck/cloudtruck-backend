@@ -38,6 +38,7 @@ router.post('/my-bank-accounts', verifyJWT, checkRole('customer'), validate(addB
 router.patch('/my-bank-accounts/:accountId', verifyJWT, checkRole('customer'), validate(updateBankAccountSchema), customerController.updateBankAccount);
 router.delete('/my-bank-accounts/:accountId', verifyJWT, checkRole('customer'), validate(bankAccountIdParamSchema), customerController.removeBankAccount);
 router.patch('/my-bank-accounts/:accountId/primary', verifyJWT, checkRole('customer'), validate(bankAccountIdParamSchema), customerController.setPrimaryBankAccount);
+router.get('/deposit-bank-details', verifyJWT, checkRole('customer', 'staff', 'internal', 'super-admin'), customerController.getDepositBankDetails);
 
 // Staff/Admin routes - list and view
 router.get('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getCustomersQuerySchema), customerController.getAllCustomers);

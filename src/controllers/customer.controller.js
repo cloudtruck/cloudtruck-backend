@@ -521,3 +521,37 @@ export const getComments = asyncHandler(async (req, res) => {
     new ApiResponse(200, comments, 'Comments fetched successfully')
   );
 });
+
+/**
+ * Get Official CloudTruck Deposit Bank Details (from Organization Settings / Invoice Template)
+ * GET /api/v1/customers/deposit-bank-details
+ */
+export const getDepositBankDetails = asyncHandler(async (req, res) => {
+  const OrganizationSettings = (await import('../models/organizationSettings.model.js')).default;
+  const settings = await OrganizationSettings.getInstance();
+  const bank = settings.bank || {};
+  const addr = settings.companyAddress || {};
+
+  const details = {
+    accountName: bank.accountName || settings.companyName || 'CLOUD TRUCK PVT LTD',
+    bankName: bank.name || 'ICICI Bank',
+    accountNumber: bank.accountNo || '771305000395',
+    ifsc: bank.ifsc || 'ICIC0004611',
+    branch: bank.branch ? `${bank.branch}, Ahmedabad` : 'Motera Road, Ahmedabad',
+    accountType: 'Current Account',
+    address: [
+      addr.street,
+      addr.city && addr.state ? `${addr.city}, ${addr.state} - ${addr.pincode || ''}` : addr.city,
+      addr.country || 'India'
+    ].filter(Boolean).join(', ') || 'Shop N F3 B-A Takshashila, Orient, Naroda Rd, Nikol, Ahmedabad, Gujarat - 380049',
+    gstin: settings.gstNumber || '24AANCC5682Q1ZU',
+    pan: settings.panNumber || 'AANCC5682Q',
+    cin: settings.cinNumber || 'U52290GJ2026PTC173772',
+    supportPhone: settings.contactDetails?.phone || '+91 91655 96666',
+    supportEmail: settings.contactDetails?.email || 'supply@cloudtruck.in'
+  };
+
+  return res.status(200).json(
+    new ApiResponse(200, details, 'Official deposit bank details fetched successfully')
+  );
+});

@@ -67,6 +67,7 @@ class BookingService {
     const {
       pickupCity,
       pickupState,
+      pickupPincode,
       pickupLat,
       pickupLng,
       pickupAddress,
@@ -75,6 +76,7 @@ class BookingService {
       pickupContactGst,
       dropCity,
       dropState,
+      dropPincode,
       dropLat,
       dropLng,
       dropAddress,
@@ -231,6 +233,7 @@ class BookingService {
             city: pickupCity,
             state: pickupState,
             address: finalPickupAddress,
+            pincode: pickupPincode || undefined,
             location: {
               type: 'Point',
               coordinates: [finalPickupLng, finalPickupLat]
@@ -246,6 +249,7 @@ class BookingService {
             city: dropCity,
             state: dropState,
             address: finalDropAddress,
+            pincode: dropPincode || undefined,
             location: {
               type: 'Point',
               coordinates: [finalDropLng, finalDropLat]
@@ -997,9 +1001,9 @@ class BookingService {
 
     // Define allowed fields for update
     const allowedFields = [
-      'pickupCity', 'pickupState', 'pickupLat', 'pickupLng', 'pickupAddress',
+      'pickupCity', 'pickupState', 'pickupPincode', 'pickupLat', 'pickupLng', 'pickupAddress',
       'pickupContactName', 'pickupContactPhone', 'pickupContactGst',
-      'dropCity', 'dropState', 'dropLat', 'dropLng', 'dropAddress',
+      'dropCity', 'dropState', 'dropPincode', 'dropLat', 'dropLng', 'dropAddress',
       'dropContactName', 'dropContactPhone', 'dropContactGst',
       'materialType', 'weight', 'truckType', 'bodyType', 'expectedDeliveryDate',
       'additionalInstructions', 'isHazardous', 'isFragile', 'requiresTemperatureControl',
@@ -1049,16 +1053,28 @@ class BookingService {
           booking.drop.contactPerson = booking.drop.contactPerson || {};
           booking.drop.contactPerson.gstNumber = updateData[field];
         } else if (field === 'pickupCity') {
+          booking.pickup = booking.pickup || {};
           booking.pickup.city = updateData[field];
         } else if (field === 'pickupState') {
+          booking.pickup = booking.pickup || {};
           booking.pickup.state = updateData[field];
+        } else if (field === 'pickupPincode') {
+          booking.pickup = booking.pickup || {};
+          booking.pickup.pincode = updateData[field];
         } else if (field === 'pickupAddress') {
+          booking.pickup = booking.pickup || {};
           booking.pickup.address = updateData[field];
         } else if (field === 'dropCity') {
+          booking.drop = booking.drop || {};
           booking.drop.city = updateData[field];
         } else if (field === 'dropState') {
+          booking.drop = booking.drop || {};
           booking.drop.state = updateData[field];
+        } else if (field === 'dropPincode') {
+          booking.drop = booking.drop || {};
+          booking.drop.pincode = updateData[field];
         } else if (field === 'dropAddress') {
+          booking.drop = booking.drop || {};
           booking.drop.address = updateData[field];
         } else if (field === 'pickupLat' || field === 'pickupLng') {
           const lng = field === 'pickupLng' ? updateData[field] : (updateData.pickupLng ?? booking.pickup.location?.coordinates?.[0]);

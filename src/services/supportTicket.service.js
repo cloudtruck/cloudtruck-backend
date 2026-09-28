@@ -85,7 +85,9 @@ class SupportTicketService {
         limit, 
         sort: { createdAt: -1 } ,
         populate: [
-          { path: 'booking', select: 'bookingId status' }
+          { path: 'user', select: 'name phone email role' },
+          { path: 'booking', select: 'bookingId status' },
+          { path: 'replies.user', select: 'name phone email role' }
         ]
       }
     );
@@ -116,7 +118,8 @@ class SupportTicketService {
         sort: { createdAt: -1 },
         populate: [
           { path: 'user', select: 'name phone email role' },
-          { path: 'booking', select: 'bookingId status' }
+          { path: 'booking', select: 'bookingId status' },
+          { path: 'replies.user', select: 'name phone email role' }
         ]
       }
     );

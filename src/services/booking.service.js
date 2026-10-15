@@ -324,7 +324,7 @@ class BookingService {
         }], { session });
 
         booking = created;
-        booking.calculateDistance();
+        await booking.calculateDistance();
 
         // Update customer metrics atomically
         customer.businessMetrics.totalBookings += 1;
@@ -1112,7 +1112,7 @@ class BookingService {
 
     // Recalculate distance if coordinates changed
     if (updateData.pickupLat || updateData.pickupLng || updateData.dropLat || updateData.dropLng) {
-      booking.calculateDistance();
+      await booking.calculateDistance();
     }
 
     booking.updatedBy = userId;

@@ -2,6 +2,7 @@
 import mongoose from 'mongoose';
 import { paginationPlugin } from '../utils/plugins/pagination.plugin.js';
 import { generateSequentialId } from '../utils/generateSequentialId.js';
+import LocationService from '../services/location.service.js';
 
 const { Schema } = mongoose;
 
@@ -503,16 +504,15 @@ bookingSchema.pre('save', async function (next) {
 });
 
 // Auto-calculate estimatedDistance on create or when pickup/drop changes
-bookingSchema.pre('save', function (next) {
+bookingSchema.pre('save', async function () {
   if (
     (this.isNew || this.isModified('pickup') || this.isModified('drop')) &&
     !this.estimatedDistance?.value &&
     this.pickup?.location?.coordinates?.length === 2 &&
     this.drop?.location?.coordinates?.length === 2
   ) {
-    this.calculateDistance();
+    await this.calculateDistance();
   }
-  next();
 });
 
 // Maintain statusHistory (add initial status entry on create and push on status changes)
@@ -597,27 +597,24 @@ bookingSchema.statics.getDashboardStats = async function (dateFrom, dateTo) {
 
 /* Instance methods */
 
-// Haversine distance - compute and store estimatedDistance
-bookingSchema.methods.calculateDistance = function () {
-  if (!this.pickup || !this.drop) return 0;
-  const R = 6371; // Earth radius in km
-  const lat1 = this.pickup.location.coordinates[1];
-  const lon1 = this.pickup.location.coordinates[0];
-  const lat2 = this.drop.location.coordinates[1];
-  const lon2 = this.drop.location.coordinates[0];
+// Straight-line distance understates trucking routes; used only when Google routing is unavailable.
+const ROAD_DISTANCE_FACTOR = 1.25;
 
-  const toRad = (deg) => (deg * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
+// Compute and store estimatedDistance: road distance via Google Directions,
+// falling back to Haversine x ROAD_DISTANCE_FACTOR when routing is unavailable.
+bookingSchema.methods.calculateDistance = async function () {
+  const [lon1, lat1] = this.pickup?.location?.coordinates || [];
+  const [lon2, lat2] = this.drop?.location?.coordinates || [];
+  if ([lat1, lon1, lat2, lon2].some((n) => typeof n !== 'number')) return 0;
 
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const route = await LocationService.calculateRoute(
+    { latitude: lat1, longitude: lon1 },
+    { latitude: lat2, longitude: lon2 }
+  );
+  const km = route?.distance?.value
+    ?? LocationService.calculateDistance(lat1, lon1, lat2, lon2) * ROAD_DISTANCE_FACTOR;
 
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c;
-
-  this.estimatedDistance = { value: Math.round(distance * 10) / 10, calculatedAt: new Date() };
+  this.estimatedDistance = { value: Math.round(km * 10) / 10, calculatedAt: new Date() };
   return this.estimatedDistance.value;
 };
 

@@ -1,6 +1,7 @@
 import express from 'express';
 import * as documentController from '../controllers/document.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
+import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validation.middleware.js';
 import { upload } from '../middlewares/upload.middleware.js';
 import { requireDeleteApproval } from '../middlewares/requireDeleteApproval.js';
@@ -42,6 +43,7 @@ router.get('/:id', validate(documentIdParamSchema), documentController.getDocume
 router.delete(
   '/:id',
   checkRole('staff', 'internal', 'super-admin'),
+  requirePermission('document', 'delete'),
   validate(documentIdParamSchema),
   requireDeleteApproval('document', 'Document'),
   documentController.deleteDocument
@@ -74,6 +76,7 @@ router.post(
 router.delete(
   '/booking/:bookingId/lr',
   checkRole('staff', 'internal', 'super-admin'),
+  requirePermission('document', 'delete'),
   validate(bookingIdParamSchema),
   documentController.deleteLR
 );

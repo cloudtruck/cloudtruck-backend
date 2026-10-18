@@ -2,6 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import * as trackingController from '../controllers/tracking.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
+import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validation.middleware.js';
 import {
   recordLocationSchema,
@@ -27,7 +28,7 @@ const router = express.Router();
 router.use(verifyJWT);
 
 // Get all live trips (staff only)
-router.get('/live-trips', checkRole('staff', 'internal', 'super-admin'), trackingController.getLiveTrips);
+router.get('/live-trips', checkRole('staff', 'internal', 'super-admin'), requirePermission('tracking', 'read'), trackingController.getLiveTrips);
 
 // Record location (driver only) — rate limited to 1 update per 10s per driver
 router.post('/:bookingId/location', checkRole('driver'), locationRateLimit, validate(recordLocationSchema), trackingController.recordLocation);
@@ -41,7 +42,7 @@ router.get('/:bookingId/url', checkRole('customer', 'staff', 'internal', 'super-
 
 router.get('/:bookingId/distance', validate(bookingIdParamSchema), trackingController.getDistanceTraveled);
 
-router.get('/:bookingId/statistics', checkRole('staff', 'internal', 'super-admin'), validate(bookingIdParamSchema), trackingController.getTrackingStatistics);
+router.get('/:bookingId/statistics', checkRole('staff', 'internal', 'super-admin'), requirePermission('tracking', 'read'), validate(bookingIdParamSchema), trackingController.getTrackingStatistics);
 
 router.get('/:bookingId/route', validate(getTrackingRouteSchema), trackingController.getTrackingRoute);
 

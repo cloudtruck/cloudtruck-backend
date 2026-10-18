@@ -14,12 +14,7 @@ describe('POST /api/v1/eway-bills/sync', function() {
     await startTestDB();
     staffAuth = await makeAuthHeaderForRole('staff');
     const user = await User.findOne({ role: 'staff' });
-    staffRecord = await Staff.create({
-      user: user._id,
-      name: 'Sync Staff',
-      department: 'Operations',
-      title: 'Dispatcher'
-    });
+    staffRecord = await Staff.findOne({ user: user._id });
   });
 
   after(async function() {

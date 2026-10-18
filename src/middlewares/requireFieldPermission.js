@@ -26,8 +26,8 @@ export const requireFieldPermission = (permissionKey) => {
 
     const user = req.user;
 
-    // Super admins have all permissions
-    if (user.role === 'super-admin') {
+    // Super admins and internal admins have all permissions
+    if (user.role === 'super-admin' || user.role === 'internal') {
       return next();
     }
 
@@ -40,7 +40,7 @@ export const requireFieldPermission = (permissionKey) => {
     }
 
     // For staff and internal users, check field permissions
-    if (['staff', 'internal'].includes(user.role)) {
+    if (user.role === 'staff') {
       try {
         // Find staff record with permissions
         const staff = await Staff.findOne({ user: user._id })
@@ -115,12 +115,12 @@ export const requireAnyFieldPermission = (permissionKeys) => {
 
     const user = req.user;
 
-    // Super admins have all permissions
-    if (user.role === 'super-admin') {
+    // Super admins and internal admins have all permissions
+    if (user.role === 'super-admin' || user.role === 'internal') {
       return next();
     }
 
-    if (['staff', 'internal'].includes(user.role)) {
+    if (user.role === 'staff') {
       try {
         const staff = await Staff.findOne({ user: user._id })
           .populate('permissions', 'key resource action')

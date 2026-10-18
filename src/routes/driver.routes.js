@@ -2,6 +2,7 @@ import express from 'express';
 import * as driverController from '../controllers/driver.controller.js';
 import * as walletController from '../controllers/wallet.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
+import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validation.middleware.js';
 import { requireDeleteApproval } from '../middlewares/requireDeleteApproval.js';
 import {
@@ -29,7 +30,7 @@ import { upload } from '../middlewares/upload.middleware.js';
 const router = express.Router();
 
 // Public/Staff routes
-router.get('/nearby', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getNearbyDriversQuerySchema), driverController.getNearbyDrivers);
+router.get('/nearby', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('driver', 'read'), validate(getNearbyDriversQuerySchema), driverController.getNearbyDrivers);
 
 // Driver self-service + admin-created routes
 // Allow drivers to create their own profile, and allow staff/internal/super-admin to create drivers on behalf of others
@@ -57,10 +58,10 @@ router.patch('/my-availability', verifyJWT, checkRole('driver'), validate(update
 router.delete('/my-account', verifyJWT, checkRole('driver'), driverController.deleteMyAccount);
 
 // Staff/Admin routes - list and view
-router.get('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getDriversQuerySchema), driverController.getAllDrivers);
-router.get('/available', verifyJWT, checkRole('staff', 'internal', 'super-admin'), driverController.getAvailableDrivers);
+router.get('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('driver', 'read'), validate(getDriversQuerySchema), driverController.getAllDrivers);
+router.get('/available', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('driver', 'read'), driverController.getAvailableDrivers);
 // Explicit user-based lookup
-router.get('/by-user/:userId', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(userIdParamSchema), driverController.getDriverByUser);
+router.get('/by-user/:userId', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('driver', 'read'), validate(userIdParamSchema), driverController.getDriverByUser);
 // Primary lookup by driver document id (document-first, then fallback to user)
 router.get('/:id', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(driverIdParamSchema), driverController.getDriverById);
 router.get('/:id/performance', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(getPerformanceQuerySchema), driverController.getPerformanceReport);
@@ -72,20 +73,20 @@ router.post('/:id/location', verifyJWT, checkRole('driver', 'staff', 'internal',
 router.patch('/:id/availability', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(updateAvailabilitySchema), driverController.updateAvailability);
 
 // Staff/Admin routes - verification and management
-router.post('/:id/verify', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(driverIdParamSchema), driverController.verifyDriver);
-router.post('/:id/reject', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(rejectDriverSchema), driverController.rejectDriver);
-router.post('/:id/blacklist', verifyJWT, checkRole('internal', 'super-admin'), validate(blacklistDriverSchema), driverController.blacklistDriver);
-router.post('/:id/remove-blacklist', verifyJWT, checkRole('internal', 'super-admin'), validate(driverIdParamSchema), driverController.removeFromBlacklist);
+router.post('/:id/verify', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('driver', 'approve'), validate(driverIdParamSchema), driverController.verifyDriver);
+router.post('/:id/reject', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('driver', 'reject'), validate(rejectDriverSchema), driverController.rejectDriver);
+router.post('/:id/blacklist', verifyJWT, checkRole('internal', 'super-admin'), requirePermission('driver', 'block'), validate(blacklistDriverSchema), driverController.blacklistDriver);
+router.post('/:id/remove-blacklist', verifyJWT, checkRole('internal', 'super-admin'), requirePermission('driver', 'block'), validate(driverIdParamSchema), driverController.removeFromBlacklist);
 
 // Customer or Staff - add rating
 router.post('/:id/rating', verifyJWT, checkRole('customer', 'staff', 'internal', 'super-admin'), validate(addRatingSchema), driverController.addRating);
 
 // Admin only - delete (staff role requires approval from internal/super-admin)
-router.delete('/:id', verifyJWT, checkRole('super-admin', 'internal', 'staff'), validate(driverIdParamSchema), requireDeleteApproval('driver', 'Driver'), driverController.deleteDriver);
+router.delete('/:id', verifyJWT, checkRole('super-admin', 'internal', 'staff'), requirePermission('driver', 'delete'), validate(driverIdParamSchema), requireDeleteApproval('driver', 'Driver'), driverController.deleteDriver);
 
 // Bank account CRUD (staff/admin)
-router.post('/:id/bank-accounts',                     verifyJWT, checkRole('staff', 'internal', 'super-admin'), driverController.addBankAccount);
-router.patch('/:id/bank-accounts/:accountId',         verifyJWT, checkRole('staff', 'internal', 'super-admin'), driverController.updateBankAccount);
-router.delete('/:id/bank-accounts/:accountId',        verifyJWT, checkRole('staff', 'internal', 'super-admin'), driverController.removeBankAccount);
+router.post('/:id/bank-accounts',                     verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('driver', 'create'), driverController.addBankAccount);
+router.patch('/:id/bank-accounts/:accountId',         verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('driver', 'update'), driverController.updateBankAccount);
+router.delete('/:id/bank-accounts/:accountId',        verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('driver', 'delete'), driverController.removeBankAccount);
 
 export default router;

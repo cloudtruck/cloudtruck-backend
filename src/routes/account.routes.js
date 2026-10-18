@@ -12,7 +12,7 @@ router.use(verifyJWT);
 // Get primary account (staff can view)
 router.get(
   '/primary',
-  requirePermission('account', 'read'),
+  requirePermission('organization', 'read'),
   accountController.getPrimaryAccount
 );
 

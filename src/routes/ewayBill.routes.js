@@ -25,6 +25,7 @@ router.post(
   '/',
   verifyJWT,
   checkRole('staff', 'internal', 'super-admin'),
+  requirePermission('eway-bill', 'create'),
   validate(createEwayBillSchema),
   ewayBillController.createEwayBill
 );
@@ -34,6 +35,7 @@ router.get(
   '/',
   verifyJWT,
   checkRole('staff', 'internal', 'super-admin'),
+  requirePermission('eway-bill', 'read'),
   validate(getEwayBillsQuerySchema),
   ewayBillController.getAllEwayBills
 );
@@ -43,6 +45,7 @@ router.post(
   '/parse-pdf',
   verifyJWT,
   checkRole('staff', 'internal', 'super-admin'),
+  requirePermission('eway-bill', 'read'),
   upload.single('file'),
   ewayBillController.parseEwayBillPdf
 );
@@ -52,6 +55,7 @@ router.post(
   '/sync',
   verifyJWT,
   checkRole('staff', 'internal', 'super-admin'),
+  requirePermission('eway-bill', 'read'),
   validate(syncEwayBillSchema),
   ewayBillController.syncEwayBill
 );
@@ -61,6 +65,7 @@ router.get(
   '/:id',
   verifyJWT,
   checkRole('staff', 'internal', 'super-admin'),
+  requirePermission('eway-bill', 'read'),
   validate(getEwayBillByIdSchema),
   ewayBillController.getEwayBillById
 );
@@ -80,6 +85,7 @@ router.get(
   '/:id/history',
   verifyJWT,
   checkRole('staff', 'internal', 'super-admin'),
+  requirePermission('eway-bill', 'read'),
   validate(getPartBHistorySchema),
   ewayBillController.getPartBHistory
 );
@@ -89,6 +95,7 @@ router.patch(
   '/:id/cancel',
   verifyJWT,
   checkRole('staff', 'internal', 'super-admin'),
+  requirePermission('eway-bill', 'cancel'),
   validate(cancelEwayBillSchema),
   ewayBillController.cancelEwayBill
 );

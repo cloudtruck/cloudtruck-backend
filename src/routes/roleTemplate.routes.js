@@ -1,6 +1,6 @@
 import express from 'express';
 import * as roleTemplateController from '../controllers/roleTemplate.controller.js';
-import { verifyJWT } from '../middlewares/auth.middleware.js';
+import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 
 const router = express.Router();
@@ -9,7 +9,7 @@ const router = express.Router();
 router.use(verifyJWT);
 
 // Get categories (staff can view)
-router.get('/categories', roleTemplateController.getCategories);
+router.get('/categories', checkRole('staff', 'internal', 'super-admin'), roleTemplateController.getCategories);
 
 // Super-admin only routes
 router.get(

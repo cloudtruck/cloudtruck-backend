@@ -3,6 +3,29 @@ import ApiError from '../utils/ApiError.js';
 import Permission from '../models/permission.model.js';
 import Staff from '../models/staff.model.js';
 
+const IMPLICIT_PERMISSIONS = {
+  customer: [
+    ['booking', 'create'], ['booking', 'read'],
+    ['customer', 'read'], ['customer', 'update'],
+    ['document', 'read'],
+    ['tracking', 'read'],
+    ['payment', 'create'], ['payment', 'read'],
+  ],
+  driver: [
+    ['booking', 'read'], ['booking', 'update'],
+    ['driver', 'read'], ['driver', 'update'],
+    ['document', 'create'], ['document', 'read'],
+    ['tracking', 'create'], ['tracking', 'read'],
+    ['vehicle', 'read'],
+  ],
+};
+
+function hasImplicitPermission(role, resource, action) {
+  const list = IMPLICIT_PERMISSIONS[role];
+  if (!list) return false;
+  return list.some(([r, a]) => r === resource && a === action);
+}
+
 /**
  * Check if user has required permission
  * RBAC middleware for fine-grained access control
@@ -27,73 +50,29 @@ export const requirePermission = (resource, action) => {
 
     const user = req.user;
 
-    // Super admins have all permissions
-    if (user.role === 'super-admin') {
+    // Super admins and internal admins have all permissions
+    if (user.role === 'super-admin' || user.role === 'internal') {
       return next();
     }
 
     // Customers have implicit permissions for their own resources
     if (user.role === 'customer') {
-      // Customers can create and read their own bookings
-      if (resource === 'booking' && ['create', 'read'].includes(action)) {
+      if (hasImplicitPermission('customer', resource, action)) {
         return next();
       }
-      // Customers can read their own profile
-      if (resource === 'customer' && action === 'read') {
-        return next();
-      }
-      // Customers can update their own profile
-      if (resource === 'customer' && action === 'update') {
-        return next();
-      }
-      // Customers can read documents related to their bookings
-      if (resource === 'document' && action === 'read') {
-        return next();
-      }
-      // Customers can read tracking for their bookings
-      if (resource === 'tracking' && action === 'read') {
-        return next();
-      }
-      // Customers can create payments for their bookings
-      if (resource === 'payment' && ['create', 'read'].includes(action)) {
-        return next();
-      }
-      
       throw new ApiError(403, `Access denied - Insufficient permissions for ${action} on ${resource}`);
     }
 
     // Drivers have implicit permissions for assigned bookings
     if (user.role === 'driver') {
-      // Drivers can read bookings assigned to them
-      if (resource === 'booking' && action === 'read') {
+      if (hasImplicitPermission('driver', resource, action)) {
         return next();
       }
-      // Drivers can update status of their assigned bookings
-      if (resource === 'booking' && action === 'update') {
-        return next();
-      }
-      // Drivers can read and update their own profile
-      if (resource === 'driver' && ['read', 'update'].includes(action)) {
-        return next();
-      }
-      // Drivers can create and read documents for their trips
-      if (resource === 'document' && ['create', 'read'].includes(action)) {
-        return next();
-      }
-      // Drivers can create tracking updates
-      if (resource === 'tracking' && ['create', 'read'].includes(action)) {
-        return next();
-      }
-      // Drivers can read their vehicles
-      if (resource === 'vehicle' && action === 'read') {
-        return next();
-      }
-      
       throw new ApiError(403, `Access denied - Insufficient permissions for ${action} on ${resource}`);
     }
 
     // For staff and internal users, check permissions from database
-    if (['staff', 'internal'].includes(user.role)) {
+    if (user.role === 'staff') {
       try {
         // Find staff record with permissions
         const staff = await Staff.findOne({ user: user._id })
@@ -157,20 +136,22 @@ export const requireAnyPermission = (permissions) => {
 
     const user = req.user;
 
-    // Super admins have all permissions
-    if (user.role === 'super-admin') {
+    // Super admins and internal admins have all permissions
+    if (user.role === 'super-admin' || user.role === 'internal') {
       return next();
     }
 
     // Check implicit permissions for customers and drivers
     if (['customer', 'driver'].includes(user.role)) {
-      // This is a simplified check - you might want to implement
-      // more sophisticated logic based on your needs
-      return next();
+      const hasAny = permissions.some(p => hasImplicitPermission(user.role, p.resource, p.action));
+      if (hasAny) {
+        return next();
+      }
+      throw new ApiError(403, `Access denied - Insufficient permissions`);
     }
 
     // For staff and internal users, check database permissions
-    if (['staff', 'internal'].includes(user.role)) {
+    if (user.role === 'staff') {
       try {
         const staff = await Staff.findOne({ user: user._id })
           .populate('permissions', 'resource action')
@@ -227,13 +208,13 @@ export const requireAllPermissions = (permissions) => {
 
     const user = req.user;
 
-    // Super admins have all permissions
-    if (user.role === 'super-admin') {
+    // Super admins and internal admins have all permissions
+    if (user.role === 'super-admin' || user.role === 'internal') {
       return next();
     }
 
     // For staff and internal users, check database permissions
-    if (['staff', 'internal'].includes(user.role)) {
+    if (user.role === 'staff') {
       try {
         const staff = await Staff.findOne({ user: user._id })
           .populate('permissions', 'resource action')

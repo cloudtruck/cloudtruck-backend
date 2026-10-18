@@ -1,6 +1,7 @@
 import express from 'express';
 import * as vehicleController from '../controllers/vehicle.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
+import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validation.middleware.js';
 import { requireDeleteApproval } from '../middlewares/requireDeleteApproval.js';
 import {
@@ -21,7 +22,7 @@ import {
 const router = express.Router();
 
 // Get vehicles belonging to a driver
-router.get('/driver/:driverId', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(driverIdParamSchema), vehicleController.getVehiclesByDriver);
+router.get('/driver/:driverId', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('vehicle', 'read'), validate(driverIdParamSchema), vehicleController.getVehiclesByDriver);
 
 // Driver & Supplier self-service: Get personal fleet
 router.get('/my-trucks', verifyJWT, checkRole('driver', 'supplier'), vehicleController.getMyTrucks);
@@ -33,19 +34,19 @@ router.get('/my-trucks/:vehicleId', verifyJWT, checkRole('driver', 'supplier'), 
 router.patch('/my-trucks/:vehicleId', verifyJWT, checkRole('driver', 'supplier'), validate(updateMyTruckSchema), vehicleController.updateMyTruck);
 
 // Staff/Admin routes - list and search
-router.get('/available', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getAvailableVehiclesQuerySchema), vehicleController.getAvailableVehicles);
-router.get('/stats/all', verifyJWT, checkRole('staff', 'internal', 'super-admin'), vehicleController.getAllVehicleStats);
-router.get('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(getVehiclesQuerySchema), vehicleController.getAllVehicles);
+router.get('/available', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('vehicle', 'read'), validate(getAvailableVehiclesQuerySchema), vehicleController.getAvailableVehicles);
+router.get('/stats/all', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('vehicle', 'read'), vehicleController.getAllVehicleStats);
+router.get('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('vehicle', 'read'), validate(getVehiclesQuerySchema), vehicleController.getAllVehicles);
 
 // Staff/Admin routes - CRUD
-router.post('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(createVehicleSchema), vehicleController.createVehicle);
+router.post('/', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('vehicle', 'create'), validate(createVehicleSchema), vehicleController.createVehicle);
 router.get('/:id', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(vehicleIdParamSchema), vehicleController.getVehicleById);
 router.get('/:id/stats', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(vehicleIdParamSchema), vehicleController.getVehicleStats);
 router.patch('/:id', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(updateVehicleSchema), vehicleController.updateVehicle);
 
 // Staff/Admin routes - verification
-router.post('/:id/verify', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(verifyVehicleSchema), vehicleController.verifyVehicle);
-router.post('/:id/reject', verifyJWT, checkRole('staff', 'internal', 'super-admin'), validate(rejectVehicleSchema), vehicleController.rejectVehicle);
+router.post('/:id/verify', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('vehicle', 'verify'), validate(verifyVehicleSchema), vehicleController.verifyVehicle);
+router.post('/:id/reject', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('vehicle', 'verify'), validate(rejectVehicleSchema), vehicleController.rejectVehicle);
 
 // Staff/Admin routes - operations
 router.post('/:id/location', verifyJWT, checkRole('staff', 'driver', 'internal', 'super-admin'), validate(updateLocationSchema), vehicleController.updateLocation);
@@ -53,10 +54,10 @@ router.patch('/:id/availability', verifyJWT, checkRole('driver', 'staff', 'inter
 router.post('/:id/maintenance', verifyJWT, checkRole('driver', 'staff', 'internal', 'super-admin'), validate(addMaintenanceSchema), vehicleController.addMaintenance);
 
 // Notes / comments
-router.post('/:id/notes', verifyJWT, checkRole('staff', 'internal', 'super-admin'), vehicleController.addVehicleNote);
-router.get('/:id/notes', verifyJWT, checkRole('staff', 'internal', 'super-admin'), vehicleController.getVehicleNotes);
+router.post('/:id/notes', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('vehicle', 'create'), vehicleController.addVehicleNote);
+router.get('/:id/notes', verifyJWT, checkRole('staff', 'internal', 'super-admin'), requirePermission('vehicle', 'read'), vehicleController.getVehicleNotes);
 
 // Admin only - delete (staff role requires approval from internal/super-admin)
-router.delete('/:id', verifyJWT, checkRole('super-admin', 'internal', 'staff'), validate(vehicleIdParamSchema), requireDeleteApproval('vehicle', 'Vehicle'), vehicleController.deleteVehicle);
+router.delete('/:id', verifyJWT, checkRole('super-admin', 'internal', 'staff'), requirePermission('vehicle', 'delete'), validate(vehicleIdParamSchema), requireDeleteApproval('vehicle', 'Vehicle'), vehicleController.deleteVehicle);
 
 export default router;

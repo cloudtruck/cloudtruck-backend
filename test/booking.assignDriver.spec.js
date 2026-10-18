@@ -21,7 +21,14 @@ describe('POST /api/v1/bookings/:id/assign-driver', function() {
     const staffUser = await User.create({ role: 'staff', status: 'active', phone: `+15551${Date.now().toString().slice(-6)}` });
     const staffAuth = `Bearer ${staffUser.generateAccessToken()}`;
     const Staff = (await import('../src/models/staff.model.js')).default;
-    await Staff.create({ user: staffUser._id, name: 'Assigning Staff' });
+    const Permission = (await import('../src/models/permission.model.js')).default;
+    const staffPerms = await Promise.all([
+      Permission.findOneAndUpdate({ key: 'booking.assign' }, { key: 'booking.assign', name: 'booking.assign', resource: 'booking', action: 'assign', isActive: true }, { upsert: true, new: true }),
+      Permission.findOneAndUpdate({ key: 'booking.read' }, { key: 'booking.read', name: 'booking.read', resource: 'booking', action: 'read', isActive: true }, { upsert: true, new: true }),
+      Permission.findOneAndUpdate({ key: 'driver.read' }, { key: 'driver.read', name: 'driver.read', resource: 'driver', action: 'read', isActive: true }, { upsert: true, new: true }),
+      Permission.findOneAndUpdate({ key: 'vehicle.read' }, { key: 'vehicle.read', name: 'vehicle.read', resource: 'vehicle', action: 'read', isActive: true }, { upsert: true, new: true }),
+    ]);
+    await Staff.create({ user: staffUser._id, name: 'Assigning Staff', permissions: staffPerms.map((p) => p._id) });
 
     // Create customer and booking
     const user = await User.create({ role: 'customer', status: 'active', phone: `+1555000${Date.now().toString().slice(-6)}` });
@@ -92,7 +99,14 @@ describe('POST /api/v1/bookings/:id/assign-driver', function() {
     const staffUser = await User.create({ role: 'staff', status: 'active', phone: `+15553${Date.now().toString().slice(-6)}` });
     const staffAuth = `Bearer ${staffUser.generateAccessToken()}`;
     const Staff = (await import('../src/models/staff.model.js')).default;
-    await Staff.create({ user: staffUser._id, name: 'Assigning Staff' });
+    const Permission = (await import('../src/models/permission.model.js')).default;
+    const staffPerms = await Promise.all([
+      Permission.findOneAndUpdate({ key: 'booking.assign' }, { key: 'booking.assign', name: 'booking.assign', resource: 'booking', action: 'assign', isActive: true }, { upsert: true, new: true }),
+      Permission.findOneAndUpdate({ key: 'booking.read' }, { key: 'booking.read', name: 'booking.read', resource: 'booking', action: 'read', isActive: true }, { upsert: true, new: true }),
+      Permission.findOneAndUpdate({ key: 'driver.read' }, { key: 'driver.read', name: 'driver.read', resource: 'driver', action: 'read', isActive: true }, { upsert: true, new: true }),
+      Permission.findOneAndUpdate({ key: 'vehicle.read' }, { key: 'vehicle.read', name: 'vehicle.read', resource: 'vehicle', action: 'read', isActive: true }, { upsert: true, new: true }),
+    ]);
+    await Staff.create({ user: staffUser._id, name: 'Assigning Staff', permissions: staffPerms.map((p) => p._id) });
 
     // Create customer and booking
     const user = await User.create({ role: 'customer', status: 'active', phone: `+1555001${Date.now().toString().slice(-6)}` });

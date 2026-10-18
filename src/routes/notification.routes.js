@@ -1,6 +1,7 @@
 import express from 'express';
 import * as notificationController from '../controllers/notification.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
+import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validation.middleware.js';
 import {
   sendCustomNotificationSchema,
@@ -29,6 +30,7 @@ router.post('/test', validate(testNotificationSchema), notificationController.te
 router.post(
   '/send',
   checkRole('staff', 'internal', 'super-admin'),
+  requirePermission('notification', 'send'),
   validate(sendCustomNotificationSchema),
   notificationController.sendCustomNotification
 );
@@ -36,6 +38,7 @@ router.post(
 router.post(
   '/send-bulk',
   checkRole('internal', 'super-admin'),
+  requirePermission('notification', 'send'),
   validate(sendBulkNotificationSchema),
   notificationController.sendBulkNotification
 );

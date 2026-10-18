@@ -1,6 +1,7 @@
 import express from 'express';
 import * as paymentController from '../controllers/payment.controller.js';
 import { verifyJWT, checkRole } from '../middlewares/auth.middleware.js';
+import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validation.middleware.js';
 import {
   createPaymentSchema,
@@ -40,6 +41,7 @@ router.get('/verify/:merchantTransactionId', validate(verifyPaymentParamsSchema)
 router.post(
   '/manual',
   checkRole('staff', 'internal', 'super-admin'),
+  requirePermission('payment', 'mark-received'),
   validate(manualPaymentSchema),
   paymentController.recordManualPayment
 );
@@ -47,6 +49,7 @@ router.post(
 router.post(
   '/:paymentId/refund',
   checkRole('internal', 'super-admin'),
+  requirePermission('payment', 'refund'),
   validate(refundPaymentSchema),
   paymentController.initiateRefund
 );
@@ -54,12 +57,13 @@ router.post(
 router.get(
   '/',
   checkRole('staff', 'internal', 'super-admin'),
+  requirePermission('payment', 'read'),
   validate(getPaymentsQuerySchema),
   paymentController.getAllPayments
 );
 
 router.get('/:id/invoice', paymentController.downloadInvoice);
 
-router.get('/:id', checkRole('customer', 'staff', 'internal', 'super-admin'), validate(paymentIdParamSchema), paymentController.getPaymentById);
+router.get('/:id', checkRole('customer', 'staff', 'internal', 'super-admin'), requirePermission('payment', 'read'), validate(paymentIdParamSchema), paymentController.getPaymentById);
 
 export default router;

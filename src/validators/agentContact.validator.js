@@ -33,5 +33,5 @@ export const agentContactIdParamSchema = z.object({
 });
 
 export const lookupAgentContactSchema = z.object({
-  query: z.object({ state: z.string().trim().min(1).max(100) })
+  query: z.object({ state: z.string().trim().max(100).optional() })
 });

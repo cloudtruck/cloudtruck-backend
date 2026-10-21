@@ -43,11 +43,13 @@ class AgentContactService {
 
   // Active contact for the state, else the organization's main phone, else null
   static async lookup(state) {
-    const match = await AgentContact.findOne({ state, isActive: true }).collation(CASE_INSENSITIVE);
-    if (match) return { state: match.state, phone: match.phone, isFallback: false };
+    if (state && typeof state === 'string' && state.trim()) {
+      const match = await AgentContact.findOne({ state: state.trim(), isActive: true }).collation(CASE_INSENSITIVE);
+      if (match) return { state: match.state, phone: match.phone, isFallback: false };
+    }
 
     const settings = await OrganizationSettings.findOne();
-    return { state, phone: settings?.contactDetails?.phone || null, isFallback: true };
+    return { state: state || null, phone: settings?.contactDetails?.phone || null, isFallback: true };
   }
 }
 

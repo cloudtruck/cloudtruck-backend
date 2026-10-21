@@ -7,6 +7,7 @@ import AuditLog from '../models/auditLog.model.js';
 import TrackingService from '../services/tracking.service.js';
 import PDFService from '../services/pdf.service.js';
 import OrganizationSettings from '../models/organizationSettings.model.js';
+import AgentContactService from '../services/agentContact.service.js';
 import cloudinary from '../config/cloudinary.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
@@ -475,8 +476,17 @@ export const getBookingById = asyncHandler(async (req, res) => {
   const booking = await BookingService.getBookingById(id, userId, userRole);
   const distanceTraveled = await TrackingService.calculateDistanceTraveled(booking._id);
 
+  let agentPhone = null;
+  try {
+    const pickupState = booking.pickup?.state || (booking.pickup?.address ? booking.pickup.address.split(',').slice(-1)[0]?.replace(/\b\d{6}\b/, '').replace(/India/i, '').trim() : null);
+    const agentContact = await AgentContactService.lookup(pickupState);
+    agentPhone = agentContact?.phone || null;
+  } catch (err) {
+    // fallback gracefully
+  }
+
   return res.status(200).json(
-    new ApiResponse(200, { ...mapBooking(booking), distanceTraveled }, 'Booking fetched successfully')
+    new ApiResponse(200, { ...mapBooking(booking), distanceTraveled, agentPhone }, 'Booking fetched successfully')
   );
 });
 

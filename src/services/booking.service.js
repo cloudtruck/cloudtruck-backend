@@ -166,6 +166,7 @@ class BookingService {
     let finalPickupLat = pickupLat;
     let finalPickupLng = pickupLng;
     let finalPickupAddress = pickupAddress;
+    let finalPickupState = pickupState;
     let pickupPlaceId = null;
 
     if (!pickupLat || !pickupLng) {
@@ -175,6 +176,7 @@ class BookingService {
         finalPickupLng = geocoded.longitude;
         finalPickupAddress = geocoded.formattedAddress;
         pickupPlaceId = geocoded.placeId;
+        if (!finalPickupState && geocoded.state) finalPickupState = geocoded.state;
       }
       // If geocoding unavailable, continue without coordinates
     } else {
@@ -182,6 +184,14 @@ class BookingService {
       if (reversed) {
         pickupPlaceId = reversed.placeId;
         if (!pickupAddress) finalPickupAddress = reversed.formattedAddress;
+        if (!finalPickupState && reversed.state) finalPickupState = reversed.state;
+      }
+    }
+
+    if (!finalPickupState && finalPickupAddress) {
+      const parts = finalPickupAddress.split(',').map(s => s.trim()).filter(Boolean);
+      if (parts.length > 1) {
+        finalPickupState = parts[parts.length - 1].replace(/\b\d{6}\b/, '').replace(/India/i, '').trim();
       }
     }
 
@@ -189,6 +199,7 @@ class BookingService {
     let finalDropLat = dropLat;
     let finalDropLng = dropLng;
     let finalDropAddress = dropAddress;
+    let finalDropState = dropState;
     let dropPlaceId = null;
 
     if (!dropLat || !dropLng) {
@@ -198,6 +209,7 @@ class BookingService {
         finalDropLng = geocoded.longitude;
         finalDropAddress = geocoded.formattedAddress;
         dropPlaceId = geocoded.placeId;
+        if (!finalDropState && geocoded.state) finalDropState = geocoded.state;
       }
       // If geocoding unavailable, continue without coordinates
     } else {
@@ -205,6 +217,14 @@ class BookingService {
       if (reversed) {
         dropPlaceId = reversed.placeId;
         if (!dropAddress) finalDropAddress = reversed.formattedAddress;
+        if (!finalDropState && reversed.state) finalDropState = reversed.state;
+      }
+    }
+
+    if (!finalDropState && finalDropAddress) {
+      const parts = finalDropAddress.split(',').map(s => s.trim()).filter(Boolean);
+      if (parts.length > 1) {
+        finalDropState = parts[parts.length - 1].replace(/\b\d{6}\b/, '').replace(/India/i, '').trim();
       }
     }
 
@@ -231,7 +251,7 @@ class BookingService {
           ...(lrNumber && { lrDetails: { lrNumber, lrDate: new Date() } }),
           pickup: {
             city: pickupCity,
-            state: pickupState,
+            state: finalPickupState,
             address: finalPickupAddress,
             pincode: pickupPincode || undefined,
             location: {
@@ -247,7 +267,7 @@ class BookingService {
           },
           drop: {
             city: dropCity,
-            state: dropState,
+            state: finalDropState,
             address: finalDropAddress,
             pincode: dropPincode || undefined,
             location: {
